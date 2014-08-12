@@ -89,16 +89,22 @@ class C(idl: IDL, options: Options) extends Target(idl, options) {
 
 static int __in = -1, __out = -1;
 
-${generateMessageLoop(List((idl.main, interface, "__in")), "__out")}
+${generateMessageLoop(List((idl.main, interface, "__out")), "__in")}
 
 int main(int argc, char* argv[]) {
 	int retval = 0;
 
+	${if (options.verbose) {
+		"\tfprintf(stderr, \"\\t[" + interface.name + "] opening " + pipeName(interface) + "\\n\");\n"
+	} else ""}
 	if ((__in = open("${pipeName(interface)}", O_RDONLY)) == -1) {
 		perror("open");
 		retval = 1;
 		goto cleanup;
 	}
+	${if (options.verbose) {
+		"\tfprintf(stderr, \"\\t[" + interface.name + "] opening " + pipeName(idl.main) + "\\n\");\n"
+	} else ""}
 	if ((__out = open("${pipeName(idl.main)}", O_WRONLY)) == -1) {
 		perror("open");
 		retval = 1;
@@ -108,11 +114,17 @@ int main(int argc, char* argv[]) {
 	__message_loop(-1);
 
 cleanup:
+	${if (options.verbose) {
+		"\tfprintf(stderr, \"\\t[" + interface.name + "] closing " + pipeName(interface) + "\\n\");\n"
+	} else ""}
 	if (__in != -1) {
 		if (close(__in) == -1) {
 			perror("close");
 		}
 	}
+	${if (options.verbose) {
+		"\tfprintf(stderr, \"\\t[" + interface.name + "] closing " + pipeName(idl.main) + "\\n\");\n"
+	} else ""}
 	if (__out != -1) {
 		if (close(__out) == -1) {
 			perror("close");
@@ -125,7 +137,7 @@ cleanup:
 		for (function <- idl.main.functions) {
 			builder ++= generateShim(function, idl.main, interface, "__out", "__in", false)
 		}
-		OutputFile(s"${interface.name}.c", builder.mkString)
+		OutputFile(s"${interface.name}_lib.c", builder.mkString)
 	}
 
 	private def generateMainHeader() = {
@@ -138,12 +150,31 @@ cleanup:
 	}
 
 	private def generateMainFile() = {
-		val openPipes = (idl.interfaces ++ List(idl.main)).map(interface => {
-s"""\tif ((__${pipeName(interface)} = open("${pipeName(interface)}", O_RDONLY)) == -1) {
+		val openPipes = idl.interfaces.map(interface => {
+			(if (options.verbose) {
+				s"""\tfprintf(stderr, "\\t[${idl.main.name}] opening ${pipeName(interface)}\\n");\n"""
+			} else {
+				""
+			}) +
+s"""\tif ((__${pipeName(interface)} = open("${pipeName(interface)}", O_WRONLY)) == -1) {
 		perror("open");
 		exit(1);
-	}"""}).mkString("\n")
+	}\n"""}).mkString("\n") +
+			(if (options.verbose) {
+				s"""\tfprintf(stderr, "\\t[${idl.main.name}] opening ${pipeName(idl.main)}\\n");\n"""
+			} else {
+				""
+			}) +
+s"""\tif ((__${pipeName(idl.main)} = open("${pipeName(idl.main)}", O_RDONLY)) == -1) {
+		perror("open");
+		exit(1);
+	}\n"""
 		val closePipes = (idl.interfaces ++ List(idl.main)).map(interface => {
+			(if (options.verbose) {
+				s"""\tfprintf(stderr, "\\t[${idl.main.name}] closing ${pipeName(interface)}\\n");\n"""
+			} else {
+				""
+			}) +
 s"""\tif (__${pipeName(interface)} != -1) {
 		if (close(__${pipeName(interface)}) == -1) {
 			perror("close");
@@ -166,9 +197,9 @@ extern "C" {
 void _start();
 
 void __entry();
-void __exit();
-long long __elapsed_time = 0;
-int ${idl.allInterfaces.map("__" + pipeName(_)).mkString(", ")};
+static void __exit();
+static long long __elapsed_time = 0;
+static int ${idl.allInterfaces.map("__" + pipeName(_)).mkString(", ")};
 
 #ifdef __cplusplus
 }
@@ -203,14 +234,14 @@ $closePipes
 			)
 		})
 		
-		OutputFile(s"${idl.main.name}.c", builder.mkString)
+		OutputFile(s"${idl.main.name}_lib.c", builder.mkString)
 	}
 
 	private def generateMessageLoop(interfaces: List[(Interface, Interface, String)], infd: String) = {
 		val builder = new StringBuilder
-		builder ++= s"""void __message_loop(int current_function) {
+		builder ++= s"""static void __message_loop(int current_function) {
 	int msgid, cookie;
-	while (read($infd, &msgid, sizeof(int)) == 4) {
+	while (read($infd, &msgid, sizeof(int)) == sizeof(int)) {
 		if (msgid == current_function) return;
 		switch (msgid) {\n"""
 		for ((caller, callee, outfd) <- interfaces) {
@@ -219,7 +250,7 @@ $closePipes
 				builder ++= s"\t\t\t\t// ${caller.name} -> ${callee.name}.${function.name}\n"
 				if (options.verbose) {
 					builder ++=
-						s"""\t\t\t\tfprintf(stderr, "\\tcalling ${function.name} begin\\n");\n"""
+						s"""\t\t\t\tfprintf(stderr, "\\t[${callee.name}] calling ${function.name} begin\\n");\n"""
 				}
 				for (param <- function.params) {
 					builder ++= (param.paramType match {
@@ -257,7 +288,7 @@ $closePipes
 				}
 				if (options.verbose) {
 					builder ++=
-						s"""\t\t\t\tfprintf(stderr, "\\tcalling ${function.name} end\\n");\n"""
+						s"""\t\t\t\tfprintf(stderr, "\\t[${callee.name}] calling ${function.name} end\\n");\n"""
 				}
 				builder ++= "\t\t\t\tbreak;\n"
 				builder ++= "\t\t\t}\n"
@@ -285,7 +316,7 @@ $closePipes
 		builder ++= " {\n"
 		if (options.verbose) {
 			builder ++=
-				s"""\t\t\t\tfprintf(stderr, "\\tinvoking ${function.name} begin\\n");\n"""
+				s"""\tfprintf(stderr, "\\t[${caller.name}] invoking ${function.name} begin\\n");\n"""
 		}
 		builder ++= "\tconst int msgid = "
 		builder ++= f"0x${functionIds((caller.name, callee.name, function.name))}%x;\n"
@@ -324,7 +355,7 @@ $closePipes
 
 		if (options.verbose) {
 			builder ++=
-				s"""\t\t\t\tfprintf(stderr, "\\tinvoking ${function.name} end\\n");\n"""
+				s"""\tfprintf(stderr, "\\t[${caller.name}] invoking ${function.name} end\\n");\n"""
 		}
 
 		if (function.returnType != PrimitiveType("void")) {
