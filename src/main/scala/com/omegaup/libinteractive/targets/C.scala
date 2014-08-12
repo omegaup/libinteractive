@@ -95,17 +95,17 @@ int main(int argc, char* argv[]) {
 	int retval = 0;
 
 	${if (options.verbose) {
-		"\tfprintf(stderr, \"\\t[" + interface.name + "] opening " + pipeName(interface) + "\\n\");\n"
+		"\tfprintf(stderr, \"\\t[" + interface.name + "] opening `" + pipeFilename(interface) + "'\\n\");\n"
 	} else ""}
-	if ((__in = open("${pipeName(interface)}", O_RDONLY)) == -1) {
+	if ((__in = open("${pipeFilename(interface)}", O_RDONLY)) == -1) {
 		perror("open");
 		retval = 1;
 		goto cleanup;
 	}
 	${if (options.verbose) {
-		"\tfprintf(stderr, \"\\t[" + interface.name + "] opening " + pipeName(idl.main) + "\\n\");\n"
+		"\tfprintf(stderr, \"\\t[" + interface.name + "] opening `" + pipeFilename(idl.main) + "'\\n\");\n"
 	} else ""}
-	if ((__out = open("${pipeName(idl.main)}", O_WRONLY)) == -1) {
+	if ((__out = open("${pipeFilename(idl.main)}", O_WRONLY)) == -1) {
 		perror("open");
 		retval = 1;
 		goto cleanup;
@@ -115,7 +115,7 @@ int main(int argc, char* argv[]) {
 
 cleanup:
 	${if (options.verbose) {
-		"\tfprintf(stderr, \"\\t[" + interface.name + "] closing " + pipeName(interface) + "\\n\");\n"
+		"\tfprintf(stderr, \"\\t[" + interface.name + "] closing `" + pipeFilename(interface) + "'\\n\");\n"
 	} else ""}
 	if (__in != -1) {
 		if (close(__in) == -1) {
@@ -123,7 +123,7 @@ cleanup:
 		}
 	}
 	${if (options.verbose) {
-		"\tfprintf(stderr, \"\\t[" + interface.name + "] closing " + pipeName(idl.main) + "\\n\");\n"
+		"\tfprintf(stderr, \"\\t[" + interface.name + "] closing `" + pipeFilename(idl.main) + "'\\n\");\n"
 	} else ""}
 	if (__out != -1) {
 		if (close(__out) == -1) {
@@ -152,26 +152,26 @@ cleanup:
 	private def generateMainFile() = {
 		val openPipes = idl.interfaces.map(interface => {
 			(if (options.verbose) {
-				s"""\tfprintf(stderr, "\\t[${idl.main.name}] opening ${pipeName(interface)}\\n");\n"""
+				s"""\tfprintf(stderr, "\\t[${idl.main.name}] opening `${pipeFilename(interface)}'\\n");\n"""
 			} else {
 				""
 			}) +
-s"""\tif ((__${pipeName(interface)} = open("${pipeName(interface)}", O_WRONLY)) == -1) {
+s"""\tif ((__${pipeName(interface)} = open("${pipeFilename(interface)}", O_WRONLY)) == -1) {
 		perror("open");
 		exit(1);
 	}\n"""}).mkString("\n") +
 			(if (options.verbose) {
-				s"""\tfprintf(stderr, "\\t[${idl.main.name}] opening ${pipeName(idl.main)}\\n");\n"""
+				s"""\tfprintf(stderr, "\\t[${idl.main.name}] opening `${pipeFilename(idl.main)}'\\n");\n"""
 			} else {
 				""
 			}) +
-s"""\tif ((__${pipeName(idl.main)} = open("${pipeName(idl.main)}", O_RDONLY)) == -1) {
+s"""\tif ((__${pipeName(idl.main)} = open("${pipeFilename(idl.main)}", O_RDONLY)) == -1) {
 		perror("open");
 		exit(1);
 	}\n"""
 		val closePipes = (idl.interfaces ++ List(idl.main)).map(interface => {
 			(if (options.verbose) {
-				s"""\tfprintf(stderr, "\\t[${idl.main.name}] closing ${pipeName(interface)}\\n");\n"""
+				s"""\tfprintf(stderr, "\\t[${idl.main.name}] closing `${pipeFilename(interface)}'\\n");\n"""
 			} else {
 				""
 			}) +

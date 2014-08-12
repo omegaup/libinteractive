@@ -1,15 +1,18 @@
 package com.omegaup.libinteractive.target
 
+import java.io.File
 import java.util.Random
 
 import com.omegaup.libinteractive.idl.IDL
 import com.omegaup.libinteractive.idl.Interface
 
-class Options {
-	var verbose: Boolean = false
-	var seed: Long = System.currentTimeMillis
-	var sequentialIds: Boolean = false
-}
+case class Options(
+	idlFile: File = new File("."),
+	outputDirectory: File = new File("."),
+	seed: Long = System.currentTimeMillis,
+	sequentialIds: Boolean = false,
+	verbose: Boolean = false
+)
 
 case class OutputFile(filename: String, contents: String) {
 	override def toString() = {
@@ -33,6 +36,13 @@ abstract class Target(idl: IDL, options: Options) {
 			currentId
 		} else {
 			rand.nextInt
+		}
+	}
+
+	protected def pipeFilename(interface: Interface) = {
+		interface.name match {
+			case "Main" => "Main_pipes/out"
+			case name: String => s"${name}_pipes/in"
 		}
 	}
 

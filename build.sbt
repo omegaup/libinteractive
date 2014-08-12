@@ -14,5 +14,8 @@ packageOptions in (Compile, packageBin) +=
     Package.ManifestAttributes( java.util.jar.Attributes.Name.MAIN_CLASS -> "com.omegaup.libinteractive.Main" )
 
 libraryDependencies ++= Seq(
+	"com.github.scopt" %% "scopt" % "3.2.0",
 	"org.scalatest" %% "scalatest" % "2.2.1" % "test"
 )
+
+resolvers += Resolver.sonatypeRepo("public")
