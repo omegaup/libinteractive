@@ -295,7 +295,7 @@ $closePipes
 			}
 		}
 		builder ++= """			default: {
-				fprintf(stderr, "Unknown message id %d\\n", msgid);
+				fprintf(stderr, "Unknown message id 0x%x\\n", msgid);
 				exit(1);
 			}
 		}

@@ -6,9 +6,20 @@ import java.util.Random
 import com.omegaup.libinteractive.idl.IDL
 import com.omegaup.libinteractive.idl.Interface
 
+object Command extends Enumeration {
+	type Command = Value
+	val Verify, Generate = Value
+}
+import Command.Command
+
 case class Options(
+	childLang: String = "c",
+	command: Command = Command.Verify,
 	idlFile: File = new File("."),
+	makefile: Boolean = false,
+	moduleName: String = "",
 	outputDirectory: File = new File("."),
+	parentLang: String = "c",
 	seed: Long = System.currentTimeMillis,
 	sequentialIds: Boolean = false,
 	verbose: Boolean = false
