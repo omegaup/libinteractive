@@ -40,6 +40,12 @@ object Main {
 				opt[Unit]("verbose") action { (_, c) => c.copy(verbose = true) } text
 						("add verbose logging information to the generated shims")
 			)
+			checkConfig { c => {
+				if (c.idlFile == null)
+					failure("An .idl file must be chosen.")
+				else
+					success
+			}}
 		}
 
 		optparse.parse(args, Options()) map { rawOptions => {

@@ -15,7 +15,7 @@ import Command.Command
 case class Options(
 	childLang: String = "c",
 	command: Command = Command.Verify,
-	idlFile: File = new File("."),
+	idlFile: File = null,
 	makefile: Boolean = false,
 	moduleName: String = "",
 	outputDirectory: File = new File("."),
