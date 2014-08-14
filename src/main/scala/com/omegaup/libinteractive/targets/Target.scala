@@ -20,6 +20,7 @@ case class Options(
 	moduleName: String = "",
 	outputDirectory: File = new File("."),
 	parentLang: String = "c",
+	pipeDirectories: Boolean = false,
 	seed: Long = System.currentTimeMillis,
 	sequentialIds: Boolean = false,
 	verbose: Boolean = false
@@ -30,6 +31,8 @@ case class OutputFile(filename: String, contents: String) {
 		s"""OutputFile("$filename", "${contents}")"""
 	}
 }
+
+case class MakefileRule(target: String, requisites: Iterable[String], command: String)
 
 abstract class Target(idl: IDL, options: Options) {
 	protected val rand = new Random(options.seed)
@@ -51,21 +54,29 @@ abstract class Target(idl: IDL, options: Options) {
 	}
 
 	protected def pipeFilename(interface: Interface) = {
-		interface.name match {
-			case "Main" => "Main_pipes/out"
-			case name: String => s"${name}_pipes/in"
+		if (options.pipeDirectories) {
+			interface.name match {
+				case "Main" => "Main_pipes/out"
+				case name: String => s"${name}_pipes/in"
+			}
+		} else {
+			interface.name match {
+				case "Main" => "out"
+				case name: String => s"${name}_in"
+			}
 		}
 	}
 
 	protected def pipeName(interface: Interface) = {
 		interface.name match {
-			case "Main" => "out"
-			case name: String => s"${name}_in"
+			case "Main" => "__out"
+			case name: String => s"__${name}_in"
 		}
 	}
 
-	def generateParent(): Iterable[OutputFile]
-	def generateChildren(): Iterable[OutputFile]
+	def generate(): Iterable[OutputFile]
+	def generateMakefileRules(): Iterable[MakefileRule]
+	def generateRunCommands(): Iterable[Array[String]]
 }
 
 /* vim: set noexpandtab: */

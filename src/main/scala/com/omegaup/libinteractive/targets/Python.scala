@@ -4,14 +4,28 @@ import scala.collection.mutable.StringBuilder
 
 import com.omegaup.libinteractive.idl._
 
-class Python(idl: IDL, options: Options) extends Target(idl, options) {
-	override def generateParent() = {
-		throw new UnsupportedOperationException("generateParent")
+class Python(idl: IDL, options: Options, parent: Boolean) extends Target(idl, options) {
+	override def generate() = {
+		if (parent) {
+			throw new UnsupportedOperationException("generateParent")
+		} else {
+			idl.interfaces.flatMap(interface =>
+				List(generateLib(interface), generate(interface))
+			)
+		}
 	}
 
-	override def generateChildren() = {
-		idl.interfaces.flatMap(interface => 
-			List(generateLib(interface), generate(interface))
+	override def generateMakefileRules() = {
+		List.empty[MakefileRule]
+	}
+
+	override def generateRunCommands() = {
+		(if (parent) {
+			List(idl.main)
+		} else {
+			idl.interfaces
+		}).map(interface =>
+			Array("/usr/bin/python", s"${interface.name}_entry.py")
 		)
 	}
 

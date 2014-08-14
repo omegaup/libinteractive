@@ -33,6 +33,8 @@ object Main {
 						("the language in which the submission is written"),
 				opt[Unit]("makefile") action { (_, c) => c.copy(makefile = true) } text
 						("also generate a Makefile"),
+				opt[Unit]("pipe-dirs") action { (_, c) => c.copy(pipeDirectories = true) } text
+						("use separate directories for each pipe"),
 				opt[Unit]("sequential-ids") action { (_, c) => c.copy(sequentialIds = true) } text
 						("use sequential (instead of random) IDs for functions"),
 				opt[Unit]("verbose") action { (_, c) => c.copy(verbose = true) } text
@@ -51,9 +53,19 @@ object Main {
 			val idl = Parser(Source.fromFile(options.idlFile).mkString)
 			options.command match {
 				case Command.Generate => {
-					val parent = target(options.parentLang, idl, options)
-					val child = target(options.childLang, idl, options)
-					for (output <- parent.generateParent ++ child.generateChildren) {
+					val parent = target(options.parentLang, idl, options, true)
+					val child = target(options.childLang, idl, options, false)
+
+					val originalTargets = List(parent, child)
+					val targetList = if (options.makefile) {
+						originalTargets ++ List(new Makefile(idl,
+							originalTargets.flatMap(_.generateMakefileRules),
+							originalTargets.flatMap(_.generateRunCommands), options))
+					} else {
+						originalTargets
+					}
+
+					for (output <- targetList.flatMap(_.generate)) {
 						val targetFile = new File(options.outputDirectory, output.filename)
 						val out = new BufferedWriter(new FileWriter(targetFile))
 						out.write(output.contents)
@@ -68,13 +80,13 @@ object Main {
 		}
 	}
 
-	def target(lang: String, idl: IDL, options: Options): Target = {
+	def target(lang: String, idl: IDL, options: Options, parent: Boolean): Target = {
 		lang match {
-			case "c" => new C(idl, options)
-			case "cpp" => new C(idl, options)
+			case "c" => new C(idl, options, parent)
+			case "cpp" => new Cpp(idl, options, parent)
 			case "java" => new Java(idl, options)
 			case "pas" => new Pascal(idl, options)
-			case "py" => new Python(idl, options)
+			case "py" => new Python(idl, options, parent)
 			case "rb" => new Ruby(idl, options)
 		}
 	}

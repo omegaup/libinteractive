@@ -4,16 +4,46 @@ import scala.collection.mutable.StringBuilder
 
 import com.omegaup.libinteractive.idl._
 
-class C(idl: IDL, options: Options) extends Target(idl, options) {
-	override def generateParent() = {
-		List(generateMainHeader, generateMainFile)
+class C(idl: IDL, options: Options, parent: Boolean) extends Target(idl, options) {
+	override def generate() = {
+		if (parent) {
+			List(generateMainHeader, generateMainFile)
+		} else {
+			idl.interfaces.flatMap(interface =>
+				List(generateHeader(interface), generate(interface))
+			)
+		}
 	}
 
-	override def generateChildren() = {
-		idl.interfaces.flatMap(interface => 
-			List(generateHeader(interface), generate(interface))
+	override def generateMakefileRules() = {
+		(if (parent) {
+			List(idl.main)
+		} else {
+			idl.interfaces
+		}).map(interface =>
+			MakefileRule(interface.name,
+				List(s"${interface.name}.$extension", s"${interface.name}_lib.$extension"),
+				s"$compiler $cflags -o ${interface.name} -lrt ${interface.name}.$extension " +
+				s"${interface.name}_lib.$extension -O2 -Wl,-e__entry -D_XOPEN_SOURCE=600 " +
+				"-Wno-unused-result -Wall")
 		)
 	}
+
+	override def generateRunCommands() = {
+		(if (parent) {
+			List(idl.main)
+		} else {
+			idl.interfaces
+		}).map(interface =>
+			Array(s"./${interface.name}")
+		)
+	}
+
+	def extension() = "c"
+
+	def compiler() = "/usr/bin/gcc"
+
+	def cflags() = "-std=c99"
 
 	private def arrayDim(e: Expression) = s"[${e.value}]"
 
@@ -110,7 +140,7 @@ int main(int argc, char* argv[]) {
 		retval = 1;
 		goto cleanup;
 	}
-        
+
 	__message_loop(-1);
 
 cleanup:
@@ -137,7 +167,7 @@ cleanup:
 		for (function <- idl.main.functions) {
 			builder ++= generateShim(function, idl.main, interface, "__out", "__in", false)
 		}
-		OutputFile(s"${interface.name}_lib.c", builder.mkString)
+		OutputFile(s"${interface.name}_lib.$extension", builder.mkString)
 	}
 
 	private def generateMainHeader() = {
@@ -156,7 +186,7 @@ cleanup:
 			} else {
 				""
 			}) +
-s"""\tif ((__${pipeName(interface)} = open("${pipeFilename(interface)}", O_WRONLY)) == -1) {
+s"""\tif ((${pipeName(interface)} = open("${pipeFilename(interface)}", O_WRONLY)) == -1) {
 		perror("open");
 		exit(1);
 	}\n"""}).mkString("\n") +
@@ -165,7 +195,7 @@ s"""\tif ((__${pipeName(interface)} = open("${pipeFilename(interface)}", O_WRONL
 			} else {
 				""
 			}) +
-s"""\tif ((__${pipeName(idl.main)} = open("${pipeFilename(idl.main)}", O_RDONLY)) == -1) {
+s"""\tif ((${pipeName(idl.main)} = open("${pipeFilename(idl.main)}", O_RDONLY)) == -1) {
 		perror("open");
 		exit(1);
 	}\n"""
@@ -175,8 +205,8 @@ s"""\tif ((__${pipeName(idl.main)} = open("${pipeFilename(idl.main)}", O_RDONLY)
 			} else {
 				""
 			}) +
-s"""\tif (__${pipeName(interface)} != -1) {
-		if (close(__${pipeName(interface)}) == -1) {
+s"""\tif (${pipeName(interface)} != -1) {
+		if (close(${pipeName(interface)}) == -1) {
 			perror("close");
 		}
 	}"""}).mkString("\n")
@@ -199,7 +229,7 @@ void _start();
 void __entry();
 static void __exit();
 static long long __elapsed_time = 0;
-static int ${idl.allInterfaces.map("__" + pipeName(_)).mkString(", ")};
+static int ${idl.allInterfaces.map(pipeName).mkString(", ")};
 
 #ifdef __cplusplus
 }
@@ -223,18 +253,18 @@ $closePipes
 """
 		builder ++= generateMessageLoop(
 			idl.interfaces.map{
-				interface => (interface, idl.main, "__" + pipeName(interface))
+				interface => (interface, idl.main, pipeName(interface))
 			},
-			"__" + pipeName(idl.main)
+			pipeName(idl.main)
 		)
 		idl.interfaces.foreach(interface => {
 			interface.functions.foreach(
-				builder ++= generateShim(_, interface, idl.main, "__" + pipeName(interface),
-					"__" + pipeName(idl.main), true)
+				builder ++= generateShim(_, interface, idl.main, pipeName(interface),
+					pipeName(idl.main), true)
 			)
 		})
 		
-		OutputFile(s"${idl.main.name}_lib.c", builder.mkString)
+		OutputFile(s"${idl.main.name}_lib.$extension", builder.mkString)
 	}
 
 	private def generateMessageLoop(interfaces: List[(Interface, Interface, String)], infd: String) = {
@@ -365,6 +395,14 @@ $closePipes
 
 		builder
 	}
+}
+
+class Cpp(idl: IDL, options: Options, parent: Boolean) extends C(idl, options, parent) {
+	override def extension() = "cpp"
+
+	override def compiler() = "/usr/bin/g++"
+
+	override def cflags() = "-std=c++11"
 }
 
 /* vim: set noexpandtab: */
