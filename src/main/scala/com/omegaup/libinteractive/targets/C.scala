@@ -271,7 +271,7 @@ $closePipes
 	private def generateMessageLoop(interfaces: List[(Interface, Interface, String)], infd: String) = {
 		val builder = new StringBuilder
 		builder ++= s"""static void __message_loop(int current_function) {
-	int msgid, cookie;
+	int msgid;
 	while (read($infd, &msgid, sizeof(int)) == sizeof(int)) {
 		if (msgid == current_function) return;
 		switch (msgid) {\n"""
@@ -296,6 +296,7 @@ $closePipes
 						}
 					})
 				}
+				builder ++= s"\t\t\t\tint cookie;\n"
 				builder ++= s"\t\t\t\tread($infd, &cookie, sizeof(int));\n"
 				builder ++= (if (function.returnType == PrimitiveType("void")) {
 					"\t\t\t\t"
