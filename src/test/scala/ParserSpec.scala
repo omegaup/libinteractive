@@ -15,6 +15,18 @@ class ParserSpec extends FlatSpec with Matchers {
 		idl.interfaces(0).name should be ("child")
 	}
 
+	"Parser" should "support comments" in {
+		val idl = Parser("""
+			// This is a comment. interface
+			interface Main {
+			};
+			/*
+			interface child {
+			};*/""")
+
+		idl.interfaces.length should be (0)
+	}
+
 	it should "parse function declarations" in {
 		val idl = Parser("""
 			interface Main {

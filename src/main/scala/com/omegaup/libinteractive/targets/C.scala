@@ -16,17 +16,20 @@ class C(idl: IDL, options: Options, parent: Boolean) extends Target(idl, options
 	}
 
 	override def generateMakefileRules() = {
-		(if (parent) {
-			List(idl.main)
+		if (parent) {
+			List(MakefileRule(idl.main.name,
+				List(s"${idl.main.name}.$extension", s"${idl.main.name}_lib.$extension"),
+				s"$compiler $cflags -o ${idl.main.name} -lrt ${idl.main.name}.$extension " +
+				s"${idl.main.name}_lib.$extension -O2 -Wl,-e__entry -D_XOPEN_SOURCE=600 " +
+				"-Wno-unused-result -Wall"))
 		} else {
-			idl.interfaces
-		}).map(interface =>
-			MakefileRule(interface.name,
-				List(s"${interface.name}.$extension", s"${interface.name}_lib.$extension"),
-				s"$compiler $cflags -o ${interface.name} -lrt ${interface.name}.$extension " +
-				s"${interface.name}_lib.$extension -O2 -Wl,-e__entry -D_XOPEN_SOURCE=600 " +
-				"-Wno-unused-result -Wall")
-		)
+			idl.interfaces.map(interface =>
+				MakefileRule(interface.name,
+					List(s"${interface.name}.$extension", s"${interface.name}_lib.$extension"),
+					s"$compiler $cflags -o ${interface.name} -lrt " +
+					s"${interface.name}.$extension ${interface.name}_lib.$extension -O2 " +
+					"-D_XOPEN_SOURCE=600 -Wno-unused-result -Wall"))
+		}
 	}
 
 	override def generateRunCommands() = {
@@ -246,8 +249,6 @@ $openPipes
 
 void __exit() {
 $closePipes
-
-	fprintf(stderr, "elapsed time: %lldns\\n", __elapsed_time);
 }
 
 """

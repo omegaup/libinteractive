@@ -199,7 +199,9 @@ int main(int argc, char* argv[]) {
 					if (buffers[i].buf[j] == '\\n') {
 						buffers[i].buf[j] = '\\0';
 						if (i == 0) {
-							if (isatty(1)) {
+							if (isatty(1) && isatty(2)) {
+								fprintf(stderr, "\\033[1m[%${maxNameLength}s]\\033[0m %s\\n", interfaces[i / 2], buffers[i].buf + off);
+							} else if (isatty(1)) {
 								fprintf(stdout, "\\033[1m[%${maxNameLength}s]\\033[0m %s\\n", interfaces[i / 2], buffers[i].buf + off);
 							} else {
 								fprintf(stdout, "%s\\n", buffers[i].buf + off);
