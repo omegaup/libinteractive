@@ -1,4 +1,5 @@
-# libinteractive
+libinteractive
+==============
 
 A tiny IDL translator that creates IPC shims to easily create interactive problems.
 
@@ -6,42 +7,45 @@ You can grab the latest `.jar` from https://omegaup.com/libinteractive.jar
 
 Let's say your problem's name is `sum`. if you have your validator in `Main.cpp` and your solution in `sum.py`, you can do
 
-    $ ls
-    Main.cpp sum.py sum.idl
-    
-    $ cat Main.cpp
-    #include <stdio.h>
-    #include "sum.h"
-    
-    int main(int argc, char* argv[]) {
-        printf("%d\n", sum(1, 2));
-    }
-    
-    $ cat sum.py
-    def sum(a, b):
-        print 'Hello, world!'
-        return a + b
-        
-    $ cat sum.idl
-    interface Main {
-    }
-    
-    interface sum {
-        int sum(int a, int b);
-    }
-    
-    $ java -jar libinteractive.jar generate sum.idl cpp py --makefile
-    $ make
-    $ ./run < input
-    [Main] 3
-    [ sum] Hello, world!
+``` console
+$ ls
+Main.cpp sum.py sum.idl
 
-    Memory:   5.023 MB
-    Time:     0.011 s
+$ cat Main.cpp
+#include <stdio.h>
+#include "sum.h"
+
+int main(int argc, char* argv[]) {
+    printf("%d\n", sum(1, 2));
+}
+
+$ cat sum.py
+def sum(a, b):
+    print 'Hello, world!'
+    return a + b
+    
+$ cat sum.idl
+interface Main {
+}
+
+interface sum {
+    int sum(int a, int b);
+}
+
+$ java -jar libinteractive.jar generate sum.idl cpp py --makefile
+$ make
+$ ./run < input
+[Main] 3
+[ sum] Hello, world!
+
+Memory:   5.023 MB
+Time:     0.011 s
+```
 
 You can also add a --verbose flag to libinteractive to print a message every time an IPC call is made.
 
-## How it works
+How it works
+------------
 
 libinteractive parses the .idl file, which is a description of how the problemsetter and contestant's code
 are to be compiled, and which functions can be used to interact between them. It then generates all the
