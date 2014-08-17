@@ -25,8 +25,18 @@ class Python(idl: IDL, options: Options, parent: Boolean) extends Target(idl, op
 		} else {
 			idl.interfaces
 		}).map(interface =>
-			Array("/usr/bin/python", s"${interface.name}_entry.py")
+			Array("/usr/bin/python", s"${interface.name}/${interface.name}_entry.py")
 		)
+	}
+
+	override def createWorkDirs() = {
+		if (parent) {
+			createWorkDir(idl.main, s"Main.py")
+		} else {
+			for (interface <- idl.interfaces) {
+				createWorkDir(interface, s"${options.moduleName}.py")
+			}
+		}
 	}
 
 	def structFormat(formatType: Type): String = {
@@ -105,15 +115,15 @@ if __name__ == '__main__':
 		builder ++= "\t" * indentLevel +
 				s"""with open("${pipeFilename(idl.main)}", 'rb') as ${pipeName(idl.main)}:\n"""
 		indentLevel += 1
-		builder ++= "\t" * indentLevel + s"import ${idl.main.name}_lib\n"
+		builder ++= "\t" * indentLevel + s"import ${options.moduleName}\n"
 		idl.interfaces.foreach(interface =>
-			builder ++= "\t" * indentLevel + s"${idl.main.name}_lib.${pipeName(interface).substring(2)} = ${pipeName(interface)}\n"
+			builder ++= "\t" * indentLevel + s"${options.moduleName}.${pipeName(interface).substring(2)} = ${pipeName(interface)}\n"
 		)
-		builder ++= "\t" * indentLevel + s"${idl.main.name}_lib.${pipeName(idl.main).substring(2)} = ${pipeName(idl.main)}\n"
-		builder ++= "\t" * indentLevel + s"${idl.main.name}_lib.message_loop = __message_loop\n"
+		builder ++= "\t" * indentLevel + s"${options.moduleName}.${pipeName(idl.main).substring(2)} = ${pipeName(idl.main)}\n"
+		builder ++= "\t" * indentLevel + s"${options.moduleName}.message_loop = __message_loop\n"
 		builder ++= "\t" * indentLevel + s"import ${idl.main.name}\n"
 
-		OutputFile(s"${idl.main.name}_entry.py", builder.mkString)
+		OutputFile(s"${idl.main.name}/${idl.main.name}_entry.py", builder.mkString)
 	}
 
 	private def generateMainLib() = {
@@ -139,7 +149,7 @@ elapsed_time = 0
 					pipeName(interface).substring(2), pipeName(idl.main).substring(2), true)
 			)
 		})
-		OutputFile(s"${idl.main.name}_lib.py", builder.mkString)
+		OutputFile(s"${idl.main.name}/${options.moduleName}.py", builder.mkString)
 	}
 
 	private def generateLib(interface: Interface) = {
@@ -158,7 +168,7 @@ message_loop = None
 		for (function <- idl.main.functions) {
 			builder ++= generateShim(function, idl.main, interface, "fout", "fin", false)
 		}
-		OutputFile(s"${interface.name}_lib.py", builder.mkString)
+		OutputFile(s"${interface.name}/${idl.main.name}.py", builder.mkString)
 	}
 
 	private def generate(interface: Interface) = {
@@ -181,14 +191,14 @@ if __name__ == '__main__':
 		"\tprint>>sys.stderr, \"\\t[" + interface.name + "] opening `" + pipeFilename(idl.main) + "'\""
 	} else ""}
 		with open("${pipeFilename(idl.main)}", 'wb') as __fout:
-			import ${interface.name}_lib
-			${interface.name}_lib.fin = __fin
-			${interface.name}_lib.fout = __fout
-			${interface.name}_lib.message_loop = __message_loop
+			import ${options.moduleName}
+			${options.moduleName}.fin = __fin
+			${options.moduleName}.fout = __fout
+			${options.moduleName}.message_loop = __message_loop
 			from ${options.moduleName} import ${interface.functions.map(_.name).mkString(", ")}
 			__message_loop(-1)
 """
-		OutputFile(s"${interface.name}_entry.py", builder.mkString)
+		OutputFile(s"${interface.name}/${interface.name}_entry.py", builder.mkString)
 	}
 
 	private def generateMessageLoop(interfaces: List[(Interface, Interface, String)], infd: String) = {

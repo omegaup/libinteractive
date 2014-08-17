@@ -71,6 +71,8 @@ object Main {
 						originalTargets
 					}
 
+					targetList.foreach(_.createWorkDirs)
+
 					for (output <- targetList.flatMap(_.generate)) {
 						val targetFile = new File(options.outputDirectory, output.filename)
 						val out = new BufferedWriter(new FileWriter(targetFile))
