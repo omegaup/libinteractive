@@ -88,7 +88,7 @@ object Main {
 		lang match {
 			case "c" => new C(idl, options, parent)
 			case "cpp" => new Cpp(idl, options, parent)
-			case "java" => new Java(idl, options)
+			case "java" => new Java(idl, options, parent)
 			case "pas" => new Pascal(idl, options)
 			case "py" => new Python(idl, options, parent)
 			case "rb" => new Ruby(idl, options)
