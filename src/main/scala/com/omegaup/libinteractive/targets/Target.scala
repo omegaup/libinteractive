@@ -1,9 +1,13 @@
 package com.omegaup.libinteractive.target
 
 import java.io.File
+import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.Random
+
+import scala.collection.JavaConversions.asJavaIterable
 
 import com.omegaup.libinteractive.idl.IDL
 import com.omegaup.libinteractive.idl.Interface
@@ -20,7 +24,7 @@ case class Options(
 	idlFile: File = null,
 	makefile: Boolean = false,
 	moduleName: String = "",
-	outputDirectory: File = new File("."),
+	outputDirectory: Path = Paths.get("libinteractive"),
 	parentLang: String = "c",
 	pipeDirectories: Boolean = false,
 	seed: Long = System.currentTimeMillis,
@@ -28,13 +32,41 @@ case class Options(
 	verbose: Boolean = false
 )
 
-case class OutputFile(filename: String, contents: String) {
-	override def toString() = {
-		s"""OutputFile("$filename", "${contents}")"""
+abstract class OutputPath(path: Path) {
+	def install(root: Path): Unit
+}
+
+case class OutputDirectory(path: Path) extends OutputPath(path) {
+	override def install(root: Path) {
+		val directory = root.resolve(path).normalize
+		if (!Files.exists(directory)) {
+			Files.createDirectory(directory)
+		}
 	}
 }
 
-case class MakefileRule(target: String, requisites: Iterable[String], command: String)
+case class OutputFile(path: Path, contents: String) extends OutputPath(path) {
+	override def install(root: Path) {
+		Files.write(root.resolve(path), List(contents), StandardCharsets.UTF_8)
+	}
+}
+
+case class OutputMakefile(path: Path, contents: String) extends OutputPath(path) {
+	override def install(root: Path) {
+		Files.write(path, List(contents), StandardCharsets.UTF_8)
+	}
+}
+
+case class OutputLink(path: Path, target: Path) extends OutputPath(path) {
+	override def install(root: Path) {
+		val link = root.resolve(path)
+		if (!Files.exists(link)) {
+			Files.createSymbolicLink(link, link.relativize(root.resolve(target)))
+		}
+	}
+}
+
+case class MakefileRule(target: Path, requisites: Iterable[Path], command: String)
 
 abstract class Target(idl: IDL, options: Options) {
 	protected val rand = new Random(options.seed)
@@ -76,23 +108,9 @@ abstract class Target(idl: IDL, options: Options) {
 		}
 	}
 
-	def generate(): Iterable[OutputFile]
+	def generate(): Iterable[OutputPath]
 	def generateMakefileRules(): Iterable[MakefileRule]
 	def generateRunCommands(): Iterable[Array[String]]
-	def createWorkDirs(): Unit
-
-	protected def createWorkDir(interface: Interface, originalSource: String) = {
-		val workdir = new File(options.outputDirectory, interface.name)
-		if (!workdir.exists) {
-			workdir.mkdir
-		}
-		val targetSource = new File(workdir, originalSource)
-		if (!targetSource.exists) {
-			Files.createSymbolicLink(
-				targetSource.toPath,
-				Paths.get("..", originalSource))
-		}
-	}
 }
 
 /* vim: set noexpandtab: */

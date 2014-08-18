@@ -1,5 +1,7 @@
 package com.omegaup.libinteractive.target
 
+import java.nio.file.Paths
+
 import scala.collection.mutable.StringBuilder
 
 import com.omegaup.libinteractive.idl._
@@ -7,10 +9,20 @@ import com.omegaup.libinteractive.idl._
 class Python(idl: IDL, options: Options, parent: Boolean) extends Target(idl, options) {
 	override def generate() = {
 		if (parent) {
-			List(generateMainLib(), generateMain())
+			val mainFile = s"${idl.main.name}.py"
+			List(
+				new OutputDirectory(Paths.get(idl.main.name)),
+				new OutputLink(Paths.get(idl.main.name, mainFile), Paths.get(mainFile)),
+				generateMainLib,
+				generateMain)
 		} else {
+			val moduleFile = s"${options.moduleName}.py"
 			idl.interfaces.flatMap(interface =>
-				List(generateLib(interface), generate(interface))
+				List(
+					new OutputDirectory(Paths.get(interface.name)),
+					new OutputLink(Paths.get(interface.name, moduleFile), Paths.get(moduleFile)),
+					generateLib(interface),
+					generate(interface))
 			)
 		}
 	}
@@ -25,18 +37,9 @@ class Python(idl: IDL, options: Options, parent: Boolean) extends Target(idl, op
 		} else {
 			idl.interfaces
 		}).map(interface =>
-			Array("/usr/bin/python", s"${interface.name}/${interface.name}_entry.py")
+			Array("/usr/bin/python", options.outputDirectory.resolve(
+				Paths.get(interface.name, s"${interface.name}_entry.py")).toString)
 		)
-	}
-
-	override def createWorkDirs() = {
-		if (parent) {
-			createWorkDir(idl.main, s"Main.py")
-		} else {
-			for (interface <- idl.interfaces) {
-				createWorkDir(interface, s"${options.moduleName}.py")
-			}
-		}
 	}
 
 	def structFormat(formatType: Type): String = {
@@ -123,7 +126,9 @@ if __name__ == '__main__':
 		builder ++= "\t" * indentLevel + s"${options.moduleName}.message_loop = __message_loop\n"
 		builder ++= "\t" * indentLevel + s"import ${idl.main.name}\n"
 
-		OutputFile(s"${idl.main.name}/${idl.main.name}_entry.py", builder.mkString)
+		OutputFile(
+			Paths.get(idl.main.name, s"${idl.main.name}_entry.py"),
+			builder.mkString)
 	}
 
 	private def generateMainLib() = {
@@ -149,7 +154,9 @@ elapsed_time = 0
 					pipeName(interface).substring(2), pipeName(idl.main).substring(2), true)
 			)
 		})
-		OutputFile(s"${idl.main.name}/${options.moduleName}.py", builder.mkString)
+		OutputFile(
+			Paths.get(idl.main.name, s"${options.moduleName}.py"),
+			builder.mkString)
 	}
 
 	private def generateLib(interface: Interface) = {
@@ -168,7 +175,7 @@ message_loop = None
 		for (function <- idl.main.functions) {
 			builder ++= generateShim(function, idl.main, interface, "fout", "fin", false)
 		}
-		OutputFile(s"${interface.name}/${idl.main.name}.py", builder.mkString)
+		OutputFile(Paths.get(interface.name, s"${idl.main.name}.py"), builder.mkString)
 	}
 
 	private def generate(interface: Interface) = {
@@ -198,7 +205,9 @@ if __name__ == '__main__':
 			from ${options.moduleName} import ${interface.functions.map(_.name).mkString(", ")}
 			__message_loop(-1)
 """
-		OutputFile(s"${interface.name}/${interface.name}_entry.py", builder.mkString)
+		OutputFile(
+			Paths.get(interface.name, s"${interface.name}_entry.py"),
+			builder.mkString)
 	}
 
 	private def generateMessageLoop(interfaces: List[(Interface, Interface, String)], infd: String) = {

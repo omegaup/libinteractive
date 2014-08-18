@@ -8,7 +8,6 @@ class Pascal(idl: IDL, options: Options) extends Target(idl, options) {
 	override def generate() = ???
 	override def generateMakefileRules() = ???
 	override def generateRunCommands() = ???
-	override def createWorkDirs() = ???
 }
 
 /* vim: set noexpandtab: */

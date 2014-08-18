@@ -1,8 +1,7 @@
 package com.omegaup.libinteractive
 
-import java.io.BufferedWriter
 import java.io.File
-import java.io.FileWriter
+import java.nio.file.Paths
 
 import com.omegaup.libinteractive.idl.IDL
 import com.omegaup.libinteractive.idl.Parser
@@ -16,7 +15,8 @@ object Main {
 			help("help") text("display this message")
 			version("version") text("display version information")
 
-			opt[File]("output-directory") action { (x, c) => c.copy(outputDirectory = x) } text
+			opt[File]("output-directory") action
+					{ (x, c) => c.copy(outputDirectory = x.toPath) } text
 					("the directory in which to generate the files")
 			cmd("validate") action { (_, c) => c.copy(command = Command.Verify) } text
 					("only validate the .idl file") children(
@@ -71,14 +71,10 @@ object Main {
 						originalTargets
 					}
 
-					targetList.foreach(_.createWorkDirs)
+					new OutputDirectory(Paths.get(".")).install(options.outputDirectory)
 
-					for (output <- targetList.flatMap(_.generate)) {
-						val targetFile = new File(options.outputDirectory, output.filename)
-						val out = new BufferedWriter(new FileWriter(targetFile))
-						out.write(output.contents)
-						out.close
-					}
+					targetList.foreach(_.generate.foreach(
+						_.install(options.outputDirectory)))
 				}
 				case Command.Verify =>
 					System.out.println("OK")

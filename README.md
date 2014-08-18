@@ -9,14 +9,16 @@ Let's say your problem's name is `sum`. if you have your validator in `Main.cpp`
 
 ``` console
 $ ls
-Main.cpp sum.py sum.idl
+Main.cpp sum.py sum.idl input
 
 $ cat Main.cpp
 #include <stdio.h>
 #include "sum.h"
 
 int main(int argc, char* argv[]) {
-    printf("%d\n", sum(1, 2));
+    int a, b;
+    scanf("%d %d\n", &a, &b);
+    printf("%d\n", sum(a, b));
 }
 
 $ cat sum.py
@@ -33,8 +35,7 @@ interface sum {
 }
 
 $ java -jar libinteractive.jar generate sum.idl cpp py --makefile
-$ make
-$ ./run < input
+$ make run < input
 [Main] 3
 [ sum] Hello, world!
 
@@ -83,51 +84,68 @@ be omegaUp-compliant.
 IDL is almost a subset of [WebIDL](http://www.w3.org/TR/2012/WD-WebIDL-20120207/), but with some
 syntax to help programming contests.
 
-    letter = "a" | "b" | ... | "y" | "z"
-           | "A" | "B" | ... | "Y" | "Z"
-           ;
+    letter
+        = "a" | "b" | ... | "y" | "z"
+        | "A" | "B" | ... | "Y" | "Z"
+        ;
     
-    digit = "0" | "1" | ... | "8" | "9"
-          ;
+    digit
+        = "0" | "1" | ... | "8" | "9"
+        ;
     
-    ident = (letter | "_"), { letter | digit | "_" }
-          ;
+    ident
+        = (letter | "_"), { letter | digit | "_" }
+        ;
     
-    number = digit, { digit }
+    number
+        = digit, { digit }
+        ;
 
-    interface-list = interface, { interface }
-                   ;
+    interface-list
+        = interface, { interface }
+        ;
     
-    interface = "interface", ident, "{", { function }, "}", ";"
-              ;
+    interface
+        = "interface", ident, "{", { function }, "}", ";"
+        ;
     
-    function = return-type, ident, "(", param-list , ")", ";"
-             ;
+    function
+        = return-type, ident, "(", param-list , ")", ";"
+        ;
     
-    param-list = [ param, { ",", param } ]
-               ;
+    param-list
+        = [ param, { ",", param } ]
+        ;
     
-    type = array | primitive
-         ;
+    type
+        = array | primitive
+        ;
     
-    primitive = "bool" | "int" | "short" | "float"
-              | "char" | "string" | "long"
-              ;
+    primitive
+        = "bool" | "int" | "short" | "float"
+        | "char" | "string" | "long"
+        ;
     
-    array = primitive, "[", expr, "]", { "[", expr, "]" }
-          ;
+    array
+        = primitive, "[", expr, "]", { "[", expr, "]" }
+        ;
     
-    return-type = primitive | "void"
-                ;
+    return-type
+        = primitive | "void"
+        ;
     
-    expr = ident | number
-         ;
+    expr
+        = ident | number
+        ;
     
-    param = { param-attribute }, type, ident
-          ;
+    param
+        = { param-attribute }, type, ident
+        ;
     
-    param-attribute = "[", range-attribute, "]"
-                    ;
+    param-attribute
+        = "[", range-attribute, "]"
+        ;
     
-    range-attribute = "Range", "(", expression, ",", expression, ")"
-                    ;
+    range-attribute
+        = "Range", "(", expression, ",", expression, ")"
+        ;
