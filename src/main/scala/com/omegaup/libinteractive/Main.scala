@@ -11,7 +11,7 @@ import scala.io.Source
 object Main {
 	def main(args: Array[String]): Unit = {
 		val optparse = new scopt.OptionParser[Options]("libinteractive") {
-			head("libinteractive", "0.1")
+			head("libinteractive", "0.2")
 			help("help") text("display this message")
 			version("version") text("display version information")
 

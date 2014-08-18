@@ -38,7 +38,7 @@ ProguardKeys.options in Proguard ++= Seq(
 
 ProguardKeys.inputFilter in Proguard := { file =>
   file.name match {
-    case "libinteractive_2.10-0.1.jar" => None
+    case "libinteractive_2.10-0.2.jar" => None
     case _ => Some("!META-INF/MANIFEST.MF,!rootdoc.txt")
   }
 }
