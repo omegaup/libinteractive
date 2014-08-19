@@ -288,9 +288,14 @@ if __name__ == '__main__':
 		builder ++= f"\tcookie = 0x${rand.nextInt}%x\n"
 		builder ++= s"\t$outfd.write(struct.pack('I', msgid))\n"
 		function.params.foreach(param => {
-			builder ++=
-				s"\t$outfd.write(struct.pack(${structFormat(param.paramType)}, " +
-					s"${param.name}))\n"
+			builder ++= (param.paramType match {
+				case primitive: PrimitiveType =>
+					s"\t$outfd.write(struct.pack(${structFormat(param.paramType)}, " +
+						s"${param.name}))\n"
+				case array: ArrayType =>
+					s"\t$outfd.write(struct.pack(${structFormat(param.paramType)}, " +
+						s"*${param.name}))\n"
+			})
 		})
 		if (generateTiming) {
 			builder ++=
