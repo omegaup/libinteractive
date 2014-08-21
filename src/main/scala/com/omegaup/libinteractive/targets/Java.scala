@@ -347,7 +347,7 @@ public class ${idl.main.name}_entry {
 					s"""${callee.name}.${function.name}(${function.params.map(_.name).mkString(", ")});\n"""
 				builder ++= s"\t\t\t\t\t$outfd.writeInt(msgid);\n"
 				if (function.returnType != PrimitiveType("void")) {
-					builder ++= s"\t\t\t\t\t$outfd.writeInt(result);\n"
+					builder ++= s"\t\t\t\t\t$outfd.${writePrimitive(function.returnType)}(result);\n"
 				}
 				builder ++= s"\t\t\t\t\t$outfd.writeInt(cookie);\n"
 				builder ++= s"\t\t\t\t\t$outfd.flush();\n"
@@ -360,13 +360,13 @@ public class ${idl.main.name}_entry {
 			}
 		}
 		builder ++= """				default: {
-					System.err.printf("Unknown message id 0x%x\\n", msgid);
+					System.err.printf("Unknown message id 0x%x\n", msgid);
 					System.exit(1);
 				}
 			}
 		}
 		if (current_function != -1) {
-			System.err.printf("Confused about exiting\\n");
+			System.err.printf("Confused about exiting\n");
 			System.exit(1);
 		}
 	}
@@ -444,16 +444,48 @@ public class ${idl.main.name}_entry {
 		super(new BufferedInputStream(new FileInputStream(path)));
 	}
 
-	public int readInt() throws IOException {
-		int b1, b2, b3, b4;
-		b1 = in.read();
-		b2 = in.read();
-		b3 = in.read();
-		b4 = in.read();
-		if (b4 == -1) {
+	public boolean readBool() throws IOException {
+		int c = in.read();
+		if (c == -1) {
 			throw new EOFException();
 		}
-		return (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
+		return c != 0;
+	}
+
+	public char readChar() throws IOException {
+		int c = in.read();
+		if (c == -1) {
+			throw new EOFException();
+		}
+		return (char)c;
+	}
+
+	public float readFloat() throws IOException {
+		return Float.intBitsToFloat(readInt());
+	}
+
+	public double readDouble() throws IOException {
+		return Double.longBitsToDouble(readLong());
+	}
+
+	public long readLong() throws IOException {
+		byte[] b = new byte[8];
+		if (in.read(b) != 8) {
+			throw new EOFException();
+		}
+		return ((b[7] & 0xff) << 56) | ((b[6] & 0xff) << 48) |
+				((b[5] & 0xff) << 40) | ((b[4] & 0xff) << 32) |
+				((b[3] & 0xff) << 24) | ((b[2] & 0xff) << 16) |
+				((b[1] & 0xff) << 8) | (b[0] & 0xff);
+	}
+
+	public int readInt() throws IOException {
+		byte[] b = new byte[4];
+		if (in.read(b) != 4) {
+			throw new EOFException();
+		}
+		return ((b[3] & 0xff) << 24) | ((b[2] & 0xff) << 16) |
+			((b[1] & 0xff) << 8) | (b[0] & 0xff);
 	}
 }
 
@@ -468,6 +500,34 @@ class OmegaUpDataOutputStream extends FilterOutputStream {
 		out.write((x >>> 16) & 0xFF);
 		out.write((x >>> 24) & 0xFF);
 	}
+
+	public void writeLong(long x) throws IOException {
+		out.write((int)((x >>> 0) & 0xFF));
+		out.write((int)((x >>> 8) & 0xFF));
+		out.write((int)((x >>> 16) & 0xFF));
+		out.write((int)((x >>> 24) & 0xFF));
+		out.write((int)((x >>> 32) & 0xFF));
+		out.write((int)((x >>> 40) & 0xFF));
+		out.write((int)((x >>> 48) & 0xFF));
+		out.write((int)((x >>> 52) & 0xFF));
+	}
+
+	public void writeChar(char c) throws IOException {
+		out.write((int)c);
+	}
+
+	public void writeFloat(float f) throws IOException {
+		writeInt(Float.floatToIntBits(f));
+	}
+
+	public void writeDouble(double d) throws IOException {
+		writeLong(Double.doubleToLongBits(d));
+	}
+
+	public void writeBool(boolean b) throws IOException {
+		out.write(b ? 1 : 0);
+	}
+
 }
 """
 	}

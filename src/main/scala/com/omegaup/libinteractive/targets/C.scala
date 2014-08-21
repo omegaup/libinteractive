@@ -351,13 +351,13 @@ $closePipes
 			}
 		}
 		builder ++= """			default: {
-				fprintf(stderr, "Unknown message id 0x%x\\n", msgid);
+				fprintf(stderr, "Unknown message id 0x%x\n", msgid);
 				exit(1);
 			}
 		}
 	}
 	if (current_function != -1) {
-		fprintf(stderr, "Confused about exiting\\n");
+		fprintf(stderr, "Confused about exiting\n");
 		exit(1);
 	}
 }
