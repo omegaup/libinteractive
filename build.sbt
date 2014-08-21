@@ -1,6 +1,6 @@
 name := "libinteractive"
 
-version := "0.2"
+version := "0.3"
 
 organization := "omegaup"
 
@@ -38,7 +38,7 @@ ProguardKeys.options in Proguard ++= Seq(
 
 ProguardKeys.inputFilter in Proguard := { file =>
   file.name match {
-    case "libinteractive_2.10-0.2.jar" => None
+    case s if s.startsWith("libinteractive") => None
     case _ => Some("!META-INF/MANIFEST.MF,!rootdoc.txt")
   }
 }
