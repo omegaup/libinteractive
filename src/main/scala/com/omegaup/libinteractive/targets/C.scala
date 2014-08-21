@@ -52,9 +52,9 @@ class C(idl: IDL, options: Options, parent: Boolean) extends Target(idl, options
 		} else {
 			idl.interfaces
 		}).map(interface =>
-			Array(options.outputDirectory
+			ExecDescription(Array(options.outputDirectory
 				.resolve(Paths.get(interface.name, interface.name))
-				.toString)
+				.toString))
 		)
 	}
 

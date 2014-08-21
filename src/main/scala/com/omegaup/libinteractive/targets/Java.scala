@@ -54,9 +54,9 @@ class Java(idl: IDL, options: Options, parent: Boolean) extends Target(idl, opti
 		} else {
 			idl.interfaces
 		}).map(interface =>
-			Array("/usr/bin/java", "-cp",
+			ExecDescription(Array("/usr/bin/java", "-cp",
 				options.outputDirectory.resolve(interface.name).toString,
-				s"${interface.name}_entry")
+				s"${interface.name}_entry"))
 		)
 	}
 

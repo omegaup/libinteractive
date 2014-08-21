@@ -68,6 +68,8 @@ case class OutputLink(path: Path, target: Path) extends OutputPath(path) {
 
 case class MakefileRule(target: Path, requisites: Iterable[Path], command: String)
 
+case class ExecDescription(args: Array[String], env: Map[String, String] = Map())
+
 abstract class Target(idl: IDL, options: Options) {
 	protected val rand = new Random(options.seed)
 	protected val functionIds = idl.interfaces.flatMap (interface => {
@@ -110,7 +112,7 @@ abstract class Target(idl: IDL, options: Options) {
 
 	def generate(): Iterable[OutputPath]
 	def generateMakefileRules(): Iterable[MakefileRule]
-	def generateRunCommands(): Iterable[Array[String]]
+	def generateRunCommands(): Iterable[ExecDescription]
 }
 
 /* vim: set noexpandtab: */
