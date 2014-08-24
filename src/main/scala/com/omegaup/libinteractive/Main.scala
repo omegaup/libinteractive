@@ -56,6 +56,12 @@ object Main {
 			} else {
 				rawOptions.copy(moduleName = fileName.substring(0, extPos))
 			})
+
+			if (options.parentLang == "pas") {
+				System.err.println("Use of `pas' as parent language is not supported")
+				System.exit(1);
+			}
+
 			val idl = Parser(Source.fromFile(options.idlFile).mkString)
 			options.command match {
 				case Command.Generate => {
