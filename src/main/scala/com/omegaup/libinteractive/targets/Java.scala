@@ -60,7 +60,7 @@ class Java(idl: IDL, options: Options, parent: Boolean) extends Target(idl, opti
 		)
 	}
 
-	private def arrayDim(e: Expression) = s"[${e.value}]"
+	private def arrayDim(length: ArrayLength) = s"[${length.value}]"
 
 	private def formatPrimitive(t: PrimitiveType) = {
 		t.name

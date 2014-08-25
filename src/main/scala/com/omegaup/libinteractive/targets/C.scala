@@ -64,7 +64,7 @@ class C(idl: IDL, options: Options, parent: Boolean) extends Target(idl, options
 
 	def cflags() = "-std=c99"
 
-	private def arrayDim(e: Expression) = s"[${e.value}]"
+	private def arrayDim(length: ArrayLength) = s"[${length.value}]"
 
 	private def formatPrimitive(t: PrimitiveType) = {
 		t.name match {

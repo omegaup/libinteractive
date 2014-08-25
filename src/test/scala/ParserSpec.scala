@@ -55,7 +55,7 @@ class ParserSpec extends FlatSpec with Matchers {
 		param.paramType shouldBe a [ArrayType]
 		val arrayType = param.paramType.asInstanceOf[ArrayType]
 		arrayType.lengths.length should be (2)
-		arrayType.lengths(0) should be (IntExpression(3))
+		arrayType.lengths(0) should be (ConstantLength(3))
 	}
 
 	it should "parse constraints" in {

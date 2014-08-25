@@ -48,19 +48,19 @@ class Pascal(idl: IDL, options: Options, parent: Boolean) extends Target(idl, op
 		)
 	}
 
-	private def formatExpression(e: Expression, prefix: String) = {
-		e match {
-			case int: IntExpression => {
-				int.value
+	private def formatLength(length: ArrayLength, prefix: String) = {
+		length match {
+			case constant: ConstantLength => {
+				constant.value
 			}
-			case variable: VariableExpression => {
-				prefix + variable.value
+			case param: ParameterLength => {
+				prefix + param.value
 			}
 		}
 	}
 
-	private def arrayDim(e: Expression, prefix: String) = {
-		s"[${formatExpression(e, prefix)}]"
+	private def arrayDim(length: ArrayLength, prefix: String) = {
+		s"[${formatLength(length, prefix)}]"
 	}
 
 	private def formatPrimitive(t: PrimitiveType) = {
@@ -94,7 +94,7 @@ class Pascal(idl: IDL, options: Options, parent: Boolean) extends Target(idl, op
 				s"sizeof(${formatPrimitive(primitiveType)})"
 			case arrayType: ArrayType =>
 				s"sizeof(${formatPrimitive(arrayType.primitive)}) * " +
-					arrayType.lengths.map(formatExpression(_, prefix)).mkString(" * ")
+					arrayType.lengths.map(formatLength(_, prefix)).mkString(" * ")
 		}
 	}
 
@@ -217,7 +217,7 @@ var
 						case array: ArrayType => {
 							s"\t\t\t\tSetLength(${function.name}_${param.name}, " +
 								array.lengths.map(
-									formatExpression(_, s"${function.name}_"))
+									formatLength(_, s"${function.name}_"))
 								.mkString(", ") + ");\n" +
 							s"\t\t\t\t$infd.ReadBuffer(${function.name}_${param.name}${array.lengths.map(_ => "[0]").mkString}, " +
 								s"""${fieldLength(array, s"${function.name}_")});\n"""

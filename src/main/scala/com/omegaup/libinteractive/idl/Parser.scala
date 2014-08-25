@@ -31,8 +31,18 @@ case class Function(returnType: PrimitiveType, name: String, params: List[Parame
 
 abstract class Type extends Object with AstNode {}
 case class PrimitiveType(name: String) extends Type {}
-case class ArrayType(primitive: PrimitiveType, lengths: List[Expression]) extends Type {
+case class ArrayType(primitive: PrimitiveType, lengths: List[ArrayLength]) extends Type {
 	override def children() = List(primitive) ++ lengths
+}
+
+abstract class ArrayLength extends Object with AstNode {
+	def value(): String
+}
+case class ParameterLength(param: Parameter) extends ArrayLength {
+	override def value() = param.name
+}
+case class ConstantLength(length: Int) extends ArrayLength {
+	override def value() = length.toString
 }
 
 abstract class Expression extends Object with AstNode {
@@ -55,42 +65,37 @@ case class Parameter(paramType: Type, name: String, attributes: List[Attribute])
 }
 
 object SemanticValidator {
-	def validateFunction(returnType: PrimitiveType, name: String, params: List[Parameter]): Option[String] = {
-		val declaredParams = HashMap.empty[String, Type]
-		for (param <- params) {
-			if (declaredParams.contains(param.name)) {
-				return Some(s"Parameter `${param.name}' is declared more than " +
-					s"once in function `$name'")
-			}
-			param.paramType match {
-				case array: ArrayType => {
-					for (expr <- array.lengths) {
-						expr match {
-							case variable: VariableExpression => {
-								if (!declaredParams.contains(variable.value)) {
-									return Some(s"Array index `${variable.value}' must have " +
-										s"been passed as a previous parameter in function `$name'")
-								}
-								if (declaredParams(variable.value) != PrimitiveType("int")) {
-									return Some(s"Array index `${variable.value}' must be " +
-										"declared as int")
-								}
-							}
-							case _ => {}
-						}
-					}
-				}
-				case _ => {}
-			}
-			declaredParams(param.name) = param.paramType
+	def validateParam(attributes: List[Attribute], paramType: Type, name: String,
+			declaredParams: scala.collection.Map[String, Parameter]): Option[String] = {
+		if (declaredParams.contains(name)) {
+			return Some(s"Parameter `${name}' is declared more than once")
 		}
 		None
 	}
 
-	def validateArrayType(primitive: PrimitiveType, lengths: List[Expression]): Option[String] = {
+	def validateArrayDimension(length: Expression,
+			declaredParams: scala.collection.Map[String, Parameter]): Option[String] = {
+		length match {
+			case variable: VariableExpression => {
+				if (!declaredParams.contains(variable.value)) {
+					return Some(s"Array index `${variable.value}' must have " +
+						s"been passed as a previous parameter")
+				}
+				if (declaredParams(variable.value).paramType != PrimitiveType("int")) {
+					return Some(s"Array index `${variable.value}' must be " +
+						"declared as int")
+				}
+			}
+			case _ => {}
+		}
+		None
+	}
+
+	def validateArrayType(primitive: PrimitiveType, lengths: List[ArrayLength],
+			declaredParams: scala.collection.Map[String, Parameter]): Option[String] = {
 		for ((length, idx) <- lengths.view.zipWithIndex) {
 			length match {
-				case _: VariableExpression => {
+				case _: ParameterLength => {
 					if (idx != 0) {
 						return Some("Only the first index in an array may be a variable")
 					}
@@ -103,12 +108,14 @@ object SemanticValidator {
 }
 
 object Parser extends StandardTokenParsers {
+	val declaredParams = HashMap.empty[String, Parameter]
 	lexical.delimiters ++= List("(", ")", "[", "]", "{", "}", ",", ";")
 	lexical.reserved += (
 			"bool", "int", "short", "float", "char", "string", "long", "void",
 			"interface", "Range")
 
 	def apply(input: String): IDL = {
+		declaredParams.clear
 		interfaceList(new lexical.Scanner(input)) match {
 			case Success(interfaces, _) => {
 				interfaces
@@ -126,40 +133,63 @@ object Parser extends StandardTokenParsers {
 			{ case name ~ functions => new Interface(name, functions) }
 
 	private def function =
-			primitive ~ ident ~ ("(" ~> repsep(param, ",") <~ ")") <~ ";" ^?
-			({
-				case returnType ~ name ~ params if
-						SemanticValidator.validateFunction(returnType, name, params).isEmpty =>
-					new Function(returnType, name, params)
-			},
+			primitive ~ ident ~ ("(" ~> repsep(param, ",") <~ ")") <~ ";" ^^
 			{
-				case returnType ~ name ~ params =>
-						SemanticValidator.validateFunction(returnType, name, params).get
-			})
+				case returnType ~ name ~ params => {
+					declaredParams.clear
+					new Function(returnType, name, params)
+				}
+			}
 
 	private def idltype = array | primitive
 	private def primitive =
 			("bool" | "int" | "short" | "float" | "char" | "string" | "long" |
 			"void") ^^
 			{ case name => new PrimitiveType(name) }
-	private def array = primitive ~ rep1("[" ~> expression <~ "]") ^?
+	private def array = primitive ~ rep1(arrayLength) ^?
 			({
 				case baseType ~ lengths if
-						SemanticValidator.validateArrayType(baseType, lengths).isEmpty =>
+						SemanticValidator.validateArrayType(baseType, lengths, declaredParams).isEmpty =>
 					new ArrayType(baseType, lengths)
 			},
 			{
 				case baseType ~ lengths =>
-						SemanticValidator.validateArrayType(baseType, lengths).get
+						SemanticValidator.validateArrayType(baseType, lengths, declaredParams).get
 			})
+	private def arrayLength = "[" ~> expression <~ "]" ^?
+			({
+				case length if
+						SemanticValidator.validateArrayDimension(length, declaredParams).isEmpty => {
+						length match {
+							case variable: VariableExpression =>
+								new ParameterLength(declaredParams(length.value))
+							case literal: IntExpression =>
+								new ConstantLength(literal.intValue)
+						}
+					}
+			},
+			{
+				case length =>
+						SemanticValidator.validateArrayDimension(length, declaredParams).get
+			})
+
 
 	private def expression = (
 			(numericLit ^^ { case len => new IntExpression(len.toInt) }) |
 			(ident ^^ { case len => new VariableExpression(len)}))
 
-	private def param = rep(paramAttributes) ~ idltype ~ ident ^^
-			{ case attributes ~ paramType ~ name =>
-					new Parameter(paramType, name, attributes) }
+	private def param = rep(paramAttributes) ~ idltype ~ ident ^?
+			({ case attributes ~ paramType ~ name if
+						SemanticValidator.validateParam(attributes, paramType, name, declaredParams).isEmpty => {
+					val param = new Parameter(paramType, name, attributes)
+					declaredParams(name) = param
+					param
+				}
+			},
+			{
+				case attributes ~ paramType ~ name =>
+					SemanticValidator.validateParam(attributes, paramType, name, declaredParams).get
+			})
 
 	private def paramAttributes = range
 	private def range =
