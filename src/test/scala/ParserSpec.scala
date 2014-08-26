@@ -15,7 +15,7 @@ class ParserSpec extends FlatSpec with Matchers {
 		idl.interfaces(0).name should be ("child")
 	}
 
-	"Parser" should "support comments" in {
+	it should "support comments" in {
 		val idl = Parser("""
 			// This is a comment. interface
 			interface Main {
@@ -75,23 +75,28 @@ class ParserSpec extends FlatSpec with Matchers {
 	}
 
 	it should "fail" in {
-		a [ParseException] should be thrownBy Parser("""
-			interface Main;""")
+		intercept[ParseException] { Parser("""
+				interface Main;""")
+		}.getMessage should be("``{'' expected but `;' found")
 
-		a [ParseException] should be thrownBy Parser("""
+		intercept[ParseException] { Parser("""
 			interface Main {
 				int rank(int[n][10] mat);
 			};""")
+		}.getMessage should be("Array index `n' must have been passed as a " +
+				"previous parameter")
 
-		a [ParseException] should be thrownBy Parser("""
+		intercept[ParseException] { Parser("""
 			interface Main {
-				int rank(float n, int[n][n] mat);
+				int rank(int n, int[n][n] mat);
 			};""")
+		}.getMessage should be ("Only the first index in an array may be a variable")
 
-		a [ParseException] should be thrownBy Parser("""
+		intercept[ParseException] { Parser("""
 			interface Main {
 				int rank(float n, int[n][10] mat);
 			};""")
+		}.getMessage should be ("Array index `n' must be declared as int")
 	}
 
 	it should "support multiple interfaces" in {

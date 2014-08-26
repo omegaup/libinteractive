@@ -5,7 +5,7 @@ import scala.collection.mutable.HashMap
 import scala.util.parsing.combinator.syntactical._
 
 case class ParseException(msg: String, longString: String, line: Int, column: Int)
-		extends RuntimeException {
+		extends RuntimeException(msg) {
 	override def toString() = s"$longString\n$msg (line $line:$column)"
 }
 
