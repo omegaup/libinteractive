@@ -1,25 +1,27 @@
 package com.omegaup.libinteractive.target
 
+import java.nio.file.Path
 import java.nio.file.Paths
 
 import scala.collection.mutable.StringBuilder
 
 import com.omegaup.libinteractive.idl._
 
-class Java(idl: IDL, options: Options, parent: Boolean) extends Target(idl, options) {
+class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
+		extends Target(idl, options) {
 	override def generate() = {
 		if (parent) {
 			val mainFile = s"${idl.main.name}.java"
 			List(
 				new OutputDirectory(Paths.get(idl.main.name)),
-				new OutputLink(Paths.get(idl.main.name, mainFile), Paths.get(mainFile)),
+				new OutputLink(Paths.get(idl.main.name, mainFile), input),
 				generateMainFile)
 		} else {
 			val moduleFile = s"${options.moduleName}.java"
 			idl.interfaces.flatMap(interface =>
 				List(
 					new OutputDirectory(Paths.get(interface.name)),
-					new OutputLink(Paths.get(interface.name, moduleFile), Paths.get(moduleFile)),
+					new OutputLink(Paths.get(interface.name, moduleFile), input),
 					generate(interface))
 			)
 		}
@@ -27,7 +29,7 @@ class Java(idl: IDL, options: Options, parent: Boolean) extends Target(idl, opti
 
 	override def generateMakefileRules() = {
 		if (parent) {
-			List(MakefileRule(Paths.get(idl.main.name, idl.main.name),
+			List(MakefileRule(Paths.get(idl.main.name, s"${idl.main.name}.class"),
 				List(
 					Paths.get(idl.main.name, s"${idl.main.name}.java"),
 					Paths.get(idl.main.name, s"${idl.main.name}_entry.java")),
@@ -35,12 +37,9 @@ class Java(idl: IDL, options: Options, parent: Boolean) extends Target(idl, opti
 		} else {
 			idl.interfaces.flatMap(interface =>
 				List(
-					MakefileRule(Paths.get(interface.name, s"${interface.name}.class"),
-						List(
-							Paths.get(interface.name, s"${interface.name}.java")),
-						"/usr/bin/javac $^"),
 					MakefileRule(Paths.get(interface.name, s"${interface.name}_entry.class"),
 						List(
+							Paths.get(interface.name, s"${interface.name}.java"),
 							Paths.get(interface.name, s"${interface.name}_entry.java")),
 						"/usr/bin/javac $^")
 				)
@@ -55,7 +54,9 @@ class Java(idl: IDL, options: Options, parent: Boolean) extends Target(idl, opti
 			idl.interfaces
 		}).map(interface =>
 			ExecDescription(Array("/usr/bin/java", "-cp",
-				options.outputDirectory.resolve(interface.name).toString,
+				options.root.relativize(
+					options.outputDirectory.resolve(interface.name)
+				).toString,
 				s"${interface.name}_entry"))
 		)
 	}
@@ -408,8 +409,7 @@ public class ${idl.main.name}_entry {
 		if (function.returnType != PrimitiveType("void")) {
 			builder ++= s"\t\t\tans = $infd.${readPrimitive(function.returnType)}();\n"
 		}
-		builder ++= "\t\t\tint cookie_result = 0;\n"
-		builder ++= s"\t\t\tcookie_result = $infd.readInt();\n"
+		builder ++= s"\t\t\tint cookie_result = $infd.readInt();\n"
 		if (generateTiming) {
 			builder ++= "\t\t\tt1 = System.nanoTime();\n"
 			builder ++= s"\t\t\t${caller.name}_entry.__elapsed_time += t1 - t0;\n"
@@ -473,10 +473,10 @@ public class ${idl.main.name}_entry {
 		if (in.read(b) != 8) {
 			throw new EOFException();
 		}
-		return ((b[7] & 0xff) << 56) | ((b[6] & 0xff) << 48) |
-				((b[5] & 0xff) << 40) | ((b[4] & 0xff) << 32) |
-				((b[3] & 0xff) << 24) | ((b[2] & 0xff) << 16) |
-				((b[1] & 0xff) << 8) | (b[0] & 0xff);
+		return ((b[7] & 0xffL) << 56L) | ((b[6] & 0xffL) << 48L) |
+				((b[5] & 0xffL) << 40L) | ((b[4] & 0xffL) << 32L) |
+				((b[3] & 0xffL) << 24L) | ((b[2] & 0xffL) << 16L) |
+				((b[1] & 0xffL) << 8L) | (b[0] & 0xffL);
 	}
 
 	public int readInt() throws IOException {

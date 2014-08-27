@@ -1,0 +1,6 @@
+interface Main {
+};
+
+interface sum {
+	long solve([Range(0, 1000)] int n, int[n] l);
+};

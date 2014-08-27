@@ -21,10 +21,11 @@ import Command.Command
 case class Options(
 	childLang: String = "c",
 	command: Command = Command.Verify,
-	idlFile: File = null,
+	idlFile: Path = null,
 	makefile: Boolean = false,
 	moduleName: String = "",
 	outputDirectory: Path = Paths.get("libinteractive"),
+	root: Path = Paths.get(".").normalize,
 	parentLang: String = "c",
 	pipeDirectories: Boolean = false,
 	seed: Long = System.currentTimeMillis,
@@ -40,7 +41,7 @@ case class OutputDirectory(path: Path) extends OutputPath(path) {
 	override def install(root: Path) {
 		val directory = root.resolve(path).normalize
 		if (!Files.exists(directory)) {
-			Files.createDirectory(directory)
+			Files.createDirectories(directory)
 		}
 	}
 }
@@ -53,6 +54,10 @@ case class OutputFile(path: Path, contents: String) extends OutputPath(path) {
 
 case class OutputMakefile(path: Path, contents: String) extends OutputPath(path) {
 	override def install(root: Path) {
+		val directory = path.getParent
+		if (directory != null && !Files.exists(directory)) {
+			Files.createDirectories(directory)
+		}
 		Files.write(path, List(contents), StandardCharsets.UTF_8)
 	}
 }
@@ -61,7 +66,7 @@ case class OutputLink(path: Path, target: Path) extends OutputPath(path) {
 	override def install(root: Path) {
 		val link = root.resolve(path)
 		if (!Files.exists(link)) {
-			Files.createSymbolicLink(link, link.relativize(root.resolve(target)))
+			Files.createSymbolicLink(link, link.getParent.relativize(target))
 		}
 	}
 }
@@ -113,6 +118,35 @@ abstract class Target(idl: IDL, options: Options) {
 	def generate(): Iterable[OutputPath]
 	def generateMakefileRules(): Iterable[MakefileRule]
 	def generateRunCommands(): Iterable[ExecDescription]
+}
+
+object Generator {
+	def generate(idl: IDL, options: Options, problemsetter: Path, contestant: Path) = {
+		val parent = target(options.parentLang, idl, options, problemsetter, true)
+		val child = target(options.childLang, idl, options, contestant, false)
+
+		val originalTargets = List(parent, child)
+		val targetList = if (options.makefile) {
+			originalTargets ++ List(new Makefile(idl,
+				originalTargets.flatMap(_.generateMakefileRules),
+				originalTargets.flatMap(_.generateRunCommands), options))
+		} else {
+			originalTargets
+		}
+
+		targetList.flatMap(_.generate)
+	}
+
+	private def target(lang: String, idl: IDL, options: Options, input: Path, parent: Boolean): Target = {
+		lang match {
+			case "c" => new C(idl, options, input, parent)
+			case "cpp" => new Cpp(idl, options, input, parent)
+			case "java" => new Java(idl, options, input, parent)
+			case "pas" => new Pascal(idl, options, input, parent)
+			case "py" => new Python(idl, options, input, parent)
+			case "rb" => new Ruby(idl, options)
+		}
+	}
 }
 
 /* vim: set noexpandtab: */

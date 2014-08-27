@@ -3,8 +3,10 @@ import com.omegaup.libinteractive.idl._
 import org.scalatest._
 
 class ParserSpec extends FlatSpec with Matchers {
+	val parser = new Parser
+
 	"Parser" should "parse interface declarations" in {
-		val idl = Parser("""
+		val idl = parser.parse("""
 			interface Main {
 			};
 			interface child {
@@ -16,7 +18,7 @@ class ParserSpec extends FlatSpec with Matchers {
 	}
 
 	it should "support comments" in {
-		val idl = Parser("""
+		val idl = parser.parse("""
 			// This is a comment. interface
 			interface Main {
 			};
@@ -28,7 +30,7 @@ class ParserSpec extends FlatSpec with Matchers {
 	}
 
 	it should "parse function declarations" in {
-		val idl = Parser("""
+		val idl = parser.parse("""
 			interface Main {
 				void Init(int a, int b);
 			};""")
@@ -46,7 +48,7 @@ class ParserSpec extends FlatSpec with Matchers {
 	}
 
 	it should "support array types" in {
-		val idl = Parser("""
+		val idl = parser.parse("""
 			interface Main {
 				int determinant(int[3][3] mat);
 			};""")
@@ -59,7 +61,7 @@ class ParserSpec extends FlatSpec with Matchers {
 	}
 
 	it should "parse constraints" in {
-		val idl = Parser("""
+		val idl = parser.parse("""
 			interface Main {
 				void Init([Range(0, 1000)] int a);
 			};""")
@@ -74,25 +76,25 @@ class ParserSpec extends FlatSpec with Matchers {
 		range.max.asInstanceOf[IntExpression].value should be("1000")
 	}
 
-	it should "fail" in {
-		intercept[ParseException] { Parser("""
+	it should "throw ParseExceptions" in {
+		intercept[ParseException] { parser.parse("""
 				interface Main;""")
 		}.getMessage should be("``{'' expected but `;' found")
 
-		intercept[ParseException] { Parser("""
+		intercept[ParseException] { parser.parse("""
 			interface Main {
 				int rank(int[n][10] mat);
 			};""")
 		}.getMessage should be("Array index `n' must have been passed as a " +
 				"previous parameter")
 
-		intercept[ParseException] { Parser("""
+		intercept[ParseException] { parser.parse("""
 			interface Main {
 				int rank(int n, int[n][n] mat);
 			};""")
 		}.getMessage should be ("Only the first index in an array may be a variable")
 
-		intercept[ParseException] { Parser("""
+		intercept[ParseException] { parser.parse("""
 			interface Main {
 				int rank(float n, int[n][10] mat);
 			};""")
@@ -100,7 +102,7 @@ class ParserSpec extends FlatSpec with Matchers {
 	}
 
 	it should "support multiple interfaces" in {
-		val idl = Parser("""
+		val idl = parser.parse("""
 			interface Main {
 				void send([Range(0, 65535)] int n);
 				void output([Range(0, 255)] int n);

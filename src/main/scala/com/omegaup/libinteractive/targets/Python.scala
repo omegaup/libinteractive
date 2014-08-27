@@ -1,18 +1,20 @@
 package com.omegaup.libinteractive.target
 
+import java.nio.file.Path
 import java.nio.file.Paths
 
 import scala.collection.mutable.StringBuilder
 
 import com.omegaup.libinteractive.idl._
 
-class Python(idl: IDL, options: Options, parent: Boolean) extends Target(idl, options) {
+class Python(idl: IDL, options: Options, input: Path, parent: Boolean)
+		extends Target(idl, options) {
 	override def generate() = {
 		if (parent) {
 			val mainFile = s"${idl.main.name}.py"
 			List(
 				new OutputDirectory(Paths.get(idl.main.name)),
-				new OutputLink(Paths.get(idl.main.name, mainFile), Paths.get(mainFile)),
+				new OutputLink(Paths.get(idl.main.name, mainFile), input),
 				generateMain,
 				generateMainEntry)
 		} else {
@@ -20,7 +22,7 @@ class Python(idl: IDL, options: Options, parent: Boolean) extends Target(idl, op
 			idl.interfaces.flatMap(interface =>
 				List(
 					new OutputDirectory(Paths.get(interface.name)),
-					new OutputLink(Paths.get(interface.name, moduleFile), Paths.get(moduleFile)),
+					new OutputLink(Paths.get(interface.name, moduleFile), input),
 					generateLib(interface),
 					generate(interface))
 			)
@@ -38,8 +40,10 @@ class Python(idl: IDL, options: Options, parent: Boolean) extends Target(idl, op
 			idl.interfaces
 		}).map(interface =>
 			ExecDescription(
-				Array("/usr/bin/python", options.outputDirectory.resolve(
-					Paths.get(interface.name, s"${interface.name}_entry.py")).toString)
+				Array("/usr/bin/python", options.root.relativize(
+					options.outputDirectory.resolve(
+						Paths.get(interface.name, s"${interface.name}_entry.py")
+				)).toString)
 			)
 		)
 	}
@@ -94,7 +98,8 @@ class Python(idl: IDL, options: Options, parent: Boolean) extends Target(idl, op
 import sys
 import runpy
 
-sys.path[0] = "${options.outputDirectory.resolve(Paths.get(idl.main.name)).toString}"
+sys.path[0] = "${options.root.relativize(
+	options.outputDirectory.resolve(Paths.get(idl.main.name))).toString}"
 
 runpy.run_module("${idl.main.name}", run_name="__main__")
 """

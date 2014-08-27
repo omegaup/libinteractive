@@ -1,18 +1,20 @@
 package com.omegaup.libinteractive.target
 
+import java.nio.file.Path
 import java.nio.file.Paths
 
 import scala.collection.mutable.StringBuilder
 
 import com.omegaup.libinteractive.idl._
 
-class C(idl: IDL, options: Options, parent: Boolean) extends Target(idl, options) {
+class C(idl: IDL, options: Options, input: Path, parent: Boolean)
+		extends Target(idl, options) {
 	override def generate() = {
 		if (parent) {
 			val mainFile = s"${idl.main.name}.$extension"
 			List(
 				new OutputDirectory(Paths.get(idl.main.name)),
-				new OutputLink(Paths.get(idl.main.name, mainFile), Paths.get(mainFile)),
+				new OutputLink(Paths.get(idl.main.name, mainFile), input),
 				generateMainHeader,
 				generateMainFile)
 		} else {
@@ -20,7 +22,7 @@ class C(idl: IDL, options: Options, parent: Boolean) extends Target(idl, options
 			idl.interfaces.flatMap(interface =>
 				List(
 					new OutputDirectory(Paths.get(interface.name)),
-					new OutputLink(Paths.get(interface.name, moduleFile), Paths.get(moduleFile)),
+					new OutputLink(Paths.get(interface.name, moduleFile), input),
 					generateHeader(interface),
 					generate(interface))
 			)
@@ -52,8 +54,9 @@ class C(idl: IDL, options: Options, parent: Boolean) extends Target(idl, options
 		} else {
 			idl.interfaces
 		}).map(interface =>
-			ExecDescription(Array(options.outputDirectory
-				.resolve(Paths.get(interface.name, interface.name))
+			ExecDescription(Array(options.root.relativize(
+				options.outputDirectory
+					.resolve(Paths.get(interface.name, interface.name)))
 				.toString))
 		)
 	}
@@ -139,6 +142,27 @@ class C(idl: IDL, options: Options, parent: Boolean) extends Target(idl, options
 #include <unistd.h>
 
 static int __in = -1, __out = -1;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void readfull(int fd, void* buf, size_t count) {
+	ssize_t bytes;
+	while (count > 0) {
+		bytes = read(fd, buf, count);
+		if (bytes <= 0) {
+			fprintf(stderr, "Incomplete message missing %zu bytes\\n", count);
+			exit(1);
+		}
+		buf += bytes;
+		count -= bytes;
+	}
+}
+
+#ifdef __cplusplus
+}
+#endif
 
 ${generateMessageLoop(List((idl.main, interface, "__out")), "__in")}
 
@@ -256,6 +280,19 @@ static void __exit();
 static long long __elapsed_time = 0;
 static int ${idl.allInterfaces.map(pipeName).mkString(", ")};
 
+void writefull(int fd, void* buf, size_t count) {
+	ssize_t bytes;
+	while (count > 0) {
+		bytes = write(fd, buf, count);
+		if (bytes <= 0) {
+			fprintf(stderr, "Incomplete message missing %zu bytes\\n", count);
+			exit(1);
+		}
+		buf += bytes;
+		count -= bytes;
+	}
+}
+
 #ifdef __cplusplus
 }
 #endif
@@ -312,7 +349,7 @@ $closePipes
 						case array: ArrayType => {
 							s"\t\t\t\t${declareVar(param)} = (${formatType(array)})" +
 							s"malloc(${fieldLength(array)});\n" +
-							s"\t\t\t\tread($infd, ${param.name}, ${fieldLength(array)});\n"
+							s"\t\t\t\treadfull($infd, ${param.name}, ${fieldLength(array)});\n"
 						}
 						case primitive: PrimitiveType => {
 							s"\t\t\t\t${declareVar(param)};\n" +
@@ -382,7 +419,7 @@ $closePipes
 				case _: PrimitiveType =>
 					s"\twrite($outfd, &${param.name}, ${fieldLength(param.paramType)});\n"
 				case _: ArrayType =>
-					s"\twrite($outfd, ${param.name}, ${fieldLength(param.paramType)});\n"
+					s"\twritefull($outfd, ${param.name}, ${fieldLength(param.paramType)});\n"
 			})
 		})
 		if (generateTiming) {
@@ -423,7 +460,8 @@ $closePipes
 	}
 }
 
-class Cpp(idl: IDL, options: Options, parent: Boolean) extends C(idl, options, parent) {
+class Cpp(idl: IDL, options: Options, input: Path, parent: Boolean)
+		extends C(idl, options, input, parent) {
 	override def extension() = "cpp"
 
 	override def compiler() = "/usr/bin/g++"

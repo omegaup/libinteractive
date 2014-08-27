@@ -27,16 +27,17 @@ all: $allExecutables
 
 ${allRules.map(rule => s"${rule.target}: ${rule.requisites.mkString(" ")}\n\t${rule.command}\n").mkString("\n")}
 run: $allExecutables
-	@${options.outputDirectory.resolve(Paths.get("run"))}
+	@${options.root.relativize(options.outputDirectory.resolve(Paths.get("run")))}
 """
 
-		OutputMakefile(Paths.get("Makefile"), builder.mkString)
+		OutputMakefile(options.root.resolve("Makefile"), builder.mkString)
 	}
 
 	private def resolve(rule: MakefileRule) = {
 		new MakefileRule(
-			options.outputDirectory.resolve(rule.target),
-			rule.requisites.map(options.outputDirectory.resolve(_)),
+			options.root.relativize(options.outputDirectory.resolve(rule.target)),
+			rule.requisites.map(path => options.root.relativize(
+					options.outputDirectory.resolve(path))),
 			rule.command)
 	}
 

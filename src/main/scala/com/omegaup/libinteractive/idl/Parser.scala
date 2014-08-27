@@ -107,20 +107,20 @@ object SemanticValidator {
 	}
 }
 
-object Parser extends StandardTokenParsers {
+class Parser extends StandardTokenParsers {
 	val declaredParams = HashMap.empty[String, Parameter]
 	lexical.delimiters ++= List("(", ")", "[", "]", "{", "}", ",", ";")
 	lexical.reserved += (
 			"bool", "int", "short", "float", "char", "string", "long", "void",
 			"interface", "Range")
 
-	def apply(input: String): IDL = {
-		declaredParams.clear
+	def parse(input: String): IDL = {
 		interfaceList(new lexical.Scanner(input)) match {
 			case Success(interfaces, _) => {
 				interfaces
 			}
 			case NoSuccess(msg, err) => {
+				declaredParams.clear
 				throw new ParseException(msg, err.pos.longString, err.pos.line, err.pos.column)
 			}
 		}

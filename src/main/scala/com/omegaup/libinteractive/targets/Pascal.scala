@@ -1,12 +1,14 @@
 package com.omegaup.libinteractive.target
 
+import java.nio.file.Path
 import java.nio.file.Paths
 
 import scala.collection.mutable.StringBuilder
 
 import com.omegaup.libinteractive.idl._
 
-class Pascal(idl: IDL, options: Options, parent: Boolean) extends Target(idl, options) {
+class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
+		extends Target(idl, options) {
 	override def generate() = {
 		if (parent) {
 			throw new UnsupportedOperationException;
@@ -15,7 +17,7 @@ class Pascal(idl: IDL, options: Options, parent: Boolean) extends Target(idl, op
 			idl.interfaces.flatMap(interface =>
 				List(
 					new OutputDirectory(Paths.get(interface.name)),
-					new OutputLink(Paths.get(interface.name, moduleFile), Paths.get(moduleFile)),
+					new OutputLink(Paths.get(interface.name, moduleFile), input),
 					generateEntry(interface),
 					generate(interface))
 			)
@@ -32,7 +34,7 @@ class Pascal(idl: IDL, options: Options, parent: Boolean) extends Target(idl, op
 						Paths.get(interface.name, s"${interface.name}.pas"),
 						Paths.get(interface.name, s"${idl.main.name}.pas"),
 						Paths.get(interface.name, s"${interface.name}_entry.pas")),
-					"/usr/bin/fpc -Tlinux -O2 -Mobjfpc -Sc -Sh -o$@ $^"))
+					"/usr/bin/fpc -Tlinux -O2 -Mobjfpc -Sc -Sh -o$@ $^ > /dev/null"))
 		}
 	}
 
@@ -42,8 +44,9 @@ class Pascal(idl: IDL, options: Options, parent: Boolean) extends Target(idl, op
 		} else {
 			idl.interfaces
 		}).map(interface =>
-			ExecDescription(Array(options.outputDirectory
-				.resolve(Paths.get(interface.name, interface.name))
+			ExecDescription(Array(options.root.relativize(
+				options.outputDirectory
+					.resolve(Paths.get(interface.name, interface.name)))
 				.toString))
 		)
 	}

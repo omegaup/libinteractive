@@ -20,12 +20,12 @@ object Main {
 					("the directory in which to generate the files")
 			cmd("validate") action { (_, c) => c.copy(command = Command.Verify) } text
 					("only validate the .idl file") children(
-				arg[File]("file") action { (x, c) => c.copy(idlFile = x) } text
+				arg[File]("file") action { (x, c) => c.copy(idlFile = x.toPath) } text
 						("the .idl file that describes the interfaces")
 			)
 			cmd("generate") action { (_, c) => c.copy(command = Command.Generate) } text
 					("generate IPC shims") children(
-				arg[File]("file") action { (x, c) => c.copy(idlFile = x) } text
+				arg[File]("file") action { (x, c) => c.copy(idlFile = x.toPath) } text
 						("the .idl file that describes the interfaces"),
 				arg[String]("parent-lang") action { (x, c) => c.copy(parentLang = x) } text
 						("the language in which the grader/validator is written"),
@@ -49,7 +49,7 @@ object Main {
 		}
 
 		optparse.parse(args, Options()) map { rawOptions => {
-			val fileName = rawOptions.idlFile.getName
+			val fileName = rawOptions.idlFile.getName(rawOptions.idlFile.getNameCount - 1).toString
 			val extPos = fileName.lastIndexOf('.')
 			val options = (if (extPos == -1) {
 				rawOptions.copy(moduleName = fileName)
@@ -62,42 +62,24 @@ object Main {
 				System.exit(1);
 			}
 
-			val idl = Parser(Source.fromFile(options.idlFile).mkString)
+			val parser = new Parser
+			val idl = parser.parse(Source.fromFile(options.idlFile.toFile).mkString)
 			options.command match {
 				case Command.Generate => {
-					val parent = target(options.parentLang, idl, options, true)
-					val child = target(options.childLang, idl, options, false)
-
-					val originalTargets = List(parent, child)
-					val targetList = if (options.makefile) {
-						originalTargets ++ List(new Makefile(idl,
-							originalTargets.flatMap(_.generateMakefileRules),
-							originalTargets.flatMap(_.generateRunCommands), options))
-					} else {
-						originalTargets
-					}
-
 					new OutputDirectory(Paths.get(".")).install(options.outputDirectory)
+					val problemsetter = options.idlFile.resolve(
+						s"../${idl.main.name}.${options.parentLang}").normalize
+					val contestant = options.idlFile.resolve(
+						s"../${options.moduleName}.${options.childLang}").normalize
 
-					targetList.foreach(_.generate.foreach(
-						_.install(options.outputDirectory)))
+					Generator.generate(idl, options, problemsetter, contestant).foreach(
+						_.install(options.outputDirectory))
 				}
 				case Command.Verify =>
 					System.out.println("OK")
 			}
 		}} getOrElse {
 			System.exit(1)
-		}
-	}
-
-	def target(lang: String, idl: IDL, options: Options, parent: Boolean): Target = {
-		lang match {
-			case "c" => new C(idl, options, parent)
-			case "cpp" => new Cpp(idl, options, parent)
-			case "java" => new Java(idl, options, parent)
-			case "pas" => new Pascal(idl, options, parent)
-			case "py" => new Python(idl, options, parent)
-			case "rb" => new Ruby(idl, options)
 		}
 	}
 }
