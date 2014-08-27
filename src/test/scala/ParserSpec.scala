@@ -70,10 +70,10 @@ class ParserSpec extends FlatSpec with Matchers {
 		attributes.length should be (1)
 		attributes(0) shouldBe a [RangeAttribute]
 		val range = attributes(0).asInstanceOf[RangeAttribute]
-		range.min shouldBe a [IntExpression]
-		range.min.asInstanceOf[IntExpression].value should be("0")
-		range.max shouldBe a [IntExpression]
-		range.max.asInstanceOf[IntExpression].value should be("1000")
+		range.min shouldBe a [ConstantExpression]
+		range.min.asInstanceOf[ConstantExpression].value should be("0")
+		range.max shouldBe a [ConstantExpression]
+		range.max.asInstanceOf[ConstantExpression].value should be("1000")
 	}
 
 	it should "throw ParseExceptions" in {
@@ -85,20 +85,20 @@ class ParserSpec extends FlatSpec with Matchers {
 			interface Main {
 				int rank(int[n][10] mat);
 			};""")
-		}.getMessage should be("Array index `n' must have been passed as a " +
+		}.getMessage should be("Expression `n' must have been passed as a " +
 				"previous parameter")
 
 		intercept[ParseException] { parser.parse("""
 			interface Main {
-				int rank(int n, int[n][n] mat);
+				int rank([Range(0, 100)] float n, int[n][10] mat);
 			};""")
-		}.getMessage should be ("Only the first index in an array may be a variable")
+		}.getMessage should be ("Array index `n' must be declared as int")
 
 		intercept[ParseException] { parser.parse("""
 			interface Main {
-				int rank(float n, int[n][10] mat);
+				int rank([Range(0, 100)] int n, int[n][n] mat);
 			};""")
-		}.getMessage should be ("Array index `n' must be declared as int")
+		}.getMessage should be ("Only the first index in an array may be a variable")
 	}
 
 	it should "support multiple interfaces" in {

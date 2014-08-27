@@ -5,6 +5,7 @@ import java.nio.file.Paths
 
 import com.omegaup.libinteractive.idl.IDL
 import com.omegaup.libinteractive.idl.Parser
+import com.omegaup.libinteractive.idl.ParseException
 import com.omegaup.libinteractive.target._
 import scala.io.Source
 
@@ -63,7 +64,15 @@ object Main {
 			}
 
 			val parser = new Parser
-			val idl = parser.parse(Source.fromFile(options.idlFile.toFile).mkString)
+			val idl: IDL = try {
+				parser.parse(Source.fromFile(options.idlFile.toFile).mkString)
+			} catch {
+				case e: ParseException => {
+					System.err.println(e)
+					System.exit(1)
+					null
+				}
+			}
 			options.command match {
 				case Command.Generate => {
 					new OutputDirectory(Paths.get(".")).install(options.outputDirectory)

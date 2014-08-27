@@ -33,38 +33,82 @@ abstract class Type extends Object with AstNode {}
 case class PrimitiveType(name: String) extends Type {}
 case class ArrayType(primitive: PrimitiveType, lengths: List[ArrayLength]) extends Type {
 	override def children() = List(primitive) ++ lengths
+	def byteSize() = {
+		var size: Long = 1
+		lengths foreach(size *= _.range.get.max)
+		size
+	}
 }
 
 abstract class ArrayLength extends Object with AstNode {
 	def value(): String
+	def range(): Option[ValueRange]
+}
+case class ConstantLength(length: Long) extends ArrayLength {
+	override def value() = length.toString
+	override def range() = Some(ValueRange(length, length))
 }
 case class ParameterLength(param: Parameter) extends ArrayLength {
 	override def value() = param.name
-}
-case class ConstantLength(length: Int) extends ArrayLength {
-	override def value() = length.toString
+	override def range() = param.range
 }
 
+case class ValueRange(min: Long, max: Long) {
+	def union(range: ValueRange) = {
+		ValueRange(Math.min(min, range.min), Math.max(max, range.max))
+	}
+}
 abstract class Expression extends Object with AstNode {
 	def value(): String
+	def range(): Option[ValueRange]
 }
-case class IntExpression(intValue: Int) extends Expression {
-	override def value() = intValue.toString
+case class ConstantExpression(longValue: Long) extends Expression {
+	override def value() = longValue.toString
+	override def range() = Some(ValueRange(longValue, longValue))
 }
-case class VariableExpression(nameValue: String) extends Expression {
-	override def value() = nameValue
+case class ParameterExpression(param: Parameter) extends Expression {
+	override def value() = param.name
+	override def range() = param.range
 }
 
 abstract class Attribute extends Object with AstNode {}
 case class RangeAttribute(min: Expression, max: Expression) extends Attribute {
 	override def children() = List(min, max)
+	def range() = {
+		if (!min.range.isEmpty && !max.range.isEmpty) {
+			Some(min.range.get.union(max.range.get))
+		} else {
+			None
+		}
+	}
 }
 case class Parameter(paramType: Type, name: String, attributes: List[Attribute])
 		extends Object with AstNode {
 	override def children() = List(paramType) ++ attributes
+
+	def range(): Option[ValueRange] = {
+		attributes foreach(
+			_ match {
+				case r: RangeAttribute => {
+					return r.range
+				}
+				case _ => {}
+			}
+		)
+		None
+	}
 }
 
 object SemanticValidator {
+	def validateParameterExpression(len: String,
+			declaredParams: scala.collection.Map[String, Parameter]): Option[String] = {
+		if (!declaredParams.contains(len)) {
+			return Some(s"Expression `${len}' must have been passed as a previous " +
+				"parameter")
+		}
+		None
+	}
+
 	def validateParam(attributes: List[Attribute], paramType: Type, name: String,
 			declaredParams: scala.collection.Map[String, Parameter]): Option[String] = {
 		if (declaredParams.contains(name)) {
@@ -76,17 +120,20 @@ object SemanticValidator {
 	def validateArrayDimension(length: Expression,
 			declaredParams: scala.collection.Map[String, Parameter]): Option[String] = {
 		length match {
-			case variable: VariableExpression => {
-				if (!declaredParams.contains(variable.value)) {
-					return Some(s"Array index `${variable.value}' must have " +
-						s"been passed as a previous parameter")
-				}
-				if (declaredParams(variable.value).paramType != PrimitiveType("int")) {
-					return Some(s"Array index `${variable.value}' must be " +
+			case param: ParameterExpression => {
+				if (param.param.paramType != PrimitiveType("int")) {
+					return Some(s"Array index `${param.value}' must be " +
 						"declared as int")
 				}
 			}
 			case _ => {}
+		}
+		if (length.range.isEmpty) {
+			return Some(s"Array length expression `${length.value}' must have a Range " +
+					"attribute")
+		} else if (length.range.get.min < 0) {
+			return Some(s"Array length expression `${length.value}' must always be " +
+					"greater than zero")
 		}
 		None
 	}
@@ -161,10 +208,10 @@ class Parser extends StandardTokenParsers {
 				case length if
 						SemanticValidator.validateArrayDimension(length, declaredParams).isEmpty => {
 						length match {
-							case variable: VariableExpression =>
-								new ParameterLength(declaredParams(length.value))
-							case literal: IntExpression =>
-								new ConstantLength(literal.intValue)
+							case param: ParameterExpression =>
+								new ParameterLength(param.param)
+							case constant: ConstantExpression =>
+								new ConstantLength(constant.longValue)
 						}
 					}
 			},
@@ -175,8 +222,15 @@ class Parser extends StandardTokenParsers {
 
 
 	private def expression = (
-			(numericLit ^^ { case len => new IntExpression(len.toInt) }) |
-			(ident ^^ { case len => new VariableExpression(len)}))
+			(numericLit ^^ { case len => new ConstantExpression(len.toLong) }) |
+			(ident ^? ({
+				case len if SemanticValidator.validateParameterExpression(len, declaredParams).isEmpty =>
+						new ParameterExpression(declaredParams(len))
+			},
+			{
+				case len =>
+					SemanticValidator.validateParameterExpression(len, declaredParams).get
+			})))
 
 	private def param = rep(paramAttributes) ~ idltype ~ ident ^?
 			({ case attributes ~ paramType ~ name if
