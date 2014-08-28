@@ -198,21 +198,21 @@ ${if (options.verbose) {
 
 	private def generateMessageLoop(interfaces: List[(Interface, Interface, String)], infd: String) = {
 		val builder = new StringBuilder
-		builder ++= s"""def __message_loop(current_function):
+		builder ++= s"""def __message_loop(__current_function):
 	global $infd, ${interfaces.map(_._3).mkString(", ")}
 	while True:
-		buf = $infd.read(4)
-		if len(buf) == 0:
+		__buf = $infd.read(4)
+		if len(__buf) == 0:
 			break
-		elif len(buf) != 4:
+		elif len(__buf) != 4:
 			print>>sys.stderr, "Incomplete message"
 			sys.exit(1)
-		msgid = struct.unpack('I', buf)[0]
-		if msgid == current_function:
+		__msgid = struct.unpack('I', __buf)[0]
+		if __msgid == __current_function:
 			return\n"""
 		for ((caller, callee, outfd) <- interfaces) {
 			for (function <- callee.functions) {
-				builder ++= f"\t\telif msgid == 0x${functionIds((caller.name, callee.name, function.name))}%x:\n"
+				builder ++= f"\t\telif __msgid == 0x${functionIds((caller.name, callee.name, function.name))}%x:\n"
 				builder ++= s"\t\t\t# ${caller.name} -> ${callee.name}.${function.name}\n"
 				if (options.verbose) {
 					builder ++=
@@ -230,20 +230,20 @@ ${if (options.verbose) {
 						}
 					})
 				}
-				builder ++= s"\t\t\tcookie = struct.unpack('I', $infd.read(4))[0]\n"
+				builder ++= s"\t\t\t__cookie = struct.unpack('I', $infd.read(4))[0]\n"
 				builder ++= (if (function.returnType == PrimitiveType("void")) {
 					"\t\t\t"
 				} else {
-					s"\t\t\tresult = "
+					s"\t\t\t__result = "
 				})
 				builder ++=
 					s"""${callee.name}.${function.name}(${function.params.map(_.name).mkString(", ")})\n"""
-				builder ++= s"\t\t\t$outfd.write(struct.pack('I', msgid))\n"
+				builder ++= s"\t\t\t$outfd.write(struct.pack('I', __msgid))\n"
 				if (function.returnType != PrimitiveType("void")) {
 					builder ++= s"\t\t\t$outfd.write(struct.pack(" +
-							s"${structFormat(function.returnType)}, result))\n"
+							s"${structFormat(function.returnType)}, __result))\n"
 				}
-				builder ++= s"\t\t\t$outfd.write(struct.pack('I', cookie))\n"
+				builder ++= s"\t\t\t$outfd.write(struct.pack('I', __cookie))\n"
 				builder ++= s"\t\t\t$outfd.flush()\n"
 				if (options.verbose) {
 					builder ++=
@@ -252,9 +252,9 @@ ${if (options.verbose) {
 			}
 		}
 		builder ++= """		else:
-			print>>sys.stderr, "Unknown message id 0x%x" % msgid
+			print>>sys.stderr, "Unknown message id 0x%x" % __msgid
 			sys.exit(1)
-	if current_function != -1:
+	if __current_function != -1:
 		print>>sys.stderr, "Confused about exiting"
 		sys.exit(1)
 """
@@ -270,9 +270,9 @@ ${if (options.verbose) {
 			builder ++=
 				s"""\tprint>>sys.stderr, "\\t[${caller.name}] invoking ${function.name} begin\"\n"""
 		}
-		builder ++= f"\tmsgid = 0x${functionIds((caller.name, callee.name, function.name))}%x\n"
-		builder ++= f"\tcookie = 0x${rand.nextInt}%x\n"
-		builder ++= s"\t$outfd.write(struct.pack('I', msgid))\n"
+		builder ++= f"\t__msgid = 0x${functionIds((caller.name, callee.name, function.name))}%x\n"
+		builder ++= f"\t__cookie = 0x${rand.nextInt}%x\n"
+		builder ++= s"\t$outfd.write(struct.pack('I', __msgid))\n"
 		function.params.foreach(param => {
 			builder ++= (param.paramType match {
 				case primitive: PrimitiveType =>
@@ -285,23 +285,23 @@ ${if (options.verbose) {
 		})
 		if (generateTiming) {
 			builder ++=
-				"\tt0 = time.time()\n"
+				"\t__t0 = time.time()\n"
 		}
-		builder ++= s"\t$outfd.write(struct.pack('I', cookie))\n"
+		builder ++= s"\t$outfd.write(struct.pack('I', __cookie))\n"
 		builder ++= s"\t$outfd.flush()\n"
-		builder ++= "\t__message_loop(msgid)\n"
+		builder ++= "\t__message_loop(__msgid)\n"
 		if (function.returnType != PrimitiveType("void")) {
-			builder ++= s"\tans = struct.unpack(${structFormat(function.returnType)}, " +
+			builder ++= s"\t__ans = struct.unpack(${structFormat(function.returnType)}, " +
 					s"$infd.read(${fieldLength(function.returnType)}))[0]\n"
 		}
-		builder ++= s"\tcookie_result = struct.unpack('I', $infd.read(4))[0]\n"
+		builder ++= s"\t__cookie_result = struct.unpack('I', $infd.read(4))[0]\n"
 		if (generateTiming) {
-			builder ++= "\tt1 = time.time()\n"
+			builder ++= "\t__t1 = time.time()\n"
 			builder ++= "\tglobal __elapsed_time\n"
-			builder ++= "\t__elapsed_time += int((t1 - t0) * 1e9)\n"
+			builder ++= "\t__elapsed_time += int((__t1 - __t0) * 1e9)\n"
 		}
 
-		builder ++= "\tif cookie != cookie_result:\n"
+		builder ++= "\tif __cookie != __cookie_result:\n"
 		builder ++= "\t\tprint>>sys.stderr, \"invalid cookie\"\n"
 		builder ++= "\t\tsys.exit(1)\n"
 
@@ -311,7 +311,7 @@ ${if (options.verbose) {
 		}
 
 		if (function.returnType != PrimitiveType("void")) {
-			builder ++= "\treturn ans\n"
+			builder ++= "\treturn __ans\n"
 		}
 
 		builder

@@ -182,11 +182,11 @@ end;
 
 	private def generateMessageLoop(interfaces: List[(Interface, Interface, String)], infd: String) = {
 		val builder = new StringBuilder
-		builder ++= s"""procedure __message_loop(current_function: LongWord);
+		builder ++= s"""procedure __message_loop(__current_function: LongWord);
 var
-	bytesRead: LongInt;
-	msgid: LongWord;
-	cookie: LongWord;\n"""
+	__bytesRead: LongInt;
+	__msgid: LongWord;
+	__cookie: LongWord;\n"""
 		for ((caller, callee, outfd) <- interfaces) {
 			for (function <- callee.functions) {
 				if (function.returnType != PrimitiveType("void")) {
@@ -200,12 +200,12 @@ var
 	builder ++= s"""begin
 	while true do
 	begin
-		bytesRead := $infd.Read(msgid, sizeof(msgid));
-		if (bytesRead <> sizeof(msgid)) then
+		__bytesRead := $infd.Read(__msgid, sizeof(__msgid));
+		if (__bytesRead <> sizeof(__msgid)) then
 			break;
-		if (msgid = current_function) then
+		if (__msgid = __current_function) then
 			exit;
-		case msgid of\n"""
+		case __msgid of\n"""
 		for ((caller, callee, outfd) <- interfaces) {
 			for (function <- callee.functions) {
 				builder ++= f"\t\t\t$$${functionIds((caller.name, callee.name, function.name))}%x:\n"
@@ -231,7 +231,7 @@ var
 						}
 					})
 				}
-				builder ++= s"\t\t\t\t$infd.ReadBuffer(cookie, sizeof(cookie));\n"
+				builder ++= s"\t\t\t\t$infd.ReadBuffer(__cookie, sizeof(__cookie));\n"
 				builder ++= (if (function.returnType == PrimitiveType("void")) {
 					"\t\t\t\t"
 				} else {
@@ -239,11 +239,11 @@ var
 				})
 				builder ++=
 					s"""${function.name}(${function.params.map(function.name + "_" + _.name).mkString(", ")});\n"""
-				builder ++= s"\t\t\t\t$outfd.WriteBuffer(msgid, sizeof(msgid));\n"
+				builder ++= s"\t\t\t\t$outfd.WriteBuffer(__msgid, sizeof(__msgid));\n"
 				if (function.returnType != PrimitiveType("void")) {
 					builder ++= s"\t\t\t\t$outfd.WriteBuffer(${function.name}___result, sizeof(${function.name}___result));\n"
 				}
-				builder ++= s"\t\t\t\t$outfd.WriteBuffer(cookie, sizeof(cookie));\n"
+				builder ++= s"\t\t\t\t$outfd.WriteBuffer(__cookie, sizeof(__cookie));\n"
 				if (options.verbose) {
 					builder ++=
 						s"""\t\t\t\tWriteln(ErrOutput, #9,'[${callee.name}] calling ${function.name} end');\n"""
@@ -252,12 +252,12 @@ var
 			}
 		}
 		builder ++= """			else begin
-				Writeln(ErrOutput, 'Unknown message id 0x', IntToHex(msgid, 8));
+				Writeln(ErrOutput, 'Unknown message id 0x', IntToHex(__msgid, 8));
 				halt(1);
 			end;
 		end;
 	end;
-	if (current_function <> $FFFFFFFF) then
+	if (__current_function <> $FFFFFFFF) then
 	begin
 		Writeln(ErrOutput, 'Confused about exiting');
 		Halt(1);
@@ -272,9 +272,9 @@ end;
 		val builder = new StringBuilder
 		builder ++= declareFunction(function) + "\n"
 		builder ++= "var\n"
-		builder ++= "\tmsgid: LongWord;\n"
-		builder ++= "\tcookie: LongWord;\n"
-		builder ++= "\tcookie_result: LongWord;\n"
+		builder ++= "\t__msgid: LongWord;\n"
+		builder ++= "\t__cookie: LongWord;\n"
+		builder ++= "\t__cookie_result: LongWord;\n"
 		if (function.returnType != PrimitiveType("void")) {
 			builder ++= s"\t__result: ${formatType(function.returnType)};\n"
 		}
@@ -283,9 +283,9 @@ end;
 			builder ++=
 				s"""\tWriteln(ErrOutput, #9'[${caller.name}] invoking ${function.name} begin');\n"""
 		}
-		builder ++= "\tmsgid := "
+		builder ++= "\t__msgid := "
 		builder ++= f"$$${functionIds((caller.name, callee.name, function.name))}%x;\n"
-		builder ++= s"\t$outfd.WriteBuffer(msgid, sizeof(msgid));\n"
+		builder ++= s"\t$outfd.WriteBuffer(__msgid, sizeof(__msgid));\n"
 		function.params.foreach(param => {
 			builder ++= (param.paramType match {
 				case array: ArrayType => {
@@ -298,15 +298,15 @@ end;
 				}
 			})
 		})
-		builder ++= f"\tcookie := $$${rand.nextInt}%x;\n"
-		builder ++= s"\t$outfd.WriteBuffer(cookie, sizeof(cookie));\n"
-		builder ++= "\t__message_loop(msgid);\n"
+		builder ++= f"\t__cookie := $$${rand.nextInt}%x;\n"
+		builder ++= s"\t$outfd.WriteBuffer(__cookie, sizeof(__cookie));\n"
+		builder ++= "\t__message_loop(__msgid);\n"
 		if (function.returnType != PrimitiveType("void")) {
 			builder ++= s"\t$infd.ReadBuffer(__result, sizeof(__result));\n"
 		}
-		builder ++= s"\t$infd.ReadBuffer(cookie_result, sizeof(cookie_result));\n"
+		builder ++= s"\t$infd.ReadBuffer(__cookie_result, sizeof(__cookie_result));\n"
 
-		builder ++= "\tif (cookie <> cookie_result) then\n"
+		builder ++= "\tif (__cookie <> __cookie_result) then\n"
 		builder ++= "\tbegin\n"
 		builder ++= "\t\tWriteln(ErrOutput, 'invalid cookie');\n"
 		builder ++= "\t\tHalt(1);\n"

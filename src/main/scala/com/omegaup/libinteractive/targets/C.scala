@@ -331,11 +331,11 @@ $closePipes
 
 	private def generateMessageLoop(interfaces: List[(Interface, Interface, String)], infd: String) = {
 		val builder = new StringBuilder
-		builder ++= s"""static void __message_loop(int current_function) {
-	int msgid;
-	while (read($infd, &msgid, sizeof(int)) == sizeof(int)) {
-		if (msgid == current_function) return;
-		switch (msgid) {\n"""
+		builder ++= s"""static void __message_loop(int __current_function) {
+	int __msgid;
+	while (read($infd, &__msgid, sizeof(int)) == sizeof(int)) {
+		if (__msgid == __current_function) return;
+		switch (__msgid) {\n"""
 		for ((caller, callee, outfd) <- interfaces) {
 			for (function <- callee.functions) {
 				builder ++= f"\t\t\tcase 0x${functionIds((caller.name, callee.name, function.name))}%x: {\n"
@@ -357,8 +357,8 @@ $closePipes
 						}
 					})
 				}
-				builder ++= s"\t\t\t\tint cookie;\n"
-				builder ++= s"\t\t\t\tread($infd, &cookie, sizeof(int));\n"
+				builder ++= s"\t\t\t\tint __cookie;\n"
+				builder ++= s"\t\t\t\tread($infd, &__cookie, sizeof(int));\n"
 				builder ++= (if (function.returnType == PrimitiveType("void")) {
 					"\t\t\t\t"
 				} else {
@@ -366,11 +366,11 @@ $closePipes
 				})
 				builder ++=
 					s"""${function.name}(${function.params.map(_.name).mkString(", ")});\n"""
-				builder ++= s"\t\t\t\twrite($outfd, &msgid, sizeof(int));\n"
+				builder ++= s"\t\t\t\twrite($outfd, &__msgid, sizeof(int));\n"
 				if (function.returnType != PrimitiveType("void")) {
 					builder ++= s"\t\t\t\twrite($outfd, &result, sizeof(result));\n"
 				}
-				builder ++= s"\t\t\t\twrite($outfd, &cookie, sizeof(int));\n"
+				builder ++= s"\t\t\t\twrite($outfd, &__cookie, sizeof(int));\n"
 				for (param <- function.params) {
 					param.paramType match {
 						case array: ArrayType => {
@@ -388,12 +388,12 @@ $closePipes
 			}
 		}
 		builder ++= """			default: {
-				fprintf(stderr, "Unknown message id 0x%x\n", msgid);
+				fprintf(stderr, "Unknown message id 0x%x\n", __msgid);
 				exit(1);
 			}
 		}
 	}
-	if (current_function != -1) {
+	if (__current_function != -1) {
 		fprintf(stderr, "Confused about exiting\n");
 		exit(1);
 	}
@@ -411,9 +411,9 @@ $closePipes
 			builder ++=
 				s"""\tfprintf(stderr, "\\t[${caller.name}] invoking ${function.name} begin\\n");\n"""
 		}
-		builder ++= "\tconst int msgid = "
+		builder ++= "\tconst int __msgid = "
 		builder ++= f"0x${functionIds((caller.name, callee.name, function.name))}%x;\n"
-		builder ++= s"\twrite($outfd, &msgid, sizeof(int));\n"
+		builder ++= s"\twrite($outfd, &__msgid, sizeof(int));\n"
 		function.params.foreach(param => {
 			builder ++= (param.paramType match {
 				case _: PrimitiveType =>
@@ -424,25 +424,25 @@ $closePipes
 		})
 		if (generateTiming) {
 			builder ++=
-				"\tstruct timespec t0, t1;\n\tclock_gettime(CLOCK_MONOTONIC, &t0);\n"
+				"\tstruct timespec __t0, __t1;\n\tclock_gettime(CLOCK_MONOTONIC, &__t0);\n"
 		}
-		builder ++= f"\tint cookie = 0x${rand.nextInt}%x;\n"
-		builder ++= s"\twrite($outfd, &cookie, sizeof(cookie));\n"
-		builder ++= "\t__message_loop(msgid);\n"
+		builder ++= f"\tint __cookie = 0x${rand.nextInt}%x;\n"
+		builder ++= s"\twrite($outfd, &__cookie, sizeof(__cookie));\n"
+		builder ++= "\t__message_loop(__msgid);\n"
 		if (function.returnType != PrimitiveType("void")) {
-			builder ++= s"\t${formatType(function.returnType)} ans = 0;\n"
-			builder ++= s"\tread($infd, &ans, sizeof(ans));\n"
+			builder ++= s"\t${formatType(function.returnType)} __ans = 0;\n"
+			builder ++= s"\tread($infd, &__ans, sizeof(__ans));\n"
 		}
-		builder ++= "\tint cookie_result = 0;\n"
-		builder ++= s"\tread($infd, &cookie_result, sizeof(int));\n"
+		builder ++= "\tint __cookie_result = 0;\n"
+		builder ++= s"\tread($infd, &__cookie_result, sizeof(int));\n"
 		if (generateTiming) {
-			builder ++= "\tclock_gettime(CLOCK_MONOTONIC, &t1);\n"
-			builder ++= "\t__elapsed_time += (t1.tv_sec * 1000000 + t1.tv_nsec / 1000) - " +
-				"(t0.tv_sec * 1000000 + t0.tv_nsec / 1000);\n"
+			builder ++= "\tclock_gettime(CLOCK_MONOTONIC, &__t1);\n"
+			builder ++= "\t__elapsed_time += (__t1.tv_sec * 1000000 + __t1.tv_nsec / 1000) - " +
+				"(__t0.tv_sec * 1000000 + __t0.tv_nsec / 1000);\n"
 		}
 
-		builder ++= "\tif (cookie != cookie_result) {\n"
-		builder ++= "\t\tfprintf(stderr, \"invalid cookie\\n\");\n"
+		builder ++= "\tif (__cookie != __cookie_result) {\n"
+		builder ++= "\t\tfprintf(stderr, \"invalid __cookie\\n\");\n"
 		builder ++= "\t\texit(1);\n"
 		builder ++= "\t}\n"
 
@@ -452,7 +452,7 @@ $closePipes
 		}
 
 		if (function.returnType != PrimitiveType("void")) {
-			builder ++= "\treturn ans;\n"
+			builder ++= "\treturn __ans;\n"
 		}
 		builder ++= "}\n"
 
