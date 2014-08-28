@@ -111,7 +111,9 @@ object SemanticValidator {
 
 	def validateParam(attributes: List[Attribute], paramType: Type, name: String,
 			declaredParams: scala.collection.Map[String, Parameter]): Option[String] = {
-		if (declaredParams.contains(name)) {
+		if (name.startsWith("_")) {
+			return Some(s"Parameter `${name}' cannot start with `_'")
+		} else if (declaredParams.contains(name)) {
 			return Some(s"Parameter `${name}' is declared more than once")
 		}
 		None

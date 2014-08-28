@@ -99,6 +99,12 @@ class ParserSpec extends FlatSpec with Matchers {
 				int rank([Range(0, 100)] int n, int[n][n] mat);
 			};""")
 		}.getMessage should be ("Only the first index in an array may be a variable")
+
+		intercept[ParseException] { parser.parse("""
+			interface Main {
+				int solve(int _n);
+			};""")
+		}.getMessage should be ("Parameter `_n' cannot start with `_'")
 	}
 
 	it should "support multiple interfaces" in {
