@@ -182,18 +182,19 @@ class Parser extends StandardTokenParsers {
 			{ case name ~ functions => new Interface(name, functions) }
 
 	private def function =
-			primitive ~ ident ~ ("(" ~> repsep(param, ",") <~ ")") <~ ";" ^^
+			returnType ~ ident ~ ("(" ~> repsep(param, ",") <~ ")") <~ ";" ^^
 			{
 				case returnType ~ name ~ params => {
 					declaredParams.clear
 					new Function(returnType, name, params)
 				}
 			}
+	private def returnType =
+			("void" ^^ { case name => new PrimitiveType(name) }) | primitive
 
 	private def idltype = array | primitive
 	private def primitive =
-			("bool" | "int" | "short" | "float" | "char" | "string" | "long" |
-			"void") ^^
+			("bool" | "int" | "short" | "float" | "char" | "long") ^^
 			{ case name => new PrimitiveType(name) }
 	private def array = primitive ~ rep1(arrayLength) ^?
 			({
