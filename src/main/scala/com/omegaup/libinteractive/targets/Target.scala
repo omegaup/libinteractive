@@ -3,6 +3,7 @@ package com.omegaup.libinteractive.target
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import java.nio.file.LinkOption
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.Random
@@ -21,6 +22,8 @@ import Command.Command
 case class Options(
 	childLang: String = "c",
 	command: Command = Command.Verify,
+	force: Boolean = false,
+	generateTemplate: Boolean = false,
 	idlFile: Path = null,
 	makefile: Boolean = false,
 	moduleName: String = "",
@@ -65,7 +68,7 @@ case class OutputMakefile(path: Path, contents: String) extends OutputPath(path)
 case class OutputLink(path: Path, target: Path) extends OutputPath(path) {
 	override def install(root: Path) {
 		val link = root.resolve(path)
-		if (!Files.exists(link)) {
+		if (!Files.exists(link, LinkOption.NOFOLLOW_LINKS)) {
 			Files.createSymbolicLink(link, link.getParent.relativize(target))
 		}
 	}
@@ -117,8 +120,20 @@ abstract class Target(idl: IDL, options: Options) {
 	}
 
 	def generate(): Iterable[OutputPath]
+	def extension(): String
 	def generateMakefileRules(): Iterable[MakefileRule]
 	def generateRunCommands(): Iterable[ExecDescription]
+
+	protected def generateLink(interface: Interface, input: Path):
+			Iterable[OutputPath] = {
+		val moduleFile = s"${options.moduleName}.$extension"
+		(if (options.generateTemplate) {
+			List(generateTemplate(interface, input))
+		} else {
+			List()
+		}) ++ List(new OutputLink(Paths.get(interface.name, moduleFile), input))
+	}
+	protected def generateTemplate(interface: Interface, input: Path): OutputPath
 }
 
 object Generator {

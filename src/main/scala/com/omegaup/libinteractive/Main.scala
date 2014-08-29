@@ -32,12 +32,16 @@ object Main {
 						("the language in which the grader/validator is written"),
 				arg[String]("child-lang") action { (x, c) => c.copy(childLang = x) } text
 						("the language in which the submission is written"),
+				opt[Unit]("force") action { (x, c) => c.copy(force = true) } text
+						("overwrites files if needed"),
 				opt[Unit]("makefile") action { (_, c) => c.copy(makefile = true) } text
 						("also generate a Makefile"),
 				opt[Unit]("pipe-dirs") action { (_, c) => c.copy(pipeDirectories = true) } text
 						("use separate directories for each pipe"),
 				opt[Unit]("sequential-ids") action { (_, c) => c.copy(sequentialIds = true) } text
 						("use sequential (instead of random) IDs for functions"),
+				opt[Unit]("template") action { (_, c) => c.copy(generateTemplate = true) } text
+						("also generate a template for the contestant"),
 				opt[Unit]("verbose") action { (_, c) => c.copy(verbose = true) } text
 						("add verbose logging information to the generated shims")
 			)

@@ -1,7 +1,10 @@
 package com.omegaup.libinteractive.target
 
+import java.nio.file.Files
+import java.nio.file.LinkOption
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.FileAlreadyExistsException
 
 import scala.collection.mutable.StringBuilder
 
@@ -9,6 +12,8 @@ import com.omegaup.libinteractive.idl._
 
 class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 		extends Target(idl, options) {
+	override def extension() = "java"
+
 	override def generate() = {
 		if (parent) {
 			val mainFile = s"${idl.main.name}.java"
@@ -21,8 +26,7 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 			idl.interfaces.flatMap(interface =>
 				List(
 					new OutputDirectory(Paths.get(interface.name)),
-					new OutputLink(Paths.get(interface.name, moduleFile), input),
-					generate(interface))
+					generate(interface)) ++ generateLink(interface, input)
 			)
 		}
 	}
@@ -61,7 +65,46 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 		)
 	}
 
+	override def generateTemplate(interface: Interface, input: Path) = {
+		val builder = new StringBuilder
+		if (idl.main.functions.exists(_ => true)) {
+			builder ++= s"// ${idl.main.name}:\n"
+			builder ++= "//\n"
+			idl.main.functions.foreach(function =>
+				builder ++= s"//\t${declareFunction(function)}\n"
+			)
+			builder ++= "\n"
+		}
+		builder ++= s"public class ${options.moduleName} {\n"
+		interface.functions.foreach(function => {
+			builder ++= s"\n\tpublic static ${declareFunction(function)} {\n"
+			builder ++= "\t\t// FIXME\n"
+			if (function.returnType != PrimitiveType("void")) {
+				builder ++= s"\t\treturn ${defaultValue(function.returnType)};\n"
+			}
+			builder ++= "\t}\n"
+		})
+		builder ++= "\n}\n"
+		if (!options.force && Files.exists(input, LinkOption.NOFOLLOW_LINKS)) {
+			throw new FileAlreadyExistsException(input.toString, null,
+				"Refusing to overwrite file. Delete it or invoke with --force to override.")
+		}
+		OutputFile(input.toAbsolutePath, builder.mkString)
+	}
+
 	private def arrayDim(length: ArrayLength) = s"[${length.value}]"
+
+	private def defaultValue(t: PrimitiveType) = {
+		t.name match {
+			case "bool" => "false"
+			case "char" => "'\\0'"
+			case "short" => "0"
+			case "int" => "0"
+			case "float" => "0.0f"
+			case "long" => "0L"
+			case "double" => "0.0"
+		}
+	}
 
 	private def formatPrimitive(t: PrimitiveType) = {
 		t.name
@@ -359,7 +402,7 @@ public class ${idl.main.name}_entry {
 	private def generateShim(function: Function, callee: Interface, caller: Interface,
 			outfd: String, infd: String, generateTiming: Boolean) = {
 		val builder = new StringBuilder
-		builder ++= s"\tstatic ${declareFunction(function)} {\n"
+		builder ++= s"\tpublic static ${declareFunction(function)} {\n"
 		builder ++= "\t\ttry {\n"
 		if (options.verbose) {
 			builder ++=

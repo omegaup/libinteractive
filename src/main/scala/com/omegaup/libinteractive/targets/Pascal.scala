@@ -1,7 +1,10 @@
 package com.omegaup.libinteractive.target
 
+import java.nio.file.Files
+import java.nio.file.LinkOption
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.FileAlreadyExistsException
 
 import scala.collection.mutable.StringBuilder
 
@@ -9,6 +12,8 @@ import com.omegaup.libinteractive.idl._
 
 class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 		extends Target(idl, options) {
+	override def extension() = "pas"
+
 	override def generate() = {
 		if (parent) {
 			throw new UnsupportedOperationException;
@@ -17,9 +22,8 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 			idl.interfaces.flatMap(interface =>
 				List(
 					new OutputDirectory(Paths.get(interface.name)),
-					new OutputLink(Paths.get(interface.name, moduleFile), input),
 					generateEntry(interface),
-					generate(interface))
+					generate(interface)) ++ generateLink(interface, input)
 			)
 		}
 	}
@@ -38,6 +42,41 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 		}
 	}
 
+	override def generateTemplate(interface: Interface, input: Path) = {
+		val builder = new StringBuilder
+		builder ++= s"unit ${options.moduleName};\n\n"
+		if (idl.main.functions.exists(_ => true)) {
+			builder ++= "{\n"
+			builder ++= s"    ${idl.main.name}:\n"
+			builder ++= "\n"
+			idl.main.functions.foreach(function =>
+				builder ++= s"    ${declareFunction(function)}\n"
+			)
+			builder ++= "}\n\n"
+		}
+		builder ++= s"interface\n"
+		interface.functions.foreach(function => {
+			builder ++= s"\t${declareFunction(function)}\n"
+		})
+		builder ++= s"implementation\n\n"
+		builder ++= s"uses ${idl.main.name};\n"
+		interface.functions.foreach(function => {
+			builder ++= s"\n${declareFunction(function)}\n"
+			builder ++= "begin\n"
+			builder ++= "\t// FIXME\n"
+			if (function.returnType != PrimitiveType("void")) {
+				builder ++= s"\t${function.name} := ${defaultValue(function.returnType)};\n"
+			}
+			builder ++= "end;\n"
+		})
+		builder ++= "\nend.\n"
+		if (!options.force && Files.exists(input, LinkOption.NOFOLLOW_LINKS)) {
+			throw new FileAlreadyExistsException(input.toString, null,
+				"Refusing to overwrite file. Delete it or invoke with --force to override.")
+		}
+		OutputFile(input.toAbsolutePath, builder.mkString)
+	}
+
 	override def generateRunCommands() = {
 		(if (parent) {
 			throw new UnsupportedOperationException;
@@ -49,6 +88,18 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 					.resolve(Paths.get(interface.name, interface.name)))
 				.toString))
 		)
+	}
+
+	private def defaultValue(t: PrimitiveType) = {
+		t.name match {
+			case "bool" => "False"
+			case "char" => "#0"
+			case "short" => "0"
+			case "int" => "0"
+			case "float" => "0.0"
+			case "long" => "0"
+			case "double" => "0.0"
+		}
 	}
 
 	private def formatLength(length: ArrayLength, prefix: String) = {

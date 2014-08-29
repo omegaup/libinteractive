@@ -1,5 +1,6 @@
 package com.omegaup.libinteractive.target
 
+import java.nio.file.Path
 import java.nio.file.Paths
 
 import com.omegaup.libinteractive.idl.IDL
@@ -282,8 +283,10 @@ cleanup:
 		OutputFile(Paths.get("run.c"), builder.mkString)
 	}
 
+	override def extension() = ???
 	override def generateMakefileRules() = ???
 	override def generateRunCommands() = ???
+	override def generateTemplate(interface: Interface, input: Path) = ???
 }
 
 /* vim: set noexpandtab: */

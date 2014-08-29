@@ -1,7 +1,10 @@
 package com.omegaup.libinteractive.target
 
+import java.nio.file.Files
+import java.nio.file.LinkOption
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.FileAlreadyExistsException
 
 import scala.collection.mutable.StringBuilder
 
@@ -9,6 +12,8 @@ import com.omegaup.libinteractive.idl._
 
 class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 		extends Target(idl, options) {
+	override def extension() = "c"
+
 	override def generate() = {
 		if (parent) {
 			val mainFile = s"${idl.main.name}.$extension"
@@ -18,13 +23,11 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 				generateMainHeader,
 				generateMainFile)
 		} else {
-			val moduleFile = s"${options.moduleName}.$extension"
 			idl.interfaces.flatMap(interface =>
 				List(
 					new OutputDirectory(Paths.get(interface.name)),
-					new OutputLink(Paths.get(interface.name, moduleFile), input),
 					generateHeader(interface),
-					generate(interface))
+					generate(interface)) ++ generateLink(interface, input)
 			)
 		}
 	}
@@ -61,13 +64,48 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 		)
 	}
 
-	def extension() = "c"
+	override def generateTemplate(interface: Interface, input: Path) = {
+		val builder = new StringBuilder
+		builder ++= s"""#include "${options.moduleName}.h"\n\n"""
+		if (idl.main.functions.exists(_ => true)) {
+			builder ++= s"// ${idl.main.name}:\n"
+			builder ++= "//\n"
+			idl.main.functions.foreach(function =>
+				builder ++= s"//\t${declareFunction(function)}\n"
+			)
+		}
+		interface.functions.foreach(function => {
+			builder ++= s"\n${declareFunction(function)} {\n"
+			builder ++= "\t// FIXME\n"
+			if (function.returnType != PrimitiveType("void")) {
+				builder ++= s"\treturn ${defaultValue(function.returnType)};\n"
+			}
+			builder ++= "}\n"
+		})
+		if (!options.force && Files.exists(input, LinkOption.NOFOLLOW_LINKS)) {
+			throw new FileAlreadyExistsException(input.toString, null,
+				"Refusing to overwrite file. Delete it or invoke with --force to override.")
+		}
+		OutputFile(input.toAbsolutePath, builder.mkString)
+	}
 
 	def compiler() = "/usr/bin/gcc"
 
 	def cflags() = "-std=c99"
 
 	private def arrayDim(length: ArrayLength) = s"[${length.value}]"
+
+	private def defaultValue(t: PrimitiveType) = {
+		t.name match {
+			case "bool" => "false"
+			case "char" => "'\\0'"
+			case "short" => "0"
+			case "int" => "0"
+			case "float" => "0.0f"
+			case "long" => "0LL"
+			case "double" => "0.0"
+		}
+	}
 
 	private def formatPrimitive(t: PrimitiveType) = {
 		t.name match {

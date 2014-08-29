@@ -160,7 +160,7 @@ class Parser extends StandardTokenParsers {
 	val declaredParams = HashMap.empty[String, Parameter]
 	lexical.delimiters ++= List("(", ")", "[", "]", "{", "}", ",", ";")
 	lexical.reserved += (
-			"bool", "int", "short", "float", "char", "string", "long", "void",
+			"bool", "char", "short", "int", "long", "float", "double", "string", "void",
 			"interface", "Range")
 
 	def parse(input: String): IDL = {
@@ -194,7 +194,7 @@ class Parser extends StandardTokenParsers {
 
 	private def idltype = array | primitive
 	private def primitive =
-			("bool" | "int" | "short" | "float" | "char" | "long") ^^
+			("bool" | "char" | "short" | "int" | "long" | "float" | "double") ^^
 			{ case name => new PrimitiveType(name) }
 	private def array = primitive ~ rep1(arrayLength) ^?
 			({
