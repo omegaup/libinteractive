@@ -19,7 +19,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 					Paths.get("run"),
 					List(Paths.get("run.c")),
 					"/usr/bin/gcc -std=c99 -o $@ -lrt $^ -O2 -D_XOPEN_SOURCE=600 " +
-					"-D_BSD_SOURCE -Wno-unused-result -Wall"))).map(resolve)
+					"-D_BSD_SOURCE -Wall"))).map(resolve)
 		val allExecutables = allRules.map(_.target).mkString(" ")
 
 		builder ++= s"""# $message
@@ -84,6 +84,19 @@ ${commands.map(command =>
 		.mkString(", ") +
 	"}").mkString(",\n")}
 };
+
+static void writefull(int fd, const void* buf, size_t count) {
+	ssize_t bytes;
+	while (count > 0) {
+		bytes = write(fd, buf, count);
+		if (bytes <= 0) {
+			fprintf(stderr, "Incomplete message missing %zu bytes\\n", count);
+			exit(1);
+		}
+		buf = bytes + (char*)buf;
+		count -= bytes;
+	}
+}
 
 typedef struct {
 	int fd;
@@ -243,7 +256,7 @@ int main(int argc, char* argv[]) {
 					}
 					buffers[i].pos -= off;
 				} else if (buffers[i].pos == sizeof(buffers[i].buf)) {
-					write(i == 0 ? 1 : 2, buffers[i].buf, sizeof(buffers[i].buf));
+					writefull(i == 0 ? 1 : 2, buffers[i].buf, sizeof(buffers[i].buf));
 					buffers[i].pos = 0;
 				}
 			} else {

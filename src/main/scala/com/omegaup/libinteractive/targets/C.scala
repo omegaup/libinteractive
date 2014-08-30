@@ -39,7 +39,7 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 					Paths.get(idl.main.name, s"${idl.main.name}.$extension"),
 					Paths.get(idl.main.name, s"${idl.main.name}_entry.$extension")),
 				s"$compiler $cflags -o $$@ -lrt $$^ -O2 -Wl,-e__entry " +
-				"-D_XOPEN_SOURCE=600 -Wno-unused-result -Wall"))
+				"-D_XOPEN_SOURCE=600 -Wall"))
 		} else {
 			idl.interfaces.map(interface =>
 				MakefileRule(Paths.get(interface.name, interface.name),
@@ -47,7 +47,7 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 						Paths.get(interface.name, s"${interface.name}.$extension"),
 						Paths.get(interface.name, s"${interface.name}_entry.$extension")),
 					s"$compiler $cflags -o $$@ -lrt $$^ -O2 " +
-					"-D_XOPEN_SOURCE=600 -Wno-unused-result -Wall"))
+					"-D_XOPEN_SOURCE=600 -Wall"))
 		}
 	}
 
@@ -185,7 +185,7 @@ static int __in = -1, __out = -1;
 extern "C" {
 #endif
 
-void readfull(int fd, void* buf, size_t count) {
+static void readfull(int fd, void* buf, size_t count) {
 	ssize_t bytes;
 	while (count > 0) {
 		bytes = read(fd, buf, count);
@@ -193,7 +193,20 @@ void readfull(int fd, void* buf, size_t count) {
 			fprintf(stderr, "Incomplete message missing %zu bytes\\n", count);
 			exit(1);
 		}
-		buf += bytes;
+		buf = bytes + (char*)buf;
+		count -= bytes;
+	}
+}
+
+static void writefull(int fd, const void* buf, size_t count) {
+	ssize_t bytes;
+	while (count > 0) {
+		bytes = write(fd, buf, count);
+		if (bytes <= 0) {
+			fprintf(stderr, "Incomplete message missing %zu bytes\\n", count);
+			exit(1);
+		}
+		buf = bytes + (char*)buf;
 		count -= bytes;
 	}
 }
@@ -318,7 +331,20 @@ static void __exit();
 static long long __elapsed_time = 0;
 static int ${idl.allInterfaces.map(pipeName).mkString(", ")};
 
-void writefull(int fd, void* buf, size_t count) {
+static void readfull(int fd, void* buf, size_t count) {
+	ssize_t bytes;
+	while (count > 0) {
+		bytes = read(fd, buf, count);
+		if (bytes <= 0) {
+			fprintf(stderr, "Incomplete message missing %zu bytes\\n", count);
+			exit(1);
+		}
+		buf = bytes + (char*)buf;
+		count -= bytes;
+	}
+}
+
+static void writefull(int fd, const void* buf, size_t count) {
 	ssize_t bytes;
 	while (count > 0) {
 		bytes = write(fd, buf, count);
@@ -326,7 +352,7 @@ void writefull(int fd, void* buf, size_t count) {
 			fprintf(stderr, "Incomplete message missing %zu bytes\\n", count);
 			exit(1);
 		}
-		buf += bytes;
+		buf = bytes + (char*)buf;
 		count -= bytes;
 	}
 }
@@ -391,12 +417,12 @@ $closePipes
 						}
 						case primitive: PrimitiveType => {
 							s"\t\t\t\t${declareVar(param)};\n" +
-							s"\t\t\t\tread($infd, &${param.name}, ${fieldLength(primitive)});\n"
+							s"\t\t\t\treadfull($infd, &${param.name}, ${fieldLength(primitive)});\n"
 						}
 					})
 				}
 				builder ++= s"\t\t\t\tint __cookie;\n"
-				builder ++= s"\t\t\t\tread($infd, &__cookie, sizeof(int));\n"
+				builder ++= s"\t\t\t\treadfull($infd, &__cookie, sizeof(int));\n"
 				builder ++= (if (function.returnType == PrimitiveType("void")) {
 					"\t\t\t\t"
 				} else {
@@ -404,11 +430,11 @@ $closePipes
 				})
 				builder ++=
 					s"""${function.name}(${function.params.map(_.name).mkString(", ")});\n"""
-				builder ++= s"\t\t\t\twrite($outfd, &__msgid, sizeof(int));\n"
+				builder ++= s"\t\t\t\twritefull($outfd, &__msgid, sizeof(int));\n"
 				if (function.returnType != PrimitiveType("void")) {
-					builder ++= s"\t\t\t\twrite($outfd, &result, sizeof(result));\n"
+					builder ++= s"\t\t\t\twritefull($outfd, &result, sizeof(result));\n"
 				}
-				builder ++= s"\t\t\t\twrite($outfd, &__cookie, sizeof(int));\n"
+				builder ++= s"\t\t\t\twritefull($outfd, &__cookie, sizeof(int));\n"
 				for (param <- function.params) {
 					param.paramType match {
 						case array: ArrayType => {
@@ -451,11 +477,11 @@ $closePipes
 		}
 		builder ++= "\tconst int __msgid = "
 		builder ++= f"0x${functionIds((caller.name, callee.name, function.name))}%x;\n"
-		builder ++= s"\twrite($outfd, &__msgid, sizeof(int));\n"
+		builder ++= s"\twritefull($outfd, &__msgid, sizeof(int));\n"
 		function.params.foreach(param => {
 			builder ++= (param.paramType match {
 				case _: PrimitiveType =>
-					s"\twrite($outfd, &${param.name}, ${fieldLength(param.paramType)});\n"
+					s"\twritefull($outfd, &${param.name}, ${fieldLength(param.paramType)});\n"
 				case _: ArrayType =>
 					s"\twritefull($outfd, ${param.name}, ${fieldLength(param.paramType)});\n"
 			})
@@ -465,14 +491,14 @@ $closePipes
 				"\tstruct timespec __t0, __t1;\n\tclock_gettime(CLOCK_MONOTONIC, &__t0);\n"
 		}
 		builder ++= f"\tint __cookie = 0x${rand.nextInt}%x;\n"
-		builder ++= s"\twrite($outfd, &__cookie, sizeof(__cookie));\n"
+		builder ++= s"\twritefull($outfd, &__cookie, sizeof(__cookie));\n"
 		builder ++= "\t__message_loop(__msgid);\n"
 		if (function.returnType != PrimitiveType("void")) {
 			builder ++= s"\t${formatType(function.returnType)} __ans = 0;\n"
-			builder ++= s"\tread($infd, &__ans, sizeof(__ans));\n"
+			builder ++= s"\treadfull($infd, &__ans, sizeof(__ans));\n"
 		}
 		builder ++= "\tint __cookie_result = 0;\n"
-		builder ++= s"\tread($infd, &__cookie_result, sizeof(int));\n"
+		builder ++= s"\treadfull($infd, &__cookie_result, sizeof(int));\n"
 		if (generateTiming) {
 			builder ++= "\tclock_gettime(CLOCK_MONOTONIC, &__t1);\n"
 			builder ++= "\t__elapsed_time += (__t1.tv_sec * 1000000 + __t1.tv_nsec / 1000) - " +
