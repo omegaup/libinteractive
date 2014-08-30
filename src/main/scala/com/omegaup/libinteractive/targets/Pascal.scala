@@ -55,6 +55,22 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 			builder ++= "}\n\n"
 		}
 		builder ++= s"interface\n"
+		val types = idl.interfaces.flatMap(_.functions.flatMap(_.params.collect(
+			_.paramType match {
+				case array: ArrayType => {
+					s"\t${formatType(array)} = " + array.lengths.map(
+						_ match {
+							case constant: ConstantLength =>
+								s"array [0..${constant.length - 1}] of "
+							case param: ParameterLength => "array of "
+						}
+					).mkString + formatType(array.primitive) + ";"
+				}
+			}
+		))).toSet
+		if (types.size > 0) {
+			builder ++= "type\n" + types.mkString("\n")
+		}
 		interface.functions.foreach(function => {
 			builder ++= s"\t${declareFunction(function)}\n"
 		})
@@ -131,8 +147,13 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 	private def formatType(t: Type) = {
 		t match {
 			case arrayType: ArrayType =>
-				arrayType.lengths.map(_ => "array of ").mkString +
-					s"${formatPrimitive(arrayType.primitive)}"
+				"T_" + arrayType.lengths.map(
+					_ match {
+						case constant: ConstantLength => constant.value
+						case parameter: ParameterLength => "Array"
+					}
+				).mkString("_") +
+					s"_${formatPrimitive(arrayType.primitive)}"
 			case primitiveType: PrimitiveType =>
 				s"${formatPrimitive(primitiveType)}"
 		}
@@ -186,11 +207,25 @@ end.
 
 	private def generate(interface: Interface) = {
 		val builder = new StringBuilder
+		val types = idl.interfaces.flatMap(_.functions.flatMap(_.params.collect(
+			_.paramType match {
+				case array: ArrayType => {
+					s"\t${formatType(array)} = " + array.lengths.map(
+						_ match {
+							case constant: ConstantLength =>
+								s"array [0..${constant.length - 1}] of "
+							case param: ParameterLength => "array of "
+						}
+					).mkString + formatType(array.primitive) + ";"
+				}
+			}
+		))).toSet
 		builder ++= s"""{ $message }
 
 unit ${idl.main.name};
 
 interface
+${ if (types.size > 0) "type\n" + types.mkString("\n") else "" }
 	procedure __entry();
 ${
 	idl.main.functions.map("\t" + declareFunction(_))
@@ -269,10 +304,12 @@ var
 				for (param <- function.params) {
 					builder ++= (param.paramType match {
 						case array: ArrayType => {
-							s"\t\t\t\tSetLength(${function.name}_${param.name}, " +
-								array.lengths.map(
-									formatLength(_, s"${function.name}_"))
-								.mkString(", ") + ");\n" +
+							(array.lengths.head match {
+								case len: ParameterLength =>
+									s"\t\t\t\tSetLength(${function.name}_${param.name}, " +
+										s"${function.name}_${len.value});\n"
+								case _ => ""
+							}) +
 							s"\t\t\t\t$infd.ReadBuffer(${function.name}_${param.name}${array.lengths.map(_ => "[0]").mkString}, " +
 								s"""${fieldLength(array, s"${function.name}_")});\n"""
 						}
@@ -289,7 +326,7 @@ var
 					s"\t\t\t\t${function.name}___result := "
 				})
 				builder ++=
-					s"""${function.name}(${function.params.map(function.name + "_" + _.name).mkString(", ")});\n"""
+					s"""${callee.name}.${function.name}(${function.params.map(function.name + "_" + _.name).mkString(", ")});\n"""
 				builder ++= s"\t\t\t\t$outfd.WriteBuffer(__msgid, sizeof(__msgid));\n"
 				if (function.returnType != PrimitiveType("void")) {
 					builder ++= s"\t\t\t\t$outfd.WriteBuffer(${function.name}___result, sizeof(${function.name}___result));\n"

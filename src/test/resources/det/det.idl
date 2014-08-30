@@ -1,0 +1,6 @@
+interface Main {
+};
+
+interface det {
+	long det([Range(3,3)] int n, int[n][3] mat);
+};

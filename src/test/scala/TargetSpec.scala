@@ -82,8 +82,12 @@ class TargetSpec extends FlatSpec with Matchers with BeforeAndAfter {
 		}
 	}
 
-	"libinteractive" should "sum" in {
+	"libinteractive" should "support simple arrays" in {
 		runDirectory(Paths.get("src/test/resources/sum"))
+	}
+
+	"libinteractive" should "support multi-dimensional arrays" in {
+		runDirectory(Paths.get("src/test/resources/det"))
 	}
 }
 

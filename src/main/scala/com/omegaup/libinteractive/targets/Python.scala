@@ -216,6 +216,11 @@ import array
 import struct
 import sys
 
+def __readarray(infd, format, l):
+	arr = array.array(format)
+	arr.fromstring(infd.read(l))
+	return arr
+
 ${generateMessageLoop(List((idl.main, interface, "__fout")), "__fin")}
 
 ${idl.main.functions.map(
@@ -236,6 +241,30 @@ ${if (options.verbose) {
 		OutputFile(
 			Paths.get(interface.name, s"${idl.main.name}.py"),
 			builder.mkString)
+	}
+
+	private def readArray(infd: String, primitive: PrimitiveType,
+			lengths: Iterable[ArrayLength], depth: Integer = 0): String = {
+		lengths match {
+			case head :: Nil =>
+				s"__readarray($infd, ${structFormat(primitive)}, " +
+					s"(${head.value}) * ${fieldLength(primitive)})"
+			case head :: tail =>
+				s"[${readArray(infd, primitive, tail, depth + 1)} " +
+					s"for __r$depth in xrange(${head.value})]"
+		}
+	}
+
+	private def writeArray(outfd: String, name: String, primitive: PrimitiveType,
+			lengths: Iterable[ArrayLength], depth: Integer = 1): String = {
+		lengths match {
+			case head :: Nil =>
+				"\t" * depth + s"$outfd.write(struct.pack(" +
+				s"'%d${structFormat(primitive).charAt(1)}' % (${head.value}), *$name))"
+			case head :: tail =>
+				"\t" * depth + s"for __r$depth in $name:\n" +
+					writeArray(outfd, s"__r$depth", primitive, tail, depth + 1)
+		}
 	}
 
 	private def generateMessageLoop(interfaces: List[(Interface, Interface, String)], infd: String) = {
@@ -263,8 +292,7 @@ ${if (options.verbose) {
 				for (param <- function.params) {
 					builder ++= (param.paramType match {
 						case array: ArrayType => {
-							s"\t\t\t${param.name} = array.array(${structFormat(array.primitive)})\n" +
-							s"\t\t\t${param.name}.fromstring($infd.read(${fieldLength(array)}))\n"
+							s"\t\t\t${param.name} = ${readArray(infd, array.primitive, array.lengths)}\n"
 						}
 						case primitive: PrimitiveType => {
 							s"\t\t\t${param.name} = struct.unpack(${structFormat(primitive)}, " +
@@ -321,8 +349,7 @@ ${if (options.verbose) {
 					s"\t$outfd.write(struct.pack(${structFormat(param.paramType)}, " +
 						s"${param.name}))\n"
 				case array: ArrayType =>
-					s"\t$outfd.write(struct.pack(${structFormat(param.paramType)}, " +
-						s"*${param.name}))\n"
+					writeArray(outfd, param.name, array.primitive, array.lengths) + "\n"
 			})
 		})
 		if (generateTiming) {
