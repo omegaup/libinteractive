@@ -169,7 +169,8 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 			level += 1
 		}
 		builder ++= "\t" * level +
-			s"""${param.name}${(startingLevel until level).map(idx => s"[__i$idx]").mkString} = """ +
+			s"""${param.name}${(startingLevel until level).map(
+				idx => s"[__i$idx]").mkString} = """ +
 			s"$infd.${readPrimitive(array.primitive)}();\n"
 		for (expr <- array.lengths) {
 			level -= 1
@@ -189,7 +190,8 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 		}
 		builder ++= "\t" * level +
 			s"$outfd.${writePrimitive(array.primitive)}(" +
-			s"""${param.name}${(startingLevel until level).map(idx => s"[__i$idx]").mkString});\n"""
+			s"""${param.name}${(startingLevel until level).map(
+				idx => s"[__i$idx]").mkString});\n"""
 		for (expr <- array.lengths) {
 			level -= 1
 			builder ++= "\t" * level + "}\n"
@@ -216,20 +218,24 @@ import java.io.OutputStream;
 $generateDataStreams
 
 public class ${interface.name}_entry {
-	static OmegaUpDataInputStream __in = null;
-	static OmegaUpDataOutputStream __out = null;
+	static LEDataInputStream __in = null;
+	static LEDataOutputStream __out = null;
 
 ${generateMessageLoop(List((idl.main, interface, "__out")), "__in")}
 
 	public static void main(String[] args) throws IOException {
 		${if (options.verbose) {
-			"System.err.printf(\"\\t[" + interface.name + "] opening `" + pipeFilename(interface) + "'\\n\");\n"
+			"System.err.printf(\"\\t[" + interface.name + "] opening `" +
+				pipeFilename(interface) + "'\\n\");\n"
 		} else ""}
-		try (OmegaUpDataInputStream fin = new OmegaUpDataInputStream("${pipeFilename(interface)}")) {
+		try (LEDataInputStream fin =
+				new LEDataInputStream("${pipeFilename(interface)}")) {
 			${if (options.verbose) {
-				"System.err.printf(\"\\t[" + interface.name + "] opening `" + pipeFilename(idl.main) + "'\\n\");\n"
+				"System.err.printf(\"\\t[" + interface.name + "] opening `" +
+					pipeFilename(idl.main) + "'\\n\");\n"
 			} else ""}
-			try (OmegaUpDataOutputStream fout = new OmegaUpDataOutputStream("${pipeFilename(idl.main)}")) {
+			try (LEDataOutputStream fout =
+					new LEDataOutputStream("${pipeFilename(idl.main)}")) {
 				__in = fin;
 				__out = fout;
 				__message_loop(-1);
@@ -272,8 +278,8 @@ $generateDataStreams
 
 public class ${idl.main.name}_entry {
 	static long __elapsed_time = 0;
-	static OmegaUpDataInputStream ${pipeName(idl.main)} = null;
-	static OmegaUpDataOutputStream ${idl.interfaces.map(pipeName).mkString(", ")};
+	static LEDataInputStream ${pipeName(idl.main)} = null;
+	static LEDataOutputStream ${idl.interfaces.map(pipeName).mkString(", ")};
 
 """
 		builder ++= generateMessageLoop(
@@ -291,7 +297,8 @@ public class ${idl.main.name}_entry {
 						s""" "\\t[${idl.main.name}] opening `${pipeFilename(interface)}'");\n"""
 			}
 			builder ++= "\t" * indentLevel +
-					s"""try (OmegaUpDataOutputStream __${pipeName(interface)} = new OmegaUpDataOutputStream("${pipeFilename(interface)}")) {\n"""
+					s"""try (LEDataOutputStream __${pipeName(interface)} = """ +
+					s"""new LEDataOutputStream("${pipeFilename(interface)}")) {\n"""
 			indentLevel += 1
 			builder ++= "\t" * indentLevel +
 				s"${pipeName(interface)} = __${pipeName(interface)};\n"
@@ -301,7 +308,8 @@ public class ${idl.main.name}_entry {
 					s""" "\\t[${idl.main.name}] opening `${pipeFilename(idl.main)}'");\n"""
 		}
 		builder ++= "\t" * indentLevel +
-				s"""try (OmegaUpDataInputStream __${pipeName(idl.main)} = new OmegaUpDataInputStream("${pipeFilename(idl.main)}")) {\n"""
+				s"""try (LEDataInputStream __${pipeName(idl.main)} = """ +
+				s"""new LEDataInputStream("${pipeFilename(idl.main)}")) {\n"""
 		indentLevel += 1
 		builder ++= "\t" * indentLevel +
 			s"${pipeName(idl.main)} = __${pipeName(idl.main)};\n"
@@ -329,9 +337,11 @@ public class ${idl.main.name}_entry {
 			builder.mkString)
 	}
 
-	private def generateMessageLoop(interfaces: List[(Interface, Interface, String)], infd: String) = {
+	private def generateMessageLoop(interfaces: List[(Interface, Interface, String)],
+			infd: String) = {
 		val builder = new StringBuilder
-		builder ++= s"""	static void __message_loop(int __current_function) throws IOException {
+		builder ++=
+			s"""	static void __message_loop(int __current_function) throws IOException {
 		int __msgid;
 		while (true) {
 			try {
@@ -343,11 +353,13 @@ public class ${idl.main.name}_entry {
 			switch (__msgid) {\n"""
 		for ((caller, callee, outfd) <- interfaces) {
 			for (function <- callee.functions) {
-				builder ++= f"\t\t\t\tcase 0x${functionIds((caller.name, callee.name, function.name))}%x: {\n"
+				builder ++= f"\t\t\t\tcase 0x${functionIds((caller.name, callee.name,
+					function.name))}%x: {\n"
 				builder ++= s"\t\t\t\t\t// ${caller.name} -> ${callee.name}.${function.name}\n"
 				if (options.verbose) {
 					builder ++=
-						s"""\t\t\t\t\tSystem.err.printf("\\t[${callee.name}] calling ${function.name} begin\\n");\n"""
+						s"""\t\t\t\t\tSystem.err.printf("\\t[${callee.name}] calling """ +
+						s"""${function.name} begin\\n");\n"""
 				}
 				for (param <- function.params) {
 					builder ++= (param.paramType match {
@@ -369,16 +381,19 @@ public class ${idl.main.name}_entry {
 					s"\t\t\t\t\t${formatType(function.returnType)} __result = "
 				})
 				builder ++=
-					s"""${callee.name}.${function.name}(${function.params.map(_.name).mkString(", ")});\n"""
+					s"""${callee.name}.${function.name}(${function.params.map(
+						_.name).mkString(", ")});\n"""
 				builder ++= s"\t\t\t\t\t$outfd.writeInt(__msgid);\n"
 				if (function.returnType != PrimitiveType("void")) {
-					builder ++= s"\t\t\t\t\t$outfd.${writePrimitive(function.returnType)}(__result);\n"
+					builder ++= s"\t\t\t\t\t$outfd.${writePrimitive(function.returnType)}" +
+						"(__result);\n"
 				}
 				builder ++= s"\t\t\t\t\t$outfd.writeInt(__cookie);\n"
 				builder ++= s"\t\t\t\t\t$outfd.flush();\n"
 				if (options.verbose) {
 					builder ++=
-						s"""\t\t\t\t\tSystem.err.printf("\\t[${callee.name}] calling ${function.name} end\\n");\n"""
+						s"""\t\t\t\t\tSystem.err.printf("\\t[${callee.name}] calling """ +
+						s"""${function.name} end\\n");\n"""
 				}
 				builder ++= "\t\t\t\t\tbreak;\n"
 				builder ++= "\t\t\t\t}\n"
@@ -406,7 +421,8 @@ public class ${idl.main.name}_entry {
 		builder ++= "\t\ttry {\n"
 		if (options.verbose) {
 			builder ++=
-				s"""\t\t\tSystem.err.printf("\\t[${caller.name}] invoking ${function.name} begin\\n");\n"""
+				s"""\t\t\tSystem.err.printf("\\t[${caller.name}] """ +
+				s"""invoking ${function.name} begin\\n");\n"""
 		}
 		builder ++= "\t\t\tfinal int __msgid = "
 		builder ++= f"0x${functionIds((caller.name, callee.name, function.name))}%x;\n"
@@ -444,7 +460,8 @@ public class ${idl.main.name}_entry {
 
 		if (options.verbose) {
 			builder ++=
-				s"""\t\t\tSystem.err.printf("\\t[${caller.name}] invoking ${function.name} end\\n");\n"""
+				s"""\t\t\tSystem.err.printf("\\t[${caller.name}] """ +
+				s"""invoking ${function.name} end\\n");\n"""
 		}
 		if (function.returnType != PrimitiveType("void")) {
 			builder ++= "\t\t\treturn __ans;\n"
@@ -461,9 +478,13 @@ public class ${idl.main.name}_entry {
 		builder
 	}
 
+	/**
+	 * Generates little-endian streams that are compatible with the C implementation.
+	 * This makes libinteractive work in 95% of the CPUs out there.
+	 */
 	private def generateDataStreams() = {
-		"""class OmegaUpDataInputStream extends FilterInputStream {
-	public OmegaUpDataInputStream(String path) throws FileNotFoundException {
+		"""class LEDataInputStream extends FilterInputStream {
+	public LEDataInputStream(String path) throws FileNotFoundException {
 		super(new BufferedInputStream(new FileInputStream(path)));
 	}
 
@@ -512,8 +533,8 @@ public class ${idl.main.name}_entry {
 	}
 }
 
-class OmegaUpDataOutputStream extends FilterOutputStream {
-	public OmegaUpDataOutputStream(String path) throws FileNotFoundException {
+class LEDataOutputStream extends FilterOutputStream {
+	public LEDataOutputStream(String path) throws FileNotFoundException {
 		super(new BufferedOutputStream(new FileOutputStream(path)));
 	}
 

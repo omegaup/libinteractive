@@ -62,12 +62,14 @@ class TargetSpec extends FlatSpec with Matchers with BeforeAndAfter {
 		val testRoot = directory.resolve(".tests")
 		if (Files.exists(testRoot)) {
 			Files.walkFileTree(testRoot, new SimpleFileVisitor[Path] {
-				override def visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult = {
+				override def visitFile(file: Path, attrs: BasicFileAttributes):
+						FileVisitResult = {
 					Files.delete(file)
 					FileVisitResult.CONTINUE
 				}
 
-				override def postVisitDirectory(dir: Path, exc: IOException): FileVisitResult = {
+				override def postVisitDirectory(dir: Path, exc: IOException):
+						FileVisitResult = {
 					Files.delete(dir)
 					FileVisitResult.CONTINUE
 				}

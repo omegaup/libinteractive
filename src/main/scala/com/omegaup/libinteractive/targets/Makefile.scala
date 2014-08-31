@@ -7,7 +7,8 @@ import com.omegaup.libinteractive.idl.IDL
 import com.omegaup.libinteractive.idl.Interface
 
 class Makefile(idl: IDL, rules: Iterable[MakefileRule],
-		commands: Iterable[ExecDescription], options: Options) extends Target(idl, options) {
+		commands: Iterable[ExecDescription], options: Options)
+		extends Target(idl, options) {
 	override def generate() = {
 		List(generateMakefileContents, generateRunDriver)
 	}
@@ -26,7 +27,9 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 
 all: $allExecutables
 
-${allRules.map(rule => s"${rule.target}: ${rule.requisites.mkString(" ")}\n\t${rule.command}\n").mkString("\n")}
+${allRules.map(
+	rule => s"${rule.target}: ${rule.requisites.mkString(" ")}\n\t${rule.command}\n"
+).mkString("\n")}
 run: $allExecutables
 	@${options.root.relativize(options.outputDirectory.resolve(Paths.get("run")))}
 """
@@ -238,14 +241,17 @@ int main(int argc, char* argv[]) {
 						buffers[i].buf[j] = '\\0';
 						if (i == 0) {
 							if (isatty(1) && isatty(2)) {
-								fprintf(stderr, "\\033[1m[%${maxNameLength}s]\\033[0m %s\\n", interfaces[i / 2], buffers[i].buf + off);
+								fprintf(stderr, "\\033[1m[%${maxNameLength}s]\\033[0m %s\\n",
+									interfaces[i / 2], buffers[i].buf + off);
 							} else if (isatty(1)) {
-								fprintf(stdout, "\\033[1m[%${maxNameLength}s]\\033[0m %s\\n", interfaces[i / 2], buffers[i].buf + off);
+								fprintf(stdout, "\\033[1m[%${maxNameLength}s]\\033[0m %s\\n",
+									interfaces[i / 2], buffers[i].buf + off);
 							} else {
 								fprintf(stdout, "%s\\n", buffers[i].buf + off);
 							}
 						} else {
-							fprintf(stderr, "[%${maxNameLength}s] %s\\n", interfaces[i / 2], buffers[i].buf + off);
+							fprintf(stderr, "[%${maxNameLength}s] %s\\n",
+								interfaces[i / 2], buffers[i].buf + off);
 						}
 						off = j + 1;
 					}

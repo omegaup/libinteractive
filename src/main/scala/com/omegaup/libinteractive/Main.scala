@@ -38,9 +38,11 @@ object Main {
 						("also generate a Makefile"),
 				opt[Unit]("pipe-dirs") action { (_, c) => c.copy(pipeDirectories = true) } text
 						("use separate directories for each pipe"),
-				opt[Unit]("sequential-ids") action { (_, c) => c.copy(sequentialIds = true) } text
+				opt[Unit]("sequential-ids") action
+						{ (_, c) => c.copy(sequentialIds = true) } text
 						("use sequential (instead of random) IDs for functions"),
-				opt[Unit]("template") action { (_, c) => c.copy(generateTemplate = true) } text
+				opt[Unit]("template") action
+						{ (_, c) => c.copy(generateTemplate = true) } text
 						("also generate a template for the contestant"),
 				opt[Unit]("verbose") action { (_, c) => c.copy(verbose = true) } text
 						("add verbose logging information to the generated shims")
@@ -54,7 +56,8 @@ object Main {
 		}
 
 		optparse.parse(args, Options()) map { rawOptions => {
-			val fileName = rawOptions.idlFile.getName(rawOptions.idlFile.getNameCount - 1).toString
+			val fileName =
+					rawOptions.idlFile.getName(rawOptions.idlFile.getNameCount - 1).toString
 			val extPos = fileName.lastIndexOf('.')
 			val options = (if (extPos == -1) {
 				rawOptions.copy(moduleName = fileName)

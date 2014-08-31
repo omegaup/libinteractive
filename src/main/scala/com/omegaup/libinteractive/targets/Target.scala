@@ -153,7 +153,8 @@ object Generator {
 		targetList.flatMap(_.generate)
 	}
 
-	private def target(lang: String, idl: IDL, options: Options, input: Path, parent: Boolean): Target = {
+	private def target(lang: String, idl: IDL, options: Options, input: Path,
+			parent: Boolean): Target = {
 		lang match {
 			case "c" => new C(idl, options, input, parent)
 			case "cpp" => new Cpp(idl, options, input, parent)

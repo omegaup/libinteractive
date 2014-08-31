@@ -31,7 +31,8 @@ case class Function(returnType: PrimitiveType, name: String, params: List[Parame
 
 abstract class Type extends Object with AstNode {}
 case class PrimitiveType(name: String) extends Type {}
-case class ArrayType(primitive: PrimitiveType, lengths: List[ArrayLength]) extends Type {
+case class ArrayType(primitive: PrimitiveType, lengths: List[ArrayLength])
+		extends Type {
 	override def children() = List(primitive) ++ lengths
 	def byteSize() = {
 		var size: Long = 1
@@ -99,8 +100,8 @@ case class Parameter(paramType: Type, name: String, attributes: List[Attribute])
 	}
 }
 
-object SemanticValidator {
-	def validateParameterExpression(len: String,
+object Validator {
+	def validateExpression(len: String,
 			declaredParams: scala.collection.Map[String, Parameter]): Option[String] = {
 		if (!declaredParams.contains(len)) {
 			return Some(s"Expression `${len}' must have been passed as a previous " +
@@ -199,45 +200,47 @@ class Parser extends StandardTokenParsers {
 	private def array = primitive ~ rep1(arrayLength) ^?
 			({
 				case baseType ~ lengths if
-						SemanticValidator.validateArrayType(baseType, lengths, declaredParams).isEmpty =>
+						Validator.validateArrayType(baseType, lengths, declaredParams).isEmpty =>
 					new ArrayType(baseType, lengths)
 			},
 			{
 				case baseType ~ lengths =>
-						SemanticValidator.validateArrayType(baseType, lengths, declaredParams).get
+						Validator.validateArrayType(baseType, lengths, declaredParams).get
 			})
 	private def arrayLength = "[" ~> expression <~ "]" ^?
 			({
 				case length if
-						SemanticValidator.validateArrayDimension(length, declaredParams).isEmpty => {
-						length match {
-							case param: ParameterExpression =>
-								new ParameterLength(param.param)
-							case constant: ConstantExpression =>
-								new ConstantLength(constant.longValue)
-						}
+						Validator.validateArrayDimension(length, declaredParams).isEmpty => {
+					length match {
+						case param: ParameterExpression =>
+							new ParameterLength(param.param)
+						case constant: ConstantExpression =>
+							new ConstantLength(constant.longValue)
 					}
+				}
 			},
 			{
 				case length =>
-						SemanticValidator.validateArrayDimension(length, declaredParams).get
+						Validator.validateArrayDimension(length, declaredParams).get
 			})
 
 
 	private def expression = (
 			(numericLit ^^ { case len => new ConstantExpression(len.toLong) }) |
 			(ident ^? ({
-				case len if SemanticValidator.validateParameterExpression(len, declaredParams).isEmpty =>
-						new ParameterExpression(declaredParams(len))
+				case len if
+						Validator.validateExpression(len, declaredParams).isEmpty =>
+					new ParameterExpression(declaredParams(len))
 			},
 			{
 				case len =>
-					SemanticValidator.validateParameterExpression(len, declaredParams).get
+					Validator.validateExpression(len, declaredParams).get
 			})))
 
 	private def param = rep(paramAttributes) ~ idltype ~ ident ^?
 			({ case attributes ~ paramType ~ name if
-						SemanticValidator.validateParam(attributes, paramType, name, declaredParams).isEmpty => {
+						Validator.validateParam(attributes, paramType,
+							name, declaredParams).isEmpty => {
 					val param = new Parameter(paramType, name, attributes)
 					declaredParams(name) = param
 					param
@@ -245,7 +248,7 @@ class Parser extends StandardTokenParsers {
 			},
 			{
 				case attributes ~ paramType ~ name =>
-					SemanticValidator.validateParam(attributes, paramType, name, declaredParams).get
+					Validator.validateParam(attributes, paramType, name, declaredParams).get
 			})
 
 	private def paramAttributes = range

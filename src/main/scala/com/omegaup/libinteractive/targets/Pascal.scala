@@ -245,11 +245,13 @@ ${generateMessageLoop(List((idl.main, interface, "__out")), "__in")}
 procedure __entry();
 begin
 	${if (options.verbose) {
-		"\tWriteln(ErrOutput, #9'[" + interface.name + "] opening `" + pipeFilename(interface) + "''');\n"
+		"\tWriteln(ErrOutput, #9'[" + interface.name + "] opening `" +
+		pipeFilename(interface) + "''');\n"
 	} else ""}
 	__in := TFileStream.Create('${pipeFilename(interface)}', fmOpenRead);
 	${if (options.verbose) {
-		"\tWriteln(ErrOutput, #9'" + interface.name + "] opening `" + pipeFilename(idl.main) + "''');\n"
+		"\tWriteln(ErrOutput, #9'" + interface.name + "] opening `" +
+		pipeFilename(idl.main) + "''');\n"
 	} else ""}
 	__out := TFileStream.Create('${pipeFilename(idl.main)}', fmOpenWrite);
 	__message_loop($$FFFFFFFF);
@@ -266,7 +268,8 @@ end;
 			builder.mkString)
 	}
 
-	private def generateMessageLoop(interfaces: List[(Interface, Interface, String)], infd: String) = {
+	private def generateMessageLoop(interfaces: List[(Interface, Interface, String)],
+			infd: String) = {
 		val builder = new StringBuilder
 		builder ++= s"""procedure __message_loop(__current_function: LongWord);
 var
@@ -276,10 +279,12 @@ var
 		for ((caller, callee, outfd) <- interfaces) {
 			for (function <- callee.functions) {
 				if (function.returnType != PrimitiveType("void")) {
-					builder ++= s"\t${function.name}___result: ${formatType(function.returnType)};\n"
+					builder ++=
+						s"\t${function.name}___result: ${formatType(function.returnType)};\n"
 				}
 				for (param <- function.params) {
-					builder ++= s"\t${function.name}_${param.name}: ${formatType(param.paramType)};\n"
+					builder ++=
+						s"\t${function.name}_${param.name}: ${formatType(param.paramType)};\n"
 				}
 			}
 		}
@@ -294,12 +299,14 @@ var
 		case __msgid of\n"""
 		for ((caller, callee, outfd) <- interfaces) {
 			for (function <- callee.functions) {
-				builder ++= f"\t\t\t$$${functionIds((caller.name, callee.name, function.name))}%x:\n"
+				builder ++= f"\t\t\t$$${functionIds((caller.name, callee.name,
+					function.name))}%x:\n"
 				builder ++= f"\t\t\tbegin\n"
 				builder ++= s"\t\t\t\t{ ${caller.name} -> ${callee.name}.${function.name} }\n"
 				if (options.verbose) {
 					builder ++=
-						s"""\t\t\t\tWriteln(ErrOutput, #9'[${callee.name}] calling ${function.name} begin');\n"""
+						s"""\t\t\t\tWriteln(ErrOutput, #9'[${callee.name}] """ +
+						s"""calling ${function.name} begin');\n"""
 				}
 				for (param <- function.params) {
 					builder ++= (param.paramType match {
@@ -310,7 +317,8 @@ var
 										s"${function.name}_${len.value});\n"
 								case _ => ""
 							}) +
-							s"\t\t\t\t$infd.ReadBuffer(${function.name}_${param.name}${array.lengths.map(_ => "[0]").mkString}, " +
+							s"\t\t\t\t$infd.ReadBuffer(${function.name}_${param.name}" +
+								s"${array.lengths.map(_ => "[0]").mkString}, " +
 								s"""${fieldLength(array, s"${function.name}_")});\n"""
 						}
 						case primitive: PrimitiveType => {
@@ -326,15 +334,18 @@ var
 					s"\t\t\t\t${function.name}___result := "
 				})
 				builder ++=
-					s"""${callee.name}.${function.name}(${function.params.map(function.name + "_" + _.name).mkString(", ")});\n"""
+					s"""${callee.name}.${function.name}(${function.params.map(
+						function.name + "_" + _.name).mkString(", ")});\n"""
 				builder ++= s"\t\t\t\t$outfd.WriteBuffer(__msgid, sizeof(__msgid));\n"
 				if (function.returnType != PrimitiveType("void")) {
-					builder ++= s"\t\t\t\t$outfd.WriteBuffer(${function.name}___result, sizeof(${function.name}___result));\n"
+					builder ++= s"\t\t\t\t$outfd.WriteBuffer(${function.name}___result, " +
+						s"sizeof(${function.name}___result));\n"
 				}
 				builder ++= s"\t\t\t\t$outfd.WriteBuffer(__cookie, sizeof(__cookie));\n"
 				if (options.verbose) {
 					builder ++=
-						s"""\t\t\t\tWriteln(ErrOutput, #9,'[${callee.name}] calling ${function.name} end');\n"""
+						s"""\t\t\t\tWriteln(ErrOutput, #9,'[${callee.name}] """ +
+						s"""calling ${function.name} end');\n"""
 				}
 				builder ++= "\t\t\tend;\n"
 			}
@@ -369,7 +380,8 @@ end;
 		builder ++= "begin\n"
 		if (options.verbose) {
 			builder ++=
-				s"""\tWriteln(ErrOutput, #9'[${caller.name}] invoking ${function.name} begin');\n"""
+				s"""\tWriteln(ErrOutput, #9'[${caller.name}] """ +
+				s"""invoking ${function.name} begin');\n"""
 		}
 		builder ++= "\t__msgid := "
 		builder ++= f"$$${functionIds((caller.name, callee.name, function.name))}%x;\n"
@@ -377,8 +389,8 @@ end;
 		function.params.foreach(param => {
 			builder ++= (param.paramType match {
 				case array: ArrayType => {
-					s"\t\t\t\t$outfd.WriteBuffer(${param.name}${array.lengths.map(_ => "[0]").mkString}, " +
-						s"${fieldLength(array)});\n"
+					s"\t\t\t\t$outfd.WriteBuffer(${param.name}${array.lengths.map(
+						_ => "[0]").mkString}, ${fieldLength(array)});\n"
 				}
 				case primitive: PrimitiveType => {
 					s"\t\t\t\t$outfd.WriteBuffer(${param.name}, " +

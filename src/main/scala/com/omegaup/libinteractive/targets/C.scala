@@ -221,7 +221,8 @@ int main(int argc, char* argv[]) {
 	int retval = 0;
 
 	${if (options.verbose) {
-		"\tfprintf(stderr, \"\\t[" + interface.name + "] opening `" + pipeFilename(interface) + "'\\n\");\n"
+		"\tfprintf(stderr, \"\\t[" + interface.name + "] opening `" +
+			pipeFilename(interface) + "'\\n\");\n"
 	} else ""}
 	if ((__in = open("${pipeFilename(interface)}", O_RDONLY)) == -1) {
 		perror("open");
@@ -229,7 +230,8 @@ int main(int argc, char* argv[]) {
 		goto cleanup;
 	}
 	${if (options.verbose) {
-		"\tfprintf(stderr, \"\\t[" + interface.name + "] opening `" + pipeFilename(idl.main) + "'\\n\");\n"
+		"\tfprintf(stderr, \"\\t[" + interface.name + "] opening `" +
+			pipeFilename(idl.main) + "'\\n\");\n"
 	} else ""}
 	if ((__out = open("${pipeFilename(idl.main)}", O_WRONLY)) == -1) {
 		perror("open");
@@ -241,7 +243,8 @@ int main(int argc, char* argv[]) {
 
 cleanup:
 	${if (options.verbose) {
-		"\tfprintf(stderr, \"\\t[" + interface.name + "] closing `" + pipeFilename(interface) + "'\\n\");\n"
+		"\tfprintf(stderr, \"\\t[" + interface.name + "] closing `" +
+			pipeFilename(interface) + "'\\n\");\n"
 	} else ""}
 	if (__in != -1) {
 		if (close(__in) == -1) {
@@ -249,7 +252,8 @@ cleanup:
 		}
 	}
 	${if (options.verbose) {
-		"\tfprintf(stderr, \"\\t[" + interface.name + "] closing `" + pipeFilename(idl.main) + "'\\n\");\n"
+		"\tfprintf(stderr, \"\\t[" + interface.name + "] closing `" +
+			pipeFilename(idl.main) + "'\\n\");\n"
 	} else ""}
 	if (__out != -1) {
 		if (close(__out) == -1) {
@@ -282,26 +286,31 @@ cleanup:
 	private def generateMainFile() = {
 		val openPipes = idl.interfaces.map(interface => {
 			(if (options.verbose) {
-				s"""\tfprintf(stderr, "\\t[${idl.main.name}] opening `${pipeFilename(interface)}'\\n");\n"""
+				s"""\tfprintf(stderr, "\\t[${idl.main.name}] opening """ +
+					s"""`${pipeFilename(interface)}'\\n");\n"""
 			} else {
 				""
 			}) +
-s"""\tif ((${pipeName(interface)} = open("${pipeFilename(interface)}", O_WRONLY)) == -1) {
+s"""\tif ((${pipeName(interface)} =
+			open("${pipeFilename(interface)}", O_WRONLY)) == -1) {
 		perror("open");
 		exit(1);
 	}\n"""}).mkString("\n") +
 			(if (options.verbose) {
-				s"""\tfprintf(stderr, "\\t[${idl.main.name}] opening `${pipeFilename(idl.main)}'\\n");\n"""
+				s"""\tfprintf(stderr, "\\t[${idl.main.name}] opening """ +
+					s"""`${pipeFilename(idl.main)}'\\n");\n"""
 			} else {
 				""
 			}) +
-s"""\tif ((${pipeName(idl.main)} = open("${pipeFilename(idl.main)}", O_RDONLY)) == -1) {
+s"""\tif ((${pipeName(idl.main)} =
+			open("${pipeFilename(idl.main)}", O_RDONLY)) == -1) {
 		perror("open");
 		exit(1);
 	}\n"""
 		val closePipes = (idl.interfaces ++ List(idl.main)).map(interface => {
 			(if (options.verbose) {
-				s"""\tfprintf(stderr, "\\t[${idl.main.name}] closing `${pipeFilename(interface)}'\\n");\n"""
+				s"""\tfprintf(stderr, "\\t[${idl.main.name}] closing """ +
+					s"""`${pipeFilename(interface)}'\\n");\n"""
 			} else {
 				""
 			}) +
@@ -393,7 +402,8 @@ $closePipes
 			builder.mkString)
 	}
 
-	private def generateMessageLoop(interfaces: List[(Interface, Interface, String)], infd: String) = {
+	private def generateMessageLoop(interfaces: List[(Interface, Interface, String)],
+			infd: String) = {
 		val builder = new StringBuilder
 		builder ++= s"""static void __message_loop(int __current_function) {
 	int __msgid;
@@ -402,11 +412,13 @@ $closePipes
 		switch (__msgid) {\n"""
 		for ((caller, callee, outfd) <- interfaces) {
 			for (function <- callee.functions) {
-				builder ++= f"\t\t\tcase 0x${functionIds((caller.name, callee.name, function.name))}%x: {\n"
+				builder ++= f"\t\t\tcase 0x${functionIds((caller.name, callee.name,
+					function.name))}%x: {\n"
 				builder ++= s"\t\t\t\t// ${caller.name} -> ${callee.name}.${function.name}\n"
 				if (options.verbose) {
 					builder ++=
-						s"""\t\t\t\tfprintf(stderr, "\\t[${callee.name}] calling ${function.name} begin\\n");\n"""
+						s"""\t\t\t\tfprintf(stderr, "\\t[${callee.name}] """ +
+							s"""calling ${function.name} begin\\n");\n"""
 				}
 				for (param <- function.params) {
 					builder ++= (param.paramType match {
@@ -445,7 +457,8 @@ $closePipes
 				}
 				if (options.verbose) {
 					builder ++=
-						s"""\t\t\t\tfprintf(stderr, "\\t[${callee.name}] calling ${function.name} end\\n");\n"""
+						s"""\t\t\t\tfprintf(stderr, "\\t[${callee.name}] """ +
+							s"""calling ${function.name} end\\n");\n"""
 				}
 				builder ++= "\t\t\t\tbreak;\n"
 				builder ++= "\t\t\t}\n"
@@ -473,7 +486,8 @@ $closePipes
 		builder ++= " {\n"
 		if (options.verbose) {
 			builder ++=
-				s"""\tfprintf(stderr, "\\t[${caller.name}] invoking ${function.name} begin\\n");\n"""
+				s"""\tfprintf(stderr, "\\t[${caller.name}] """ +
+				s"""invoking ${function.name} begin\\n");\n"""
 		}
 		builder ++= "\tconst int __msgid = "
 		builder ++= f"0x${functionIds((caller.name, callee.name, function.name))}%x;\n"
@@ -501,7 +515,8 @@ $closePipes
 		builder ++= s"\treadfull($infd, &__cookie_result, sizeof(int));\n"
 		if (generateTiming) {
 			builder ++= "\tclock_gettime(CLOCK_MONOTONIC, &__t1);\n"
-			builder ++= "\t__elapsed_time += (__t1.tv_sec * 1000000 + __t1.tv_nsec / 1000) - " +
+			builder ++= "\t__elapsed_time += " +
+				"(__t1.tv_sec * 1000000 + __t1.tv_nsec / 1000) - " +
 				"(__t0.tv_sec * 1000000 + __t0.tv_nsec / 1000);\n"
 		}
 
@@ -512,7 +527,8 @@ $closePipes
 
 		if (options.verbose) {
 			builder ++=
-				s"""\tfprintf(stderr, "\\t[${caller.name}] invoking ${function.name} end\\n");\n"""
+				s"""\tfprintf(stderr, "\\t[${caller.name}] """ +
+				s"""invoking ${function.name} end\\n");\n"""
 		}
 
 		if (function.returnType != PrimitiveType("void")) {
