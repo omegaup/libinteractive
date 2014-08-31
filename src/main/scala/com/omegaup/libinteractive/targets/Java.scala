@@ -92,7 +92,18 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 		OutputFile(input.toAbsolutePath, builder.mkString)
 	}
 
-	private def arrayDim(length: ArrayLength) = s"[${length.value}]"
+	private def formatLength(length: ArrayLength, function: Option[Function]) = {
+		length match {
+			case param: ParameterLength if !function.isEmpty =>
+				s"${function.get.name}_${param.value}"
+			case length: ArrayLength =>
+				s"(${length.value})"
+		}
+	}
+
+	private def arrayDim(length: ArrayLength, function: Option[Function]) = {
+		s"[${formatLength(length, function)}]"
+	}
 
 	private def defaultValue(t: PrimitiveType) = {
 		t.name match {
@@ -133,8 +144,8 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 			arrayType.lengths.map(_.value).mkString(", ")
 	}
 
-	private def declareVar(param: Parameter) = {
-		s"${formatType(param.paramType)} ${param.name}"
+	private def declareVar(param: Parameter, function: Function) = {
+		s"${formatType(param.paramType)} ${function.name}_${param.name}"
 	}
 
 	private def writePrimitive(primitive: PrimitiveType) = {
@@ -160,16 +171,18 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 	}
 
 	private def readArray(infd: String, param: Parameter, array: ArrayType,
-			startingLevel: Int) = {
+			function: Option[Function], startingLevel: Int) = {
 		var level = startingLevel
 		val builder = new StringBuilder
-		for (expr <- array.lengths) {
+		for (len <- array.lengths) {
 			builder ++= "\t" * level +
-					s"for (int __i$level = 0; __i$level < ${expr.value}; __i$level++) {\n"
+					s"for (int __i$level = 0; __i$level < ${formatLength(len, function)}; " +
+					s"__i$level++) {\n"
 			level += 1
 		}
 		builder ++= "\t" * level +
-			s"""${param.name}${(startingLevel until level).map(
+			s"""${function.map(
+				_.name + "_").mkString}${param.name}${(startingLevel until level).map(
 				idx => s"[__i$idx]").mkString} = """ +
 			s"$infd.${readPrimitive(array.primitive)}();\n"
 		for (expr <- array.lengths) {
@@ -364,12 +377,13 @@ public class ${idl.main.name}_entry {
 				for (param <- function.params) {
 					builder ++= (param.paramType match {
 						case array: ArrayType => {
-							s"\t\t\t\t\t${declareVar(param)} = new ${formatType(array.primitive)}" +
-								s"""${array.lengths.map(arrayDim).mkString("")};\n""" +
-								readArray(infd, param, array, 5)
+							s"\t\t\t\t\t${declareVar(param, function)} = " +
+								s"new ${formatType(array.primitive)}" +
+								s"${array.lengths.map(arrayDim(_, Some(function))).mkString("")};\n" +
+								readArray(infd, param, array, Some(function), 5)
 						}
 						case primitive: PrimitiveType => {
-							s"\t\t\t\t\t${declareVar(param)} = " +
+							s"\t\t\t\t\t${declareVar(param, function)} = " +
 								s"$infd.${readPrimitive(primitive)}();\n"
 						}
 					})
@@ -382,7 +396,7 @@ public class ${idl.main.name}_entry {
 				})
 				builder ++=
 					s"""${callee.name}.${function.name}(${function.params.map(
-						_.name).mkString(", ")});\n"""
+						function.name + "_" + _.name).mkString(", ")});\n"""
 				builder ++= s"\t\t\t\t\t$outfd.writeInt(__msgid);\n"
 				if (function.returnType != PrimitiveType("void")) {
 					builder ++= s"\t\t\t\t\t$outfd.${writePrimitive(function.returnType)}" +

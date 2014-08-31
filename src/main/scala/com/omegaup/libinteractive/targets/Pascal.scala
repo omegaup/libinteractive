@@ -118,21 +118,6 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 		}
 	}
 
-	private def formatLength(length: ArrayLength, prefix: String) = {
-		length match {
-			case constant: ConstantLength => {
-				constant.value
-			}
-			case param: ParameterLength => {
-				prefix + param.value
-			}
-		}
-	}
-
-	private def arrayDim(length: ArrayLength, prefix: String) = {
-		s"[${formatLength(length, prefix)}]"
-	}
-
 	private def formatPrimitive(t: PrimitiveType) = {
 		t.name match {
 			case "long" => "Int64"
@@ -163,13 +148,22 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 		s"${param.name}: ${formatType(param.paramType)}"
 	}
 
-	private def fieldLength(fieldType: Type, prefix: String = "") = {
+	private def formatLength(length: ArrayLength, function: Option[Function]) = {
+		length match {
+			case param: ParameterLength if !function.isEmpty =>
+				s"${function.get.name}_${param.value}"
+			case length: ArrayLength =>
+				s"(${length.value})"
+		}
+	}
+
+	private def fieldLength(fieldType: Type, function: Option[Function] = None) = {
 		fieldType match {
 			case primitiveType: PrimitiveType =>
 				s"sizeof(${formatPrimitive(primitiveType)})"
 			case arrayType: ArrayType =>
 				s"sizeof(${formatPrimitive(arrayType.primitive)}) * " +
-					arrayType.lengths.map(formatLength(_, prefix)).mkString(" * ")
+					arrayType.lengths.map(formatLength(_, function)).mkString(" * ")
 		}
 	}
 
@@ -319,7 +313,7 @@ var
 							}) +
 							s"\t\t\t\t$infd.ReadBuffer(${function.name}_${param.name}" +
 								s"${array.lengths.map(_ => "[0]").mkString}, " +
-								s"""${fieldLength(array, s"${function.name}_")});\n"""
+								s"""${fieldLength(array, Some(function))});\n"""
 						}
 						case primitive: PrimitiveType => {
 							s"\t\t\t\t$infd.ReadBuffer(${function.name}_${param.name}, " +

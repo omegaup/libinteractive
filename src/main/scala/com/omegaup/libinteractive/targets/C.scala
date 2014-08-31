@@ -134,13 +134,22 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 		}
 	}
 
-	private def fieldLength(fieldType: Type) = {
+	private def formatLength(length: ArrayLength, function: Option[Function]) = {
+		length match {
+			case param: ParameterLength if !function.isEmpty =>
+				s"${function.get.name}_${param.value}"
+			case length: ArrayLength =>
+				s"(${length.value})"
+		}
+	}
+
+	private def fieldLength(fieldType: Type, function: Option[Function] = None) = {
 		fieldType match {
 			case primitiveType: PrimitiveType =>
-				s"sizeof(${primitiveType.name})"
+				s"sizeof(${formatPrimitive(primitiveType)})"
 			case arrayType: ArrayType =>
-				s"sizeof(${arrayType.primitive.name}) * " +
-					arrayType.lengths.map(_.value).mkString(" * ")
+				s"sizeof(${formatPrimitive(arrayType.primitive)}) * " +
+					arrayType.lengths.map(formatLength(_, function)).mkString(" * ")
 		}
 	}
 
@@ -149,13 +158,13 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 			function.params.map(formatParam).mkString(", ") + ")"
 	}
 
-	private def declareVar(param: Parameter) = {
+	private def declareVar(param: Parameter, function: Function) = {
 		param.paramType match {
 			case array: ArrayType =>
-				s"${formatPrimitive(array.primitive)} (*${param.name})" +
+				s"${formatPrimitive(array.primitive)} (*${function.name}_${param.name})" +
 					array.lengths.tail.map(arrayDim).mkString
 			case primitive: PrimitiveType =>
-				s"${formatPrimitive(primitive)} ${param.name}"
+				s"${formatPrimitive(primitive)} ${function.name}_${param.name}"
 		}
 	}
 
@@ -423,13 +432,15 @@ $closePipes
 				for (param <- function.params) {
 					builder ++= (param.paramType match {
 						case array: ArrayType => {
-							s"\t\t\t\t${declareVar(param)} = (${formatType(array)})" +
-							s"malloc(${fieldLength(array)});\n" +
-							s"\t\t\t\treadfull($infd, ${param.name}, ${fieldLength(array)});\n"
+							s"\t\t\t\t${declareVar(param, function)} = (${formatType(array)})" +
+							s"malloc(${fieldLength(array, Some(function))});\n" +
+							s"\t\t\t\treadfull($infd, ${function.name}_${param.name}, " +
+							s"${fieldLength(array, Some(function))});\n"
 						}
 						case primitive: PrimitiveType => {
-							s"\t\t\t\t${declareVar(param)};\n" +
-							s"\t\t\t\treadfull($infd, &${param.name}, ${fieldLength(primitive)});\n"
+							s"\t\t\t\t${declareVar(param, function)};\n" +
+							s"\t\t\t\treadfull($infd, &${function.name}_${param.name}, " +
+							s"${fieldLength(primitive, Some(function))});\n"
 						}
 					})
 				}
@@ -441,7 +452,7 @@ $closePipes
 					s"\t\t\t\t${formatType(function.returnType)} result = "
 				})
 				builder ++=
-					s"""${function.name}(${function.params.map(_.name).mkString(", ")});\n"""
+					s"""${function.name}(${function.params.map(function.name + "_" + _.name).mkString(", ")});\n"""
 				builder ++= s"\t\t\t\twritefull($outfd, &__msgid, sizeof(int));\n"
 				if (function.returnType != PrimitiveType("void")) {
 					builder ++= s"\t\t\t\twritefull($outfd, &result, sizeof(result));\n"
@@ -450,7 +461,7 @@ $closePipes
 				for (param <- function.params) {
 					param.paramType match {
 						case array: ArrayType => {
-							builder ++= s"\t\t\t\tfree(${param.name});\n"
+							builder ++= s"\t\t\t\tfree(${function.name}_${param.name});\n"
 						}
 						case _ => {}
 					}
@@ -495,9 +506,11 @@ $closePipes
 		function.params.foreach(param => {
 			builder ++= (param.paramType match {
 				case _: PrimitiveType =>
-					s"\twritefull($outfd, &${param.name}, ${fieldLength(param.paramType)});\n"
+					s"\twritefull($outfd, &${param.name}, " +
+					s"${fieldLength(param.paramType)});\n"
 				case _: ArrayType =>
-					s"\twritefull($outfd, ${param.name}, ${fieldLength(param.paramType)});\n"
+					s"\twritefull($outfd, ${param.name}, " +
+					s"${fieldLength(param.paramType)});\n"
 			})
 		})
 		if (generateTiming) {

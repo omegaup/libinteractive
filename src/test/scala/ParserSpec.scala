@@ -104,7 +104,7 @@ class ParserSpec extends FlatSpec with Matchers {
 			interface Main {
 				int solve(int _n);
 			};""")
-		}.getMessage should be ("Parameter `_n' cannot start with `_'")
+		}.getMessage should be ("Parameter `_n' cannot contain `_'")
 	}
 
 	it should "support multiple interfaces" in {

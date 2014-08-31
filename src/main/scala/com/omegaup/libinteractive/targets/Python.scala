@@ -112,19 +112,14 @@ class Python(idl: IDL, options: Options, input: Path, parent: Boolean)
 			arrayType.lengths.map(_.value).mkString(" * ")
 	}
 
-	private def fieldLength(fieldType: Type): String = {
-		fieldType match {
-			case primitiveType: PrimitiveType =>
-				primitiveType match {
-					case PrimitiveType("int") => "4"
-					case PrimitiveType("long") => "8"
-					case PrimitiveType("char") => "1"
-					case PrimitiveType("float") => "4"
-					case PrimitiveType("double") => "8"
-					case PrimitiveType("bool") => "1"
-				}
-			case arrayType: ArrayType =>
-				fieldLength(arrayType.primitive) + " * " + arrayLength(arrayType)
+	private def fieldLength(primitiveType: Type): String = {
+		primitiveType match {
+			case PrimitiveType("int") => "4"
+			case PrimitiveType("long") => "8"
+			case PrimitiveType("char") => "1"
+			case PrimitiveType("float") => "4"
+			case PrimitiveType("double") => "8"
+			case PrimitiveType("bool") => "1"
 		}
 	}
 
@@ -247,15 +242,25 @@ ${if (options.verbose) {
 			builder.mkString)
 	}
 
+	private def formatLength(length: ArrayLength, function: Option[Function]) = {
+		length match {
+			case param: ParameterLength if !function.isEmpty =>
+				s"${function.get.name}_${param.value}"
+			case length: ArrayLength =>
+				s"(${length.value})"
+		}
+	}
+
 	private def readArray(infd: String, primitive: PrimitiveType,
-			lengths: Iterable[ArrayLength], depth: Integer = 0): String = {
+			lengths: Iterable[ArrayLength], function: Option[Function] = None,
+			depth: Integer = 0): String = {
 		lengths match {
 			case head :: Nil =>
 				s"__readarray($infd, ${structFormat(primitive)}, " +
-					s"(${head.value}) * ${fieldLength(primitive)})"
+					s"${formatLength(head, function)} * ${fieldLength(primitive)})"
 			case head :: tail =>
-				s"[${readArray(infd, primitive, tail, depth + 1)} " +
-					s"for __r$depth in xrange(${head.value})]"
+				s"[${readArray(infd, primitive, tail, function, depth + 1)} " +
+					s"for __r$depth in xrange(${formatLength(head, function)})]"
 		}
 	}
 
@@ -299,12 +304,13 @@ ${if (options.verbose) {
 				for (param <- function.params) {
 					builder ++= (param.paramType match {
 						case array: ArrayType => {
-							s"\t\t\t${param.name} = ${readArray(infd, array.primitive,
-								array.lengths)}\n"
+							s"\t\t\t${function.name}_${param.name} = " +
+							s"${readArray(infd, array.primitive, array.lengths, Some(function))}\n"
 						}
 						case primitive: PrimitiveType => {
-							s"\t\t\t${param.name} = struct.unpack(${structFormat(primitive)}, " +
-									s"$infd.read(${fieldLength(primitive)}))[0]\n"
+							s"\t\t\t${function.name}_${param.name} = " +
+							s"struct.unpack(${structFormat(primitive)}, " +
+							s"$infd.read(${fieldLength(primitive)}))[0]\n"
 						}
 					})
 				}
@@ -316,7 +322,7 @@ ${if (options.verbose) {
 				})
 				builder ++=
 					s"""${callee.name}.${function.name}(${function.params.map(
-						_.name).mkString(", ")})\n"""
+						function.name + "_" + _.name).mkString(", ")})\n"""
 				builder ++= s"\t\t\t$outfd.write(struct.pack('I', __msgid))\n"
 				if (function.returnType != PrimitiveType("void")) {
 					builder ++= s"\t\t\t$outfd.write(struct.pack(" +
