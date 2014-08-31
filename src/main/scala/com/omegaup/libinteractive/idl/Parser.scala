@@ -101,6 +101,47 @@ case class Parameter(paramType: Type, name: String, attributes: List[Attribute])
 }
 
 object Validator {
+	private val keywords = Set("_alignas", "_alignof", "_atomic", "_bool",
+		"_complex", "_generic", "_imaginary", "_noreturn", "_static_assert",
+		"_thread_local", "absolute", "abstract", "alias", "alignas", "alignof",
+		"and", "and_eq", "array", "as", "asm", "assembler", "assert", "auto",
+		"begin", "bitand", "bitor", "bool", "boolean", "break", "byte", "case",
+		"catch", "cdecl", "char", "char16_t", "char32_t", "class", "compl",
+		"const", "const_cast", "constexpr", "constructor", "continue", "cppdecl",
+		"decltype", "def", "default", "defined", "del", "delete", "destructor",
+		"dispose", "div", "do", "double", "downto", "dynamic_cast", "elif", "else",
+		"elsif", "end", "ensure", "enum", "except", "exec", "exit", "explicit",
+		"export", "exports", "extends", "extern", "external", "false", "far",
+		"file", "final", "finalization", "finally", "float", "for", "forward",
+		"friend", "from", "function", "global", "goto", "if", "implementation",
+		"implements", "import", "in", "index", "inherited", "initialization",
+		"inline", "instanceof", "int", "interface", "is", "label", "lambda",
+		"library", "local", "long", "mod", "module", "mutable", "name",
+		"namespace", "native", "near", "new", "next", "nil", "noexcept", "none",
+		"nostackframe", "not", "not_eq", "nullptr", "object", "of", "oldfpccall",
+		"on", "operator", "or", "or_eq", "out", "override", "package", "packed",
+		"pascal", "pass", "print", "private", "procedure", "program", "property",
+		"protected", "public", "published", "raise", "read", "record", "redo",
+		"register", "reinterpret_cast", "reintroduce", "repeat", "rescue",
+		"restrict", "retry", "return", "safecall", "self", "set", "shl", "short",
+		"shr", "signed", "sizeof", "softfloat", "static", "static_assert",
+		"static_cast", "stdcall", "strictfp", "string", "struct", "super",
+		"switch", "synchronized", "template", "then", "this", "thread_local",
+		"threadvar", "throw", "throws", "to", "transient", "true", "try", "type",
+		"typedef", "typeid", "typename", "undef", "union", "unit", "unless",
+		"unsigned", "until", "uses", "using", "var", "virtual", "void", "volatile",
+		"wchar_t", "when", "while", "with", "write", "xor", "xor_eq", "yield")
+
+	def validateName(name: String): Option[String] = {
+		if (name.contains("_")) {
+			return Some(s"Name `${name}' cannot contain `_'")
+		} else if (keywords.contains(name.toLowerCase)) {
+			return Some(s"Name `${name}' is a reserved keyword and cannot be used.")
+		} else {
+			None
+		}
+	}
+
 	def validateExpression(len: String,
 			declaredParams: scala.collection.Map[String, Parameter]): Option[String] = {
 		if (!declaredParams.contains(len)) {
@@ -112,9 +153,7 @@ object Validator {
 
 	def validateParam(attributes: List[Attribute], paramType: Type, name: String,
 			declaredParams: scala.collection.Map[String, Parameter]): Option[String] = {
-		if (name.contains("_")) {
-			return Some(s"Parameter `${name}' cannot contain `_'")
-		} else if (declaredParams.contains(name)) {
+		if (declaredParams.contains(name)) {
 			return Some(s"Parameter `${name}' is declared more than once")
 		}
 		None
@@ -176,14 +215,18 @@ class Parser extends StandardTokenParsers {
 		}
 	}
 
+	private def name = ident ^?
+			({ case name if Validator.validateName(name).isEmpty => name },
+			 { case name => Validator.validateName(name).get })
+
 	private def interfaceList = phrase(rep1(interface)) ^^
 			{ case interfaces => new IDL(interfaces.head, interfaces.tail) }
 	private def interface =
-			"interface" ~> ident ~ ("{" ~> rep(function) <~ "}") <~ ";" ^^
+			"interface" ~> name ~ ("{" ~> rep(function) <~ "}") <~ ";" ^^
 			{ case name ~ functions => new Interface(name, functions) }
 
 	private def function =
-			returnType ~ ident ~ ("(" ~> repsep(param, ",") <~ ")") <~ ";" ^^
+			returnType ~ name ~ ("(" ~> repsep(param, ",") <~ ")") <~ ";" ^^
 			{
 				case returnType ~ name ~ params => {
 					declaredParams.clear
@@ -227,7 +270,7 @@ class Parser extends StandardTokenParsers {
 
 	private def expression = (
 			(numericLit ^^ { case len => new ConstantExpression(len.toLong) }) |
-			(ident ^? ({
+			(name ^? ({
 				case len if
 						Validator.validateExpression(len, declaredParams).isEmpty =>
 					new ParameterExpression(declaredParams(len))
@@ -237,7 +280,7 @@ class Parser extends StandardTokenParsers {
 					Validator.validateExpression(len, declaredParams).get
 			})))
 
-	private def param = rep(paramAttributes) ~ idltype ~ ident ^?
+	private def param = rep(paramAttributes) ~ idltype ~ name ^?
 			({ case attributes ~ paramType ~ name if
 						Validator.validateParam(attributes, paramType,
 							name, declaredParams).isEmpty => {
