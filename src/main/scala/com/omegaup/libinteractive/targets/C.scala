@@ -23,11 +23,14 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 				generateMainHeader,
 				generateMainFile)
 		} else {
+			generateTemplates(options.moduleName, idl.interfaces,
+					idl.main.name, List(idl.main), input) ++
 			idl.interfaces.flatMap(interface =>
 				List(
 					new OutputDirectory(Paths.get(interface.name)),
 					generateHeader(interface),
-					generate(interface)) ++ generateLink(interface, input)
+					generate(interface),
+					generateLink(interface, input))
 			)
 		}
 	}
@@ -44,7 +47,7 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 			idl.interfaces.map(interface =>
 				MakefileRule(Paths.get(interface.name, interface.name),
 					List(
-						Paths.get(interface.name, s"${interface.name}.$extension"),
+						Paths.get(interface.name, s"${options.moduleName}.$extension"),
 						Paths.get(interface.name, s"${interface.name}_entry.$extension")),
 					s"$compiler $cflags -o $$@ -lrt $$^ -O2 " +
 					"-D_XOPEN_SOURCE=600 -Wall"))
@@ -64,29 +67,38 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 		)
 	}
 
-	override def generateTemplate(interface: Interface, input: Path) = {
-		val builder = new StringBuilder
-		builder ++= s"""#include "${options.moduleName}.h"\n\n"""
-		if (idl.main.functions.exists(_ => true)) {
-			builder ++= s"// ${idl.main.name}:\n"
-			builder ++= "//\n"
-			idl.main.functions.foreach(function =>
-				builder ++= s"//\t${declareFunction(function)}\n"
-			)
-		}
-		interface.functions.foreach(function => {
-			builder ++= s"\n${declareFunction(function)} {\n"
-			builder ++= "\t// FIXME\n"
-			if (function.returnType != PrimitiveType("void")) {
-				builder ++= s"\treturn ${defaultValue(function.returnType)};\n"
-			}
-			builder ++= "}\n"
-		})
+	override def generateTemplates(moduleName: String,
+			interfacesToImplement: Iterable[Interface], callableModuleName: String,
+			callableInterfaces: Iterable[Interface], input: Path): Iterable[OutputPath] = {
+		if (!options.generateTemplate) return List.empty[OutputPath]
 		if (!options.force && Files.exists(input, LinkOption.NOFOLLOW_LINKS)) {
 			throw new FileAlreadyExistsException(input.toString, null,
 				"Refusing to overwrite file. Delete it or invoke with --force to override.")
 		}
-		OutputFile(input.toAbsolutePath, builder.mkString)
+
+		val builder = new StringBuilder
+		builder ++= s"""#include "${options.moduleName}.h"\n\n"""
+		for (interface <- callableInterfaces) {
+			if (interface.functions.exists(_ => true)) {
+				builder ++= s"// ${interface.name}:\n"
+				for (function <- interface.functions) {
+					builder ++= s"//\t${declareFunction(function)}\n"
+				}
+				builder ++= "\n"
+			}
+		}
+		for (interface <- interfacesToImplement) {
+			for (function <- interface.functions) {
+				builder ++= s"\n${declareFunction(function)} {\n"
+				builder ++= "\t// FIXME\n"
+				if (function.returnType != PrimitiveType("void")) {
+					builder ++= s"\treturn ${defaultValue(function.returnType)};\n"
+				}
+				builder ++= "}\n"
+			}
+		}
+
+		List(OutputFile(input.toAbsolutePath, builder.mkString))
 	}
 
 	def compiler() = "/usr/bin/gcc"

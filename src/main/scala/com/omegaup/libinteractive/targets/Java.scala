@@ -23,10 +23,13 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 				generateMainFile)
 		} else {
 			val moduleFile = s"${options.moduleName}.java"
+			generateTemplates(options.moduleName, idl.interfaces,
+					idl.main.name, List(idl.main), input) ++
 			idl.interfaces.flatMap(interface =>
 				List(
 					new OutputDirectory(Paths.get(interface.name)),
-					generate(interface)) ++ generateLink(interface, input)
+					generate(interface),
+					generateLink(interface, input))
 			)
 		}
 	}
@@ -43,7 +46,7 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 				List(
 					MakefileRule(Paths.get(interface.name, s"${interface.name}_entry.class"),
 						List(
-							Paths.get(interface.name, s"${interface.name}.java"),
+							Paths.get(interface.name, s"${options.moduleName}.java"),
 							Paths.get(interface.name, s"${interface.name}_entry.java")),
 						"/usr/bin/javac $^")
 				)
@@ -65,31 +68,43 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 		)
 	}
 
-	override def generateTemplate(interface: Interface, input: Path) = {
-		val builder = new StringBuilder
-		if (idl.main.functions.exists(_ => true)) {
-			builder ++= s"// ${idl.main.name}:\n"
-			builder ++= "//\n"
-			idl.main.functions.foreach(function =>
-				builder ++= s"//\t${declareFunction(function)}\n"
-			)
-			builder ++= "\n"
-		}
-		builder ++= s"public class ${options.moduleName} {\n"
-		interface.functions.foreach(function => {
-			builder ++= s"\n\tpublic static ${declareFunction(function)} {\n"
-			builder ++= "\t\t// FIXME\n"
-			if (function.returnType != PrimitiveType("void")) {
-				builder ++= s"\t\treturn ${defaultValue(function.returnType)};\n"
-			}
-			builder ++= "\t}\n"
-		})
-		builder ++= "\n}\n"
+	override def generateTemplates(moduleName: String,
+			interfacesToImplement: Iterable[Interface], callableModuleName: String,
+			callableInterfaces: Iterable[Interface], input: Path): Iterable[OutputPath] = {
+		if (!options.generateTemplate) return List.empty[OutputPath]
 		if (!options.force && Files.exists(input, LinkOption.NOFOLLOW_LINKS)) {
 			throw new FileAlreadyExistsException(input.toString, null,
 				"Refusing to overwrite file. Delete it or invoke with --force to override.")
 		}
-		OutputFile(input.toAbsolutePath, builder.mkString)
+
+		val builder = new StringBuilder
+		for (interface <- callableInterfaces) {
+			if (interface.functions.exists(_ => true)) {
+				builder ++= s"// class ${interface.name} {\n"
+				interface.functions.foreach(function =>
+					builder ++= s"//\t${declareFunction(function)}\n"
+				)
+				builder ++= "// }\n"
+			}
+		}
+		for (interface <- interfacesToImplement) {
+			builder ++= "\n"
+			if (interface.name == moduleName) {
+				builder ++= "public "
+			}
+			builder ++= s"class ${interface.name} {\n"
+			for (function <- interface.functions) {
+				builder ++= s"\n\tpublic static ${declareFunction(function)} {\n"
+				builder ++= "\t\t// FIXME\n"
+				if (function.returnType != PrimitiveType("void")) {
+					builder ++= s"\t\treturn ${defaultValue(function.returnType)};\n"
+				}
+				builder ++= "\t}\n"
+			}
+			builder ++= "\n}\n"
+		}
+
+		List(OutputFile(input.toAbsolutePath, builder.mkString))
 	}
 
 	private def formatLength(length: ArrayLength, function: Option[Function]) = {
@@ -150,6 +165,7 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 
 	private def writePrimitive(primitive: PrimitiveType) = {
 		primitive match {
+			case PrimitiveType("short") => "writeShort"
 			case PrimitiveType("int") => "writeInt"
 			case PrimitiveType("long") => "writeLong"
 			case PrimitiveType("char") => "writeChar"
@@ -161,6 +177,7 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 
 	private def readPrimitive(primitive: PrimitiveType) = {
 		primitive match {
+			case PrimitiveType("short") => "readShort"
 			case PrimitiveType("int") => "readInt"
 			case PrimitiveType("long") => "readLong"
 			case PrimitiveType("char") => "readChar"
@@ -481,9 +498,9 @@ public class ${idl.main.name}_entry {
 			builder ++= "\t\t\treturn __ans;\n"
 		}
 
-		builder ++= "\t\t} catch (IOException e) {\n"
-		builder ++= "\t\t\tSystem.err.println(e);\n"
-		builder ++= "\t\t\te.printStackTrace();\n"
+		builder ++= "\t\t} catch (IOException __e) {\n"
+		builder ++= "\t\t\tSystem.err.println(__e);\n"
+		builder ++= "\t\t\t__e.printStackTrace();\n"
 		builder ++= "\t\t\tSystem.exit(1);\n"
 		builder ++= "\t\t\tthrow new RuntimeException(); // Needed to compile.\n"
 		builder ++= "\t\t}\n"
@@ -545,11 +562,24 @@ public class ${idl.main.name}_entry {
 		return ((b[3] & 0xff) << 24) | ((b[2] & 0xff) << 16) |
 			((b[1] & 0xff) << 8) | (b[0] & 0xff);
 	}
+
+	public short readShort() throws IOException {
+		byte[] b = new byte[2];
+		if (in.read(b) != 2) {
+			throw new EOFException();
+		}
+		return (short)(((b[1] & 0xff) << 8) | (b[0] & 0xff));
+	}
 }
 
 class LEDataOutputStream extends FilterOutputStream {
 	public LEDataOutputStream(String path) throws FileNotFoundException {
 		super(new BufferedOutputStream(new FileOutputStream(path)));
+	}
+
+	public void writeShort(short x) throws IOException {
+		out.write((x >>> 0) & 0xFF);
+		out.write((x >>> 8) & 0xFF);
 	}
 
 	public void writeInt(int x) throws IOException {
@@ -560,14 +590,14 @@ class LEDataOutputStream extends FilterOutputStream {
 	}
 
 	public void writeLong(long x) throws IOException {
-		out.write((int)((x >>> 0) & 0xFF));
-		out.write((int)((x >>> 8) & 0xFF));
-		out.write((int)((x >>> 16) & 0xFF));
-		out.write((int)((x >>> 24) & 0xFF));
-		out.write((int)((x >>> 32) & 0xFF));
-		out.write((int)((x >>> 40) & 0xFF));
-		out.write((int)((x >>> 48) & 0xFF));
-		out.write((int)((x >>> 52) & 0xFF));
+		out.write((int)((x >>> 0L) & 0xFF));
+		out.write((int)((x >>> 8L) & 0xFF));
+		out.write((int)((x >>> 16L) & 0xFF));
+		out.write((int)((x >>> 24L) & 0xFF));
+		out.write((int)((x >>> 32L) & 0xFF));
+		out.write((int)((x >>> 40L) & 0xFF));
+		out.write((int)((x >>> 48L) & 0xFF));
+		out.write((int)((x >>> 56L) & 0xFF));
 	}
 
 	public void writeChar(char c) throws IOException {

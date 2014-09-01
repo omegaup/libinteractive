@@ -19,11 +19,14 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 			throw new UnsupportedOperationException;
 		} else {
 			val moduleFile = s"${options.moduleName}.pas"
+			generateTemplates(options.moduleName, idl.interfaces,
+					idl.main.name, List(idl.main), input) ++
 			idl.interfaces.flatMap(interface =>
 				List(
 					new OutputDirectory(Paths.get(interface.name)),
 					generateEntry(interface),
-					generate(interface)) ++ generateLink(interface, input)
+					generate(interface),
+					generateLink(interface, input))
 			)
 		}
 	}
@@ -42,20 +45,27 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 		}
 	}
 
-	override def generateTemplate(interface: Interface, input: Path) = {
-		val builder = new StringBuilder
-		builder ++= s"unit ${options.moduleName};\n\n"
-		if (idl.main.functions.exists(_ => true)) {
-			builder ++= "{\n"
-			builder ++= s"    ${idl.main.name}:\n"
-			builder ++= "\n"
-			idl.main.functions.foreach(function =>
-				builder ++= s"    ${declareFunction(function)}\n"
-			)
-			builder ++= "}\n\n"
+	override def generateTemplates(moduleName: String,
+			interfacesToImplement: Iterable[Interface], callableModuleName: String,
+			callableInterfaces: Iterable[Interface], input: Path): Iterable[OutputPath] = {
+		if (!options.generateTemplate) return List.empty[OutputPath]
+		if (!options.force && Files.exists(input, LinkOption.NOFOLLOW_LINKS)) {
+			throw new FileAlreadyExistsException(input.toString, null,
+				"Refusing to overwrite file. Delete it or invoke with --force to override.")
 		}
+
+		val builder = new StringBuilder
+		builder ++= s"unit ${moduleName};\n\n"
+		builder ++= "{\n"
+		builder ++= s"\tunit ${callableModuleName};\n"
+		for (interface <- callableInterfaces) {
+			for (function <- interface.functions) {
+				builder ++= s"\t${declareFunction(function)}\n"
+			}
+		}
+		builder ++= "}\n\n"
 		builder ++= s"interface\n"
-		val types = idl.interfaces.flatMap(_.functions.flatMap(_.params.collect(
+		val types = interfacesToImplement.flatMap(_.functions.flatMap(_.params.collect(
 			_.paramType match {
 				case array: ArrayType => {
 					s"\t${formatType(array)} = " + array.lengths.map(
@@ -71,26 +81,27 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 		if (types.size > 0) {
 			builder ++= "type\n" + types.mkString("\n")
 		}
-		interface.functions.foreach(function => {
-			builder ++= s"\t${declareFunction(function)}\n"
-		})
-		builder ++= s"implementation\n\n"
-		builder ++= s"uses ${idl.main.name};\n"
-		interface.functions.foreach(function => {
-			builder ++= s"\n${declareFunction(function)}\n"
-			builder ++= "begin\n"
-			builder ++= "\t// FIXME\n"
-			if (function.returnType != PrimitiveType("void")) {
-				builder ++= s"\t${function.name} := ${defaultValue(function.returnType)};\n"
+		for (interface <- interfacesToImplement) {
+			for (function <- interface.functions) {
+				builder ++= s"\t${declareFunction(function)}\n"
 			}
-			builder ++= "end;\n"
-		})
-		builder ++= "\nend.\n"
-		if (!options.force && Files.exists(input, LinkOption.NOFOLLOW_LINKS)) {
-			throw new FileAlreadyExistsException(input.toString, null,
-				"Refusing to overwrite file. Delete it or invoke with --force to override.")
 		}
-		OutputFile(input.toAbsolutePath, builder.mkString)
+		builder ++= s"implementation\n\n"
+		builder ++= s"uses $callableModuleName;\n"
+		for (interface <- interfacesToImplement) {
+			for (function <- interface.functions) {
+				builder ++= s"\n${declareFunction(function)}\n"
+				builder ++= "begin\n"
+				builder ++= "\t// FIXME\n"
+				if (function.returnType != PrimitiveType("void")) {
+					builder ++= s"\t${function.name} := ${defaultValue(function.returnType)};\n"
+				}
+				builder ++= "end;\n"
+			}
+		}
+		builder ++= "\nend.\n"
+
+		List(OutputFile(input.toAbsolutePath, builder.mkString))
 	}
 
 	override def generateRunCommands() = {

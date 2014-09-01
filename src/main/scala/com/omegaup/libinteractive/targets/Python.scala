@@ -24,11 +24,14 @@ class Python(idl: IDL, options: Options, input: Path, parent: Boolean)
 				generateMainEntry)
 		} else {
 			val moduleFile = s"${options.moduleName}.py"
+			generateTemplates(options.moduleName, idl.interfaces,
+					idl.main.name, List(idl.main), input) ++
 			idl.interfaces.flatMap(interface =>
 				List(
 					new OutputDirectory(Paths.get(interface.name)),
 					generateLib(interface),
-					generate(interface)) ++ generateLink(interface, input)
+					generate(interface),
+					generateLink(interface, input))
 			)
 		}
 	}
@@ -52,31 +55,38 @@ class Python(idl: IDL, options: Options, input: Path, parent: Boolean)
 		)
 	}
 
-	override def generateTemplate(interface: Interface, input: Path) = {
-		val builder = new StringBuilder
-		builder ++= "#!/usr/bin/python\n\n"
-		builder ++= s"import ${idl.main.name}\n\n"
-		if (idl.main.functions.exists(_ => true)) {
-			builder ++= s"# ${idl.main.name}:\n"
-			builder ++= "#\n"
-			idl.main.functions.foreach(function =>
-				builder ++= s"#\t${declareFunction(function)}\n"
-			)
-			builder ++= "\n"
-		}
-		interface.functions.foreach(function => {
-			builder ++= s"\n${declareFunction(function)}:\n"
-			builder ++= "\t# FIXME\n"
-			if (function.returnType != PrimitiveType("void")) {
-				builder ++= s"\treturn ${defaultValue(function.returnType)}\n"
-			}
-			builder ++= "\n"
-		})
+	override def generateTemplates(moduleName: String,
+			interfacesToImplement: Iterable[Interface], callableModuleName: String,
+			callableInterfaces: Iterable[Interface], input: Path): Iterable[OutputPath] = {
+		if (!options.generateTemplate) return List.empty[OutputPath]
 		if (!options.force && Files.exists(input, LinkOption.NOFOLLOW_LINKS)) {
 			throw new FileAlreadyExistsException(input.toString, null,
 				"Refusing to overwrite file. Delete it or invoke with --force to override.")
 		}
-		OutputFile(input.toAbsolutePath, builder.mkString)
+
+		val builder = new StringBuilder
+		builder ++= "#!/usr/bin/python\n\n"
+		for (interface <- callableInterfaces) {
+			builder ++= s"import ${interface.name}\n"
+			if (interface.functions.exists(_ => true)) {
+				interface.functions.foreach(function =>
+					builder ++= s"#\t${declareFunction(function)}\n"
+				)
+				builder ++= "\n"
+			}
+		}
+		for (interface <- interfacesToImplement) {
+			for (function <- interface.functions) {
+				builder ++= s"\n${declareFunction(function)}:\n"
+				builder ++= "\t# FIXME\n"
+				if (function.returnType != PrimitiveType("void")) {
+					builder ++= s"\treturn ${defaultValue(function.returnType)}\n"
+				}
+				builder ++= "\n"
+			}
+		}
+
+		List(OutputFile(input.toAbsolutePath, builder.mkString))
 	}
 
 	def structFormat(formatType: Type): String = {

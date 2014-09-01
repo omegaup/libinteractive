@@ -124,16 +124,13 @@ abstract class Target(idl: IDL, options: Options) {
 	def generateMakefileRules(): Iterable[MakefileRule]
 	def generateRunCommands(): Iterable[ExecDescription]
 
-	protected def generateLink(interface: Interface, input: Path):
-			Iterable[OutputPath] = {
+	protected def generateLink(interface: Interface, input: Path): OutputPath = {
 		val moduleFile = s"${options.moduleName}.$extension"
-		(if (options.generateTemplate) {
-			List(generateTemplate(interface, input))
-		} else {
-			List()
-		}) ++ List(new OutputLink(Paths.get(interface.name, moduleFile), input))
+		new OutputLink(Paths.get(interface.name, moduleFile), input)
 	}
-	protected def generateTemplate(interface: Interface, input: Path): OutputPath
+	protected def generateTemplates(moduleName: String,
+			interfacesToImplement: Iterable[Interface], callableModuleName: String,
+			callableInterfaces: Iterable[Interface], input: Path): Iterable[OutputPath]
 }
 
 object Generator {

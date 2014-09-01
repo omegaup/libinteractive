@@ -305,7 +305,9 @@ cleanup:
 	override def extension() = ???
 	override def generateMakefileRules() = ???
 	override def generateRunCommands() = ???
-	override def generateTemplate(interface: Interface, input: Path) = ???
+	protected def generateTemplates(moduleName: String,
+			interfacesToImplement: Iterable[Interface], callableModuleName: String,
+			callableInterfaces: Iterable[Interface], input: Path) = ???
 }
 
 /* vim: set noexpandtab: */
