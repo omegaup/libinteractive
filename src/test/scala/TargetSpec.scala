@@ -16,11 +16,12 @@ import scala.collection.mutable.ListBuffer
 import org.scalatest._
 
 class TargetSpec extends FlatSpec with Matchers with BeforeAndAfter {
-  def run(parentLang: String, childLang: String, path: Path, output: String) = {
+  def run(parentLang: String, childLang: String, path: Path, output: String,
+			optionsTemplate: Options = Options()) = {
 		val moduleName = path.getName(path.getNameCount - 1).toString
 		val idlFile = path.resolve(s"$moduleName.idl") 
 		val root = path.resolve(s".tests/${parentLang}_${childLang}")
-    val options = Options(
+    val options = optionsTemplate.copy(
       parentLang = parentLang,
       childLang = childLang,
       idlFile = idlFile,
@@ -76,20 +77,16 @@ class TargetSpec extends FlatSpec with Matchers with BeforeAndAfter {
 			})
 		}
 		val output = Source.fromFile(directory.resolve("output").toFile).mkString.trim
-		for (parentLang <- Array("cpp", "c", "py", "java")) {
-			run(parentLang, "c", directory, output)
+		for (lang <- List("cpp", "java", "py")) {
+			run(lang, "c", directory, output)
 		}
-		for (childLang <- Array("cpp", "c", "pas", "py", "java")) {
-			run("c", childLang, directory, output)
+		for (lang <- List("c", "cpp", "java", "py", "pas")) {
+			run("c", lang, directory, output)
 		}
 	}
 
-	"libinteractive" should "support simple arrays" in {
-		runDirectory(Paths.get("src/test/resources/sum"))
-	}
-
-	"libinteractive" should "support multi-dimensional arrays" in {
-		runDirectory(Paths.get("src/test/resources/det"))
+	"libinteractive" should "support multi-process targets" in {
+		runDirectory(Paths.get("src/test/resources/mega"))
 	}
 }
 

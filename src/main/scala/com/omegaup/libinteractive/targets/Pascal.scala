@@ -38,7 +38,7 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 			idl.interfaces.map(interface =>
 				MakefileRule(Paths.get(interface.name, interface.name),
 					List(
-						Paths.get(interface.name, s"${interface.name}.pas"),
+						Paths.get(interface.name, s"${options.moduleName}.pas"),
 						Paths.get(interface.name, s"${idl.main.name}.pas"),
 						Paths.get(interface.name, s"${interface.name}_entry.pas")),
 					"/usr/bin/fpc -Tlinux -O2 -Mobjfpc -Sc -Sh -o$@ $^ > /dev/null"))
@@ -131,12 +131,13 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 
 	private def formatPrimitive(t: PrimitiveType) = {
 		t.name match {
+			case "bool" => "Boolean"
+			case "short" => "SmallInt"
 			case "long" => "Int64"
 			case "int" => "LongInt"
 			case "float" => "Single"
 			case "double" => "Double"
 			case "char" => "Char"
-			case "byte" => "Byte"
 		}
 	}
 
@@ -239,13 +240,17 @@ ${
 implementation
 
 uses
-  ${interface.name}, Classes, SysUtils;
+  ${options.moduleName}, Classes, SysUtils;
 
 var
 	__in: TFileStream;
 	__out: TFileStream;
 
-${generateMessageLoop(List((idl.main, interface, "__out")), "__in")}
+${generateMessageLoop(
+	List((idl.main, interface, "__out")),
+	options.moduleName,
+	"__in")
+}
 
 procedure __entry();
 begin
@@ -253,12 +258,14 @@ begin
 		"\tWriteln(ErrOutput, #9'[" + interface.name + "] opening `" +
 		pipeFilename(interface) + "''');\n"
 	} else ""}
-	__in := TFileStream.Create('${pipeFilename(interface)}', fmOpenRead);
+	__in := TFileStream.Create('${pipeFilename(interface)}',
+			fmOpenRead or fmShareDenyNone);
 	${if (options.verbose) {
 		"\tWriteln(ErrOutput, #9'" + interface.name + "] opening `" +
 		pipeFilename(idl.main) + "''');\n"
 	} else ""}
-	__out := TFileStream.Create('${pipeFilename(idl.main)}', fmOpenWrite);
+	__out := TFileStream.Create('${pipeFilename(idl.main)}',
+			fmOpenWrite or fmShareDenyNone);
 	__message_loop($$FFFFFFFF);
 end;
 
@@ -274,7 +281,7 @@ end;
 	}
 
 	private def generateMessageLoop(interfaces: List[(Interface, Interface, String)],
-			infd: String) = {
+			calleeModule: String, infd: String) = {
 		val builder = new StringBuilder
 		builder ++= s"""procedure __message_loop(__current_function: LongWord);
 var
@@ -339,7 +346,7 @@ var
 					s"\t\t\t\t${function.name}___result := "
 				})
 				builder ++=
-					s"""${callee.name}.${function.name}(${function.params.map(
+					s"""${calleeModule}.${function.name}(${function.params.map(
 						function.name + "_" + _.name).mkString(", ")});\n"""
 				builder ++= s"\t\t\t\t$outfd.WriteBuffer(__msgid, sizeof(__msgid));\n"
 				if (function.returnType != PrimitiveType("void")) {

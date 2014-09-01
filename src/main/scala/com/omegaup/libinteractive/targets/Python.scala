@@ -92,6 +92,7 @@ class Python(idl: IDL, options: Options, input: Path, parent: Boolean)
 	def structFormat(formatType: Type): String = {
 		formatType match {
 			case primitiveType: PrimitiveType => primitiveType match {
+				case PrimitiveType("short") => "'h'"
 				case PrimitiveType("int") => "'i'"
 				case PrimitiveType("long") => "'q'"
 				case PrimitiveType("char") => "'c'"
@@ -124,12 +125,13 @@ class Python(idl: IDL, options: Options, input: Path, parent: Boolean)
 
 	private def fieldLength(primitiveType: Type): String = {
 		primitiveType match {
-			case PrimitiveType("int") => "4"
-			case PrimitiveType("long") => "8"
-			case PrimitiveType("char") => "1"
-			case PrimitiveType("float") => "4"
-			case PrimitiveType("double") => "8"
 			case PrimitiveType("bool") => "1"
+			case PrimitiveType("char") => "1"
+			case PrimitiveType("short") => "2"
+			case PrimitiveType("int") => "4"
+			case PrimitiveType("float") => "4"
+			case PrimitiveType("long") => "8"
+			case PrimitiveType("double") => "8"
 		}
 	}
 
@@ -165,10 +167,16 @@ import struct
 import sys
 import time
 
+def __readarray(infd, format, l):
+	arr = array.array(format)
+	arr.fromstring(infd.read(l))
+	return arr
+
 ${generateMessageLoop(
 	idl.interfaces.map{
 		interface => (interface, idl.main, pipeName(interface))
 	},
+	idl.main.name,
 	pipeName(idl.main)
 )}
 
@@ -228,7 +236,11 @@ def __readarray(infd, format, l):
 	arr.fromstring(infd.read(l))
 	return arr
 
-${generateMessageLoop(List((idl.main, interface, "__fout")), "__fin")}
+${generateMessageLoop(
+	List((idl.main, interface, "__fout")),
+	options.moduleName,
+	"__fin")
+}
 
 ${idl.main.functions.map(
 	generateShim(_, idl.main, interface, "__fout", "__fin", false).toString
@@ -287,7 +299,7 @@ ${if (options.verbose) {
 	}
 
 	private def generateMessageLoop(interfaces: List[(Interface, Interface, String)],
-			infd: String) = {
+			calleeModule: String, infd: String) = {
 		val builder = new StringBuilder
 		builder ++= s"""def __message_loop(__current_function):
 	global $infd, ${interfaces.map(_._3).mkString(", ")}
@@ -331,7 +343,7 @@ ${if (options.verbose) {
 					s"\t\t\t__result = "
 				})
 				builder ++=
-					s"""${callee.name}.${function.name}(${function.params.map(
+					s"""${calleeModule}.${function.name}(${function.params.map(
 						function.name + "_" + _.name).mkString(", ")})\n"""
 				builder ++= s"\t\t\t$outfd.write(struct.pack('I', __msgid))\n"
 				if (function.returnType != PrimitiveType("void")) {

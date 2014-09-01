@@ -1,0 +1,16 @@
+interface Main {
+	void send([Range(0, 3)] int n, int[n][3] l);
+	void output([Range(0, 3)] int n, int[n] l);
+};
+
+interface Encoder {
+	void encode([Range(0, 3)] int n, int[n][3] l);
+};
+
+interface Decoder {
+	void decode([Range(0, 3)] int n, int[n] l);
+};
+
+interface Types {
+	double solve(short a, int b, long c, float d, double e);
+};
