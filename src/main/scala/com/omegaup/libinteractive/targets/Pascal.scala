@@ -65,7 +65,7 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 		}
 		builder ++= "}\n\n"
 		builder ++= s"interface\n"
-		val types = interfacesToImplement.flatMap(_.functions.flatMap(_.params.collect(
+		val types = idl.allInterfaces.flatMap(_.functions.flatMap(_.params.collect(
 			_.paramType match {
 				case array: ArrayType => {
 					s"\t${formatType(array)} = " + array.lengths.map(
@@ -79,7 +79,7 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 			}
 		))).toSet
 		if (types.size > 0) {
-			builder ++= "type\n" + types.mkString("\n")
+			builder ++= "type\n" + types.mkString("\n") + "\n"
 		}
 		for (interface <- interfacesToImplement) {
 			for (function <- interface.functions) {
@@ -213,7 +213,7 @@ end.
 
 	private def generate(interface: Interface) = {
 		val builder = new StringBuilder
-		val types = idl.interfaces.flatMap(_.functions.flatMap(_.params.collect(
+		val types = idl.allInterfaces.flatMap(_.functions.flatMap(_.params.collect(
 			_.paramType match {
 				case array: ArrayType => {
 					s"\t${formatType(array)} = " + array.lengths.map(
@@ -231,7 +231,7 @@ end.
 unit ${idl.main.name};
 
 interface
-${ if (types.size > 0) "type\n" + types.mkString("\n") else "" }
+${ if (types.size > 0) "type\n" + types.mkString("\n") + "\n" else "" }
 	procedure __entry();
 ${
 	idl.main.functions.map("\t" + declareFunction(_))

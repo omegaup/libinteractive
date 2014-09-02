@@ -88,6 +88,30 @@ class TargetSpec extends FlatSpec with Matchers with BeforeAndAfter {
 	"libinteractive" should "support multi-process targets" in {
 		runDirectory(Paths.get("src/test/resources/mega"))
 	}
+
+	"libinteractive" should "produce working templates" in {
+		val directory = Paths.get("src/test/resources/templates")
+		val testRoot = directory.resolve(".tests")
+		if (Files.exists(testRoot)) {
+			Files.walkFileTree(testRoot, new SimpleFileVisitor[Path] {
+				override def visitFile(file: Path, attrs: BasicFileAttributes):
+						FileVisitResult = {
+					Files.delete(file)
+					FileVisitResult.CONTINUE
+				}
+
+				override def postVisitDirectory(dir: Path, exc: IOException):
+						FileVisitResult = {
+					Files.delete(dir)
+					FileVisitResult.CONTINUE
+				}
+			})
+		}
+		val output = Source.fromFile(directory.resolve("output").toFile).mkString.trim
+		for (lang <- List("c", "cpp", "java", "py", "pas")) {
+			run("c", lang, directory, output, Options(generateTemplate = true, force = true))
+		}
+	}
 }
 
 /* vim: set noexpandtab: */

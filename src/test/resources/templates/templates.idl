@@ -1,0 +1,11 @@
+interface Main {
+	double callback(int[3][3] mat);
+};
+
+interface A {
+	double a([Range(0, 3)] int n, int[n][3] l);
+};
+
+interface B {
+	int b([Range(0, 3)] int n, int[n] m);
+};
