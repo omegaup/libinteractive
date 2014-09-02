@@ -1,6 +1,6 @@
 name := "libinteractive"
 
-version := "0.9"
+version := "1.0"
 
 organization := "omegaup"
 
@@ -12,6 +12,11 @@ exportJars := true
 
 packageOptions in (Compile, packageBin) +=
     Package.ManifestAttributes( java.util.jar.Attributes.Name.MAIN_CLASS -> "com.omegaup.libinteractive.Main" )
+
+mappings in (Compile, packageBin) ++= Seq(
+	(baseDirectory.value / "LICENSE") -> "LICENSE",
+	(baseDirectory.value / "NOTICE") -> "NOTICE"
+)
 
 libraryDependencies ++= Seq(
 	"com.github.scopt" %% "scopt" % "3.2.0",
