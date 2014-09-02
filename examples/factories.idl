@@ -1,0 +1,9 @@
+// Factories: http://cms.ioi-jp.org/open-2014/data/2014-open-d1-factories-en.pdf
+
+interface Main {
+};
+
+interface factories {
+	void Init([Range(2, 500000)] int N, int[N] A, int[N] B, int[N] D);
+	long Query([Range(1, 499999)] int S, int[S] X, [Range(1, 499999)] int T, int[T] Y);
+};

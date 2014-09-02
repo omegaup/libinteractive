@@ -1,0 +1,9 @@
+// Las jarras de agua: https://omegaup.com/arena/problem/jarras/
+
+interface Main {
+	void verterAgua(int fuente, int destino);
+};
+
+interface jarras {
+	void programa(int objetivo, int capacidadJarra1, int capacidadJarra2);
+};

@@ -1,0 +1,14 @@
+// Parrots: http://www.ioi2011.or.th/hsc/tasks/EN/parrots.pdf
+
+interface Main {
+	void send([Range(0, 65535)] int n);
+	void output([Range(0, 255)] int n);
+};
+
+interface encoder {
+	void encode([Range(0, 64)] int N, int[N] M);
+};
+
+interface decoder {
+	void decode([Range(0, 64)] int N, [Range(0, 320)] int L, int[L] X);
+};
