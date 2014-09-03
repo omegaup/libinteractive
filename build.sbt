@@ -36,7 +36,7 @@ ProguardKeys.options in Proguard ++= Seq(
   "-dontnote",
   "-dontwarn",
   "-keep interface scala.ScalaObject",
-  "-keep class com.omegaup.**",
+  "-keep class com.omegaup.libinteractive.**",
   "-keep class scala.collection.JavaConversions",
   ProguardOptions.keepMain("com.omegaup.libinteractive.Main")
 )
