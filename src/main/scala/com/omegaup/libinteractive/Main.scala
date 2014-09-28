@@ -49,7 +49,9 @@ object Main {
 						{ (_, c) => c.copy(generateTemplate = true) } text
 						("also generate a template for the contestant"),
 				opt[Unit]("verbose") action { (_, c) => c.copy(verbose = true) } text
-						("add verbose logging information to the generated shims")
+						("add verbose logging information to the generated shims"),
+				opt[Unit]("windows") action { (_, c) => c.copy(os = OS.Windows) } text
+						("generates code that can be run on Microsoft Windows")
 			)
 			checkConfig { c => {
 				if (c.idlFile == null)
@@ -92,8 +94,8 @@ object Main {
 					val contestant = options.idlFile.resolve(
 						s"../${options.moduleName}.${options.childLang}").normalize
 
-					Generator.generate(idl, options, problemsetter, contestant).foreach(
-						_.install(options.outputDirectory))
+					val outputs = Generator.generate(idl, options, problemsetter, contestant)
+						.foreach(_.install(options.outputDirectory))
 				}
 				case Command.Verify =>
 					System.out.println("OK")

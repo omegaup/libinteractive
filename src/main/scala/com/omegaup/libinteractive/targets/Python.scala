@@ -44,6 +44,13 @@ class Python(idl: IDL, options: Options, input: Path, parent: Boolean)
 		List.empty[MakefileRule]
 	}
 
+	def pythonExecutable() = {
+		options.os match {
+			case OS.Unix => "/usr/bin/python"
+			case OS.Windows => "python"
+		}
+	}
+
 	override def generateRunCommands() = {
 		(if (parent) {
 			List(idl.main)
@@ -51,7 +58,7 @@ class Python(idl: IDL, options: Options, input: Path, parent: Boolean)
 			idl.interfaces
 		}).map(interface =>
 			ExecDescription(
-				Array("/usr/bin/python", options.root.relativize(
+				Array(pythonExecutable, relativeToRoot(
 					options.outputDirectory.resolve(
 						Paths.get(interface.name, s"${interface.name}_entry.py")
 				)).toString)
@@ -151,7 +158,7 @@ class Python(idl: IDL, options: Options, input: Path, parent: Boolean)
 import sys
 import runpy
 
-sys.path[0] = "${options.root.relativize(
+sys.path[0] = "${relativeToRoot(
 	options.outputDirectory.resolve(Paths.get(idl.main.name))).toString}"
 
 runpy.run_module("${idl.main.name}", run_name="__main__")
@@ -195,17 +202,17 @@ ${generateMessageLoop(
 		idl.interfaces.foreach(interface => {
 			if (options.verbose) {
 				builder ++= "print>>sys.stderr," +
-						s""" "\\t[${idl.main.name}] opening `${pipeFilename(interface)}'"\n"""
+						s""" "\\t[${idl.main.name}] opening `${pipeFilename(interface, idl.main)}'"\n"""
 			}
 			builder ++=
-					s"""${pipeName(interface)} = open("${pipeFilename(interface)}", 'wb')\n"""
+					s"""${pipeName(interface)} = open("${pipeFilename(interface, idl.main)}", 'wb')\n"""
 		})
 		if (options.verbose) {
 			builder ++= "print>>sys.stderr," +
-					s""" "\\t[${idl.main.name}] opening `${pipeFilename(idl.main)}'"\n"""
+					s""" "\\t[${idl.main.name}] opening `${pipeFilename(idl.main, idl.main)}'"\n"""
 		}
 		builder ++=
-				s"""${pipeName(idl.main)} = open("${pipeFilename(idl.main)}", 'rb')\n"""
+				s"""${pipeName(idl.main)} = open("${pipeFilename(idl.main, idl.main)}", 'rb')\n"""
 		builder ++= s"__elapsed_time = 0\n"
 		builder ++= s"import ${idl.main.name}\n"
 
@@ -252,14 +259,14 @@ ${idl.main.functions.map(
 
 ${if (options.verbose) {
 	"print>>sys.stderr, \"\\t[" + interface.name + "] opening `" +
-		pipeFilename(interface) + "'\""
+		pipeFilename(interface, interface) + "'\""
 } else ""}
-with open("${pipeFilename(interface)}", 'rb') as __fin:
+with open("${pipeFilename(interface, interface)}", 'rb') as __fin:
 ${if (options.verbose) {
 	"\tprint>>sys.stderr, \"\\t[" + interface.name + "] opening `" +
-		pipeFilename(idl.main) + "'\""
+		pipeFilename(idl.main, interface) + "'\""
 } else ""}
-	with open("${pipeFilename(idl.main)}", 'wb') as __fout:
+	with open("${pipeFilename(idl.main, interface)}", 'wb') as __fout:
 		import ${options.moduleName}
 		__message_loop(-1)
 """

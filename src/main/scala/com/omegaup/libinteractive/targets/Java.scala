@@ -44,7 +44,7 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 				List(
 					Paths.get(idl.main.name, s"${idl.main.name}.java"),
 					Paths.get(idl.main.name, s"${idl.main.name}_entry.java")),
-				"/usr/bin/javac $^"))
+				Compiler.Javac, "$^"))
 		} else {
 			idl.interfaces.flatMap(interface =>
 				List(
@@ -52,9 +52,16 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 						List(
 							Paths.get(interface.name, s"${options.moduleName}.java"),
 							Paths.get(interface.name, s"${interface.name}_entry.java")),
-						"/usr/bin/javac $^")
+						Compiler.Javac, "$^")
 				)
 			)
+		}
+	}
+
+	def javaExecutable() = {
+		options.os match {
+			case OS.Unix => "/usr/bin/java"
+			case OS.Windows => "java"
 		}
 	}
 
@@ -64,8 +71,8 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 		} else {
 			idl.interfaces
 		}).map(interface =>
-			ExecDescription(Array("/usr/bin/java", "-cp",
-				options.root.relativize(
+			ExecDescription(Array(javaExecutable, "-cp",
+				relativeToRoot(
 					options.outputDirectory.resolve(interface.name)
 				).toString,
 				s"${interface.name}_entry"))
@@ -260,16 +267,16 @@ ${generateMessageLoop(List((idl.main, interface, "__out")), "__in")}
 	public static void main(String[] args) throws IOException {
 		${if (options.verbose) {
 			"System.err.printf(\"\\t[" + interface.name + "] opening `" +
-				pipeFilename(interface) + "'\\n\");\n"
+				pipeFilename(interface, interface) + "'\\n\");\n"
 		} else ""}
 		try (LEDataInputStream fin =
-				new LEDataInputStream("${pipeFilename(interface)}")) {
+				new LEDataInputStream("${pipeFilename(interface, interface)}")) {
 			${if (options.verbose) {
 				"System.err.printf(\"\\t[" + interface.name + "] opening `" +
-					pipeFilename(idl.main) + "'\\n\");\n"
+					pipeFilename(idl.main, interface) + "'\\n\");\n"
 			} else ""}
 			try (LEDataOutputStream fout =
-					new LEDataOutputStream("${pipeFilename(idl.main)}")) {
+					new LEDataOutputStream("${pipeFilename(idl.main, interface)}")) {
 				__in = fin;
 				__out = fout;
 				__message_loop(-1);
@@ -328,22 +335,22 @@ public class ${idl.main.name}_entry {
 		idl.interfaces.foreach(interface => {
 			if (options.verbose) {
 				builder ++= "\t" * indentLevel + "System.err.println(" +
-						s""" "\\t[${idl.main.name}] opening `${pipeFilename(interface)}'");\n"""
+						s""" "\\t[${idl.main.name}] opening `${pipeFilename(interface, idl.main)}'");\n"""
 			}
 			builder ++= "\t" * indentLevel +
 					s"""try (LEDataOutputStream __${pipeName(interface)} = """ +
-					s"""new LEDataOutputStream("${pipeFilename(interface)}")) {\n"""
+					s"""new LEDataOutputStream("${pipeFilename(interface, idl.main)}")) {\n"""
 			indentLevel += 1
 			builder ++= "\t" * indentLevel +
 				s"${pipeName(interface)} = __${pipeName(interface)};\n"
 		})
 		if (options.verbose) {
 			builder ++= "\t" * indentLevel + "System.err.println(" +
-					s""" "\\t[${idl.main.name}] opening `${pipeFilename(idl.main)}'");\n"""
+					s""" "\\t[${idl.main.name}] opening `${pipeFilename(idl.main, idl.main)}'");\n"""
 		}
 		builder ++= "\t" * indentLevel +
 				s"""try (LEDataInputStream __${pipeName(idl.main)} = """ +
-				s"""new LEDataInputStream("${pipeFilename(idl.main)}")) {\n"""
+				s"""new LEDataInputStream("${pipeFilename(idl.main, idl.main)}")) {\n"""
 		indentLevel += 1
 		builder ++= "\t" * indentLevel +
 			s"${pipeName(idl.main)} = __${pipeName(idl.main)};\n"

@@ -18,6 +18,16 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 		extends Target(idl, options) {
 	override def extension() = "pas"
 
+	def executableExtension() = options.os match {
+		case OS.Windows => ".exe"
+		case _ => ""
+	}
+
+	def ldflags() = options.os match {
+		case OS.Windows => "-Twin32"
+		case _ => "-Tlinux"
+	}
+
 	override def generate() = {
 		if (parent) {
 			throw new UnsupportedOperationException;
@@ -40,12 +50,14 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 			throw new UnsupportedOperationException;
 		} else {
 			idl.interfaces.map(interface =>
-				MakefileRule(Paths.get(interface.name, interface.name),
+				MakefileRule(Paths.get(interface.name, interface.name + executableExtension),
 					List(
 						Paths.get(interface.name, s"${options.moduleName}.pas"),
 						Paths.get(interface.name, s"${idl.main.name}.pas"),
 						Paths.get(interface.name, s"${interface.name}_entry.pas")),
-					"/usr/bin/fpc -Tlinux -O2 -Mobjfpc -Sc -Sh -o$@ $^ > /dev/null"))
+					Compiler.Fpc, ldflags + " -O2 -Mobjfpc -Sc -Sh -o$@ $^" + (
+						if (options.quiet) " > /dev/null" else ""
+					)))
 		}
 	}
 
@@ -114,9 +126,9 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 		} else {
 			idl.interfaces
 		}).map(interface =>
-			ExecDescription(Array(options.root.relativize(
+			ExecDescription(Array(relativeToRoot(
 				options.outputDirectory
-					.resolve(Paths.get(interface.name, interface.name)))
+					.resolve(Paths.get(interface.name, interface.name + executableExtension)))
 				.toString))
 		)
 	}
@@ -260,15 +272,17 @@ procedure __entry();
 begin
 	${if (options.verbose) {
 		"\tWriteln(ErrOutput, #9'[" + interface.name + "] opening `" +
-		pipeFilename(interface) + "''');\n"
+		pipeFilename(interface, interface).replace("\\\\", "\\") + "''');\n"
 	} else ""}
-	__in := TFileStream.Create('${pipeFilename(interface)}',
+	__in := TFileStream.Create('${pipeFilename(interface, interface)
+		.replace("\\\\", "\\")}',
 			fmOpenRead or fmShareDenyNone);
 	${if (options.verbose) {
 		"\tWriteln(ErrOutput, #9'" + interface.name + "] opening `" +
-		pipeFilename(idl.main) + "''');\n"
+		pipeFilename(idl.main, interface).replace("\\\\", "\\") + "''');\n"
 	} else ""}
-	__out := TFileStream.Create('${pipeFilename(idl.main)}',
+	__out := TFileStream.Create('${pipeFilename(idl.main, interface)
+		.replace("\\\\", "\\")}',
 			fmOpenWrite or fmShareDenyNone);
 	__message_loop($$FFFFFFFF);
 end;

@@ -13,6 +13,7 @@ import java.nio.file.Paths
 import java.util.Random
 
 import scala.collection.JavaConversions.asJavaIterable
+import scala.collection.mutable.MutableList
 
 import com.omegaup.libinteractive.idl.IDL
 import com.omegaup.libinteractive.idl.Interface
@@ -23,6 +24,12 @@ object Command extends Enumeration {
 }
 import Command.Command
 
+object OS extends Enumeration {
+	type OS = Value
+	val Unix, Windows = Value
+}
+import OS.OS
+
 case class Options(
 	childLang: String = "c",
 	command: Command = Command.Verify,
@@ -32,9 +39,11 @@ case class Options(
 	makefile: Boolean = false,
 	moduleName: String = "",
 	outputDirectory: Path = Paths.get("libinteractive"),
+	os: OS = OS.Unix,
 	root: Path = Paths.get(".").normalize,
 	parentLang: String = "c",
 	pipeDirectories: Boolean = false,
+	quiet: Boolean = false,
 	seed: Long = System.currentTimeMillis,
 	sequentialIds: Boolean = false,
 	verbose: Boolean = false
@@ -78,7 +87,67 @@ case class OutputLink(path: Path, target: Path) extends OutputPath(path) {
 	}
 }
 
-case class MakefileRule(target: Path, requisites: Iterable[Path], command: String)
+case class ResolvedOutputLink(link: Path, target: Path)
+
+abstract class OutputPathFilter {
+	def apply(input: OutputPath): Option[OutputPath]
+}
+
+object NoOpFilter extends OutputPathFilter {
+	override def apply(input: OutputPath) = Some(input)
+}
+
+abstract class LinkFilter extends OutputPathFilter {
+	def resolvedLinks(): Iterable[ResolvedOutputLink]
+}
+
+object NoOpLinkFilter extends LinkFilter {
+	override def resolvedLinks() = List.empty[ResolvedOutputLink]
+	override def apply(input: OutputPath) = Some(input)
+}
+
+class WindowsLinkFilter(root: Path) extends LinkFilter {
+	private val links = MutableList.empty[ResolvedOutputLink]
+
+	override def resolvedLinks() = links
+	override def apply(input: OutputPath) = {
+		input match {
+			case link: OutputLink => {
+				val resolvedLink = root.resolve(link.path)
+				links += ResolvedOutputLink(
+					resolvedLink, link.target)
+				None
+			}
+			case path: OutputPath => Some(path)
+		}
+	}
+}
+
+object WindowsLineEndingFilter extends OutputPathFilter {
+	override def apply(input: OutputPath) = {
+		input match {
+			case file: OutputFile =>
+				Some(new OutputFile(file.path, file.contents.replace("\n", "\r\n")))
+			case file: OutputMakefile =>
+				Some(new OutputMakefile(file.path, file.contents.replace("\n", "\r\n")))
+			case path: OutputPath => Some(path)
+		}
+	}
+}
+
+object Compiler extends Enumeration {
+	type Compiler = Value
+	val Gcc = Value("gcc")
+	val Gxx = Value("g++")
+	val Fpc = Value("fpc")
+	val Javac = Value("javac")
+	val Python = Value("python")
+	val Ruby = Value("ruby")
+}
+import Compiler.Compiler
+
+case class MakefileRule(target: Path, requisites: Iterable[Path], compiler: Compiler,
+		params: String)
 
 case class ExecDescription(args: Array[String], env: Map[String, String] = Map())
 
@@ -102,16 +171,24 @@ abstract class Target(idl: IDL, options: Options) {
 		}
 	}
 
-	protected def pipeFilename(interface: Interface) = {
+	protected def pipeFilename(interface: Interface, caller: Interface) = {
 		if (options.pipeDirectories) {
 			interface.name match {
 				case "Main" => "Main_pipes/out"
 				case name: String => s"${name}_pipes/in"
 			}
 		} else {
-			interface.name match {
-				case "Main" => "out"
-				case name: String => s"${name}_in"
+			options.os match {
+				case OS.Unix => interface.name match {
+					case "Main" => "out"
+					case name: String => s"${name}_in"
+				}
+				case OS.Windows => s"\\\\\\\\.\\\\pipe\\\\${caller.name}_" + (
+					interface.name match {
+						case "Main" => "out"
+						case name: String => s"${name}_in"
+					}
+				)
 			}
 		}
 	}
@@ -120,6 +197,14 @@ abstract class Target(idl: IDL, options: Options) {
 		interface.name match {
 			case "Main" => "__out"
 			case name: String => s"__${name}_in"
+		}
+	}
+
+	protected def relativeToRoot(path: Path) = {
+		if (options.root.toString.length == 0) {
+			path
+		} else {
+			options.root.relativize(path)
 		}
 	}
 
@@ -143,15 +228,27 @@ object Generator {
 		val child = target(options.childLang, idl, options, contestant, false)
 
 		val originalTargets = List(parent, child)
-		val targetList = if (options.makefile) {
-			originalTargets ++ List(new Makefile(idl,
+		val originalOutputs = originalTargets.flatMap(_.generate)
+		val outputs = if (options.makefile) {
+			val filter = options.os match {
+				case OS.Unix => NoOpLinkFilter
+				case OS.Windows => new WindowsLinkFilter(options.outputDirectory)
+			}
+			val filteredOutputs = originalOutputs.flatMap(filter.apply)
+			filteredOutputs ++ new Makefile(idl,
 				originalTargets.flatMap(_.generateMakefileRules),
-				originalTargets.flatMap(_.generateRunCommands), options))
+				originalTargets.flatMap(_.generateRunCommands),
+				filter.resolvedLinks, options).generate
 		} else {
-			originalTargets
+			originalOutputs
 		}
 
-		targetList.flatMap(_.generate)
+		val filter = options.os match {
+			case OS.Unix => NoOpFilter
+			case OS.Windows => WindowsLineEndingFilter
+		}
+
+		outputs.flatMap(filter.apply)
 	}
 
 	private def target(lang: String, idl: IDL, options: Options, input: Path,

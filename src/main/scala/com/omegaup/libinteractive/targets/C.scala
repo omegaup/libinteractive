@@ -18,6 +18,11 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 		extends Target(idl, options) {
 	override def extension() = "c"
 
+	def executableExtension() = options.os match {
+		case OS.Windows => ".exe"
+		case _ => ""
+	}
+
 	override def generate() = {
 		if (parent) {
 			val mainFile = s"${idl.main.name}.$extension"
@@ -41,20 +46,18 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 
 	override def generateMakefileRules() = {
 		if (parent) {
-			List(MakefileRule(Paths.get(idl.main.name, idl.main.name),
+			List(MakefileRule(Paths.get(idl.main.name, idl.main.name + executableExtension),
 				List(
 					Paths.get(idl.main.name, s"${idl.main.name}.$extension"),
 					Paths.get(idl.main.name, s"${idl.main.name}_entry.$extension")),
-				s"$compiler $cflags -o $$@ -lrt $$^ -O2 -Wl,-e__entry " +
-				"-D_XOPEN_SOURCE=600 -Wall"))
+				compiler, s"$cflags -o $$@ $$^ -O2 $ldflags -Wall -D_XOPEN_SOURCE=600"))
 		} else {
 			idl.interfaces.map(interface =>
-				MakefileRule(Paths.get(interface.name, interface.name),
+				MakefileRule(Paths.get(interface.name, interface.name + executableExtension),
 					List(
 						Paths.get(interface.name, s"${options.moduleName}.$extension"),
 						Paths.get(interface.name, s"${interface.name}_entry.$extension")),
-					s"$compiler $cflags -o $$@ -lrt $$^ -O2 " +
-					"-D_XOPEN_SOURCE=600 -Wall"))
+					compiler, s"$cflags -o $$@ $$^ -O2 -Wall -D_XOPEN_SOURCE=600"))
 		}
 	}
 
@@ -64,9 +67,9 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 		} else {
 			idl.interfaces
 		}).map(interface =>
-			ExecDescription(Array(options.root.relativize(
+			ExecDescription(Array(relativeToRoot(
 				options.outputDirectory
-					.resolve(Paths.get(interface.name, interface.name)))
+					.resolve(Paths.get(interface.name, interface.name + executableExtension)))
 				.toString))
 		)
 	}
@@ -105,9 +108,14 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 		List(OutputFile(input.toAbsolutePath, builder.mkString))
 	}
 
-	def compiler() = "/usr/bin/gcc"
+	def compiler() = Compiler.Gcc
 
 	def cflags() = "-std=c99"
+
+	def ldflags() = options.os match {
+		case OS.Unix => "-Wl,-e__entry"
+		case OS.Windows => "-Wl,-e___entry"
+	}
 
 	private def arrayDim(length: ArrayLength) = s"[${length.value}]"
 
@@ -204,6 +212,19 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 #include <fcntl.h>
 #include <unistd.h>
 
+#if defined(_WIN32)
+#if !defined(PRIuS)
+#define PRIuS "Iu"
+#endif
+#else
+#if !defined(PRIuS)
+#define PRIuS "zu"
+#endif
+// Windows requires this flag to open files in binary mode using the
+// open syscall.
+#define O_BINARY 0
+#endif
+
 static int __in = -1, __out = -1;
 
 #ifdef __cplusplus
@@ -215,7 +236,7 @@ static void readfull(int fd, void* buf, size_t count) {
 	while (count > 0) {
 		bytes = read(fd, buf, count);
 		if (bytes <= 0) {
-			fprintf(stderr, "Incomplete message missing %zu bytes\\n", count);
+			fprintf(stderr, "Incomplete message missing %" PRIuS " bytes\\n", count);
 			exit(1);
 		}
 		buf = bytes + (char*)buf;
@@ -228,7 +249,7 @@ static void writefull(int fd, const void* buf, size_t count) {
 	while (count > 0) {
 		bytes = write(fd, buf, count);
 		if (bytes <= 0) {
-			fprintf(stderr, "Incomplete message missing %zu bytes\\n", count);
+			fprintf(stderr, "Incomplete message missing %" PRIuS " bytes\\n", count);
 			exit(1);
 		}
 		buf = bytes + (char*)buf;
@@ -247,18 +268,18 @@ int main(int argc, char* argv[]) {
 
 	${if (options.verbose) {
 		"\tfprintf(stderr, \"\\t[" + interface.name + "] opening `" +
-			pipeFilename(interface) + "'\\n\");\n"
+			pipeFilename(interface, interface) + "'\\n\");\n"
 	} else ""}
-	if ((__in = open("${pipeFilename(interface)}", O_RDONLY)) == -1) {
+	if ((__in = open("${pipeFilename(interface, interface)}", O_RDONLY | O_BINARY)) == -1) {
 		perror("open");
 		retval = 1;
 		goto cleanup;
 	}
 	${if (options.verbose) {
 		"\tfprintf(stderr, \"\\t[" + interface.name + "] opening `" +
-			pipeFilename(idl.main) + "'\\n\");\n"
+			pipeFilename(idl.main, interface) + "'\\n\");\n"
 	} else ""}
-	if ((__out = open("${pipeFilename(idl.main)}", O_WRONLY)) == -1) {
+	if ((__out = open("${pipeFilename(idl.main, interface)}", O_WRONLY | O_BINARY)) == -1) {
 		perror("open");
 		retval = 1;
 		goto cleanup;
@@ -269,7 +290,7 @@ int main(int argc, char* argv[]) {
 cleanup:
 	${if (options.verbose) {
 		"\tfprintf(stderr, \"\\t[" + interface.name + "] closing `" +
-			pipeFilename(interface) + "'\\n\");\n"
+			pipeFilename(interface, interface) + "'\\n\");\n"
 	} else ""}
 	if (__in != -1) {
 		if (close(__in) == -1) {
@@ -278,7 +299,7 @@ cleanup:
 	}
 	${if (options.verbose) {
 		"\tfprintf(stderr, \"\\t[" + interface.name + "] closing `" +
-			pipeFilename(idl.main) + "'\\n\");\n"
+			pipeFilename(idl.main, interface) + "'\\n\");\n"
 	} else ""}
 	if (__out != -1) {
 		if (close(__out) == -1) {
@@ -290,7 +311,7 @@ cleanup:
 }
 """
 		for (function <- idl.main.functions) {
-			builder ++= generateShim(function, idl.main, interface, "__out", "__in", false)
+			builder ++= generateShim(function, idl.main, interface, "__out", "__in")
 		}
 		OutputFile(
 			Paths.get(interface.name, s"${interface.name}_entry.$extension"),
@@ -312,30 +333,30 @@ cleanup:
 		val openPipes = idl.interfaces.map(interface => {
 			(if (options.verbose) {
 				s"""\tfprintf(stderr, "\\t[${idl.main.name}] opening """ +
-					s"""`${pipeFilename(interface)}'\\n");\n"""
+					s"""`${pipeFilename(interface, idl.main)}'\\n");\n"""
 			} else {
 				""
 			}) +
 s"""\tif ((${pipeName(interface)} =
-			open("${pipeFilename(interface)}", O_WRONLY)) == -1) {
+			open("${pipeFilename(interface, idl.main)}", O_WRONLY | O_BINARY)) == -1) {
 		perror("open");
 		exit(1);
 	}\n"""}).mkString("\n") +
 			(if (options.verbose) {
 				s"""\tfprintf(stderr, "\\t[${idl.main.name}] opening """ +
-					s"""`${pipeFilename(idl.main)}'\\n");\n"""
+					s"""`${pipeFilename(idl.main, idl.main)}'\\n");\n"""
 			} else {
 				""
 			}) +
 s"""\tif ((${pipeName(idl.main)} =
-			open("${pipeFilename(idl.main)}", O_RDONLY)) == -1) {
+			open("${pipeFilename(idl.main, idl.main)}", O_RDONLY | O_BINARY)) == -1) {
 		perror("open");
 		exit(1);
 	}\n"""
 		val closePipes = (idl.interfaces ++ List(idl.main)).map(interface => {
 			(if (options.verbose) {
 				s"""\tfprintf(stderr, "\\t[${idl.main.name}] closing """ +
-					s"""`${pipeFilename(interface)}'\\n");\n"""
+					s"""`${pipeFilename(interface, idl.main)}'\\n");\n"""
 			} else {
 				""
 			}) +
@@ -353,16 +374,33 @@ s"""\tif (${pipeName(interface)} != -1) {
 #include <unistd.h>
 #include "${options.moduleName}.h"
 
+#if defined(_WIN32)
+#if !defined(PRIuS)
+#define PRIuS "Iu"
+#endif
+#else
+#if !defined(PRIuS)
+#define PRIuS "zu"
+#endif
+// Windows requires this flag to open files in binary mode using the
+// open syscall.
+#define O_BINARY 0
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#if defined(_WIN32)
+// declared in windows.h
+void mainCRTStartup();
+#else
 // declared in crt1.o
 void _start();
+#endif
 
 void __entry();
 static void __exit();
-static long long __elapsed_time = 0;
 static int ${idl.allInterfaces.map(pipeName).mkString(", ")};
 
 static void readfull(int fd, void* buf, size_t count) {
@@ -370,7 +408,7 @@ static void readfull(int fd, void* buf, size_t count) {
 	while (count > 0) {
 		bytes = read(fd, buf, count);
 		if (bytes <= 0) {
-			fprintf(stderr, "Incomplete message missing %zu bytes\\n", count);
+			fprintf(stderr, "Incomplete message missing %" PRIuS " bytes\\n", count);
 			exit(1);
 		}
 		buf = bytes + (char*)buf;
@@ -383,7 +421,7 @@ static void writefull(int fd, const void* buf, size_t count) {
 	while (count > 0) {
 		bytes = write(fd, buf, count);
 		if (bytes <= 0) {
-			fprintf(stderr, "Incomplete message missing %zu bytes\\n", count);
+			fprintf(stderr, "Incomplete message missing %" PRIuS " bytes\\n", count);
 			exit(1);
 		}
 		buf = bytes + (char*)buf;
@@ -401,7 +439,11 @@ $openPipes
 	// Register __exit to be called when main returns.
 	atexit(__exit);
 	// Perform regular libc startup
+	#if defined(_WIN32)
+	mainCRTStartup();
+	#else
 	_start();
+	#endif
 }
 
 void __exit() {
@@ -418,7 +460,7 @@ $closePipes
 		idl.interfaces.foreach(interface => {
 			interface.functions.foreach(
 				builder ++= generateShim(_, interface, idl.main, pipeName(interface),
-					pipeName(idl.main), true)
+					pipeName(idl.main))
 			)
 		})
 		
@@ -507,7 +549,7 @@ $closePipes
 	}
 
 	private def generateShim(function: Function, callee: Interface, caller: Interface,
-			outfd: String, infd: String, generateTiming: Boolean) = {
+			outfd: String, infd: String) = {
 		val builder = new StringBuilder
 		builder ++= declareFunction(function)
 		builder ++= " {\n"
@@ -529,10 +571,6 @@ $closePipes
 					s"${fieldLength(param.paramType)});\n"
 			})
 		})
-		if (generateTiming) {
-			builder ++=
-				"\tstruct timespec __t0, __t1;\n\tclock_gettime(CLOCK_MONOTONIC, &__t0);\n"
-		}
 		builder ++= f"\tint __cookie = 0x${rand.nextInt}%x;\n"
 		builder ++= s"\twritefull($outfd, &__cookie, sizeof(__cookie));\n"
 		builder ++= "\t__message_loop(__msgid);\n"
@@ -542,12 +580,6 @@ $closePipes
 		}
 		builder ++= "\tint __cookie_result = 0;\n"
 		builder ++= s"\treadfull($infd, &__cookie_result, sizeof(int));\n"
-		if (generateTiming) {
-			builder ++= "\tclock_gettime(CLOCK_MONOTONIC, &__t1);\n"
-			builder ++= "\t__elapsed_time += " +
-				"(__t1.tv_sec * 1000000 + __t1.tv_nsec / 1000) - " +
-				"(__t0.tv_sec * 1000000 + __t0.tv_nsec / 1000);\n"
-		}
 
 		builder ++= "\tif (__cookie != __cookie_result) {\n"
 		builder ++= "\t\tfprintf(stderr, \"invalid __cookie\\n\");\n"
@@ -573,7 +605,7 @@ class Cpp(idl: IDL, options: Options, input: Path, parent: Boolean)
 		extends C(idl, options, input, parent) {
 	override def extension() = "cpp"
 
-	override def compiler() = "/usr/bin/g++"
+	override def compiler() = Compiler.Gxx
 
 	override def cflags() = "-std=c++11"
 }

@@ -68,6 +68,7 @@ class TargetSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
       makefile = true,
 			moduleName = moduleName,
 			root = root,
+			quiet = true,
 			outputDirectory = root.resolve("libinteractive")
     )
 		val parser = new Parser
