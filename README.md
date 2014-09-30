@@ -3,7 +3,7 @@ libinteractive
 
 A tiny IDL translator that creates IPC shims to easily create interactive problems.
 
-You can grab the latest `.jar` from https://omegaup.com/libinteractive-1.0.jar
+You can grab the latest `.jar` from the [Releases page](https://github.com/omegaup/libinteractive/releases)
 
 Let's say your problem's name is `sum`. if you have your validator in `Main.cpp` and your solution in `sum.py`, you can do
 
