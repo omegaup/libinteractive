@@ -1,5 +1,4 @@
 #include "templates.h"
-#include <math.h>
 #include <stdio.h>
 
 int main(int argc, char* argv[]) {
@@ -10,5 +9,5 @@ int main(int argc, char* argv[]) {
 }
 
 double callback(int l[][3]) {
-	return M_PI;
+	return 3.14159265358979323846;
 }

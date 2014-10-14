@@ -50,14 +50,14 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 				List(
 					Paths.get(idl.main.name, s"${idl.main.name}.$extension"),
 					Paths.get(idl.main.name, s"${idl.main.name}_entry.$extension")),
-				compiler, s"$cflags -o $$@ $$^ -O2 $ldflags -Wall -D_XOPEN_SOURCE=600"))
+				compiler, s"$cflags -o $$@ $$^ -lm -O2 $ldflags -Wall"))
 		} else {
 			idl.interfaces.map(interface =>
 				MakefileRule(Paths.get(interface.name, interface.name + executableExtension),
 					List(
 						Paths.get(interface.name, s"${options.moduleName}.$extension"),
 						Paths.get(interface.name, s"${interface.name}_entry.$extension")),
-					compiler, s"$cflags -o $$@ $$^ -O2 -Wall -D_XOPEN_SOURCE=600"))
+					compiler, s"$cflags -o $$@ $$^ -lm -O2 -Wall"))
 		}
 	}
 
@@ -206,6 +206,7 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 		val builder = new StringBuilder
 		builder ++= s"""/* $message */
 #include "${options.moduleName}.h"
+#define _XOPEN_SOURCE 600
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -367,6 +368,7 @@ s"""\tif (${pipeName(interface)} != -1) {
 	}"""}).mkString("\n")
 		val builder = new StringBuilder
 		builder ++= s"""/* $message */
+#define _XOPEN_SOURCE 600
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
