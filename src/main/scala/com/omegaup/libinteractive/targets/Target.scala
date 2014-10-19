@@ -173,10 +173,7 @@ abstract class Target(idl: IDL, options: Options) {
 
 	protected def pipeFilename(interface: Interface, caller: Interface) = {
 		if (options.pipeDirectories) {
-			interface.name match {
-				case "Main" => "Main_pipes/out"
-				case name: String => s"${name}_pipes/in"
-			}
+			s"${interface.name}_pipes/pipe"
 		} else {
 			options.os match {
 				case OS.Unix => interface.name match {
@@ -251,7 +248,7 @@ object Generator {
 		outputs.flatMap(filter.apply)
 	}
 
-	private def target(lang: String, idl: IDL, options: Options, input: Path,
+	def target(lang: String, idl: IDL, options: Options, input: Path,
 			parent: Boolean): Target = {
 		lang match {
 			case "c" => new C(idl, options, input, parent)

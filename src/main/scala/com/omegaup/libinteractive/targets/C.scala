@@ -57,7 +57,7 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 					List(
 						Paths.get(interface.name, s"${options.moduleName}.$extension"),
 						Paths.get(interface.name, s"${interface.name}_entry.$extension")),
-					compiler, s"$cflags -o $$@ $$^ -lm -O2 -Wall"))
+					compiler, s"$cflags -o $$@ $$^ -lm -O2 $ldflags -Wall"))
 		}
 	}
 
@@ -112,9 +112,15 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 
 	def cflags() = "-std=c99"
 
-	def ldflags() = options.os match {
-		case OS.Unix => "-Wl,-e__entry"
-		case OS.Windows => "-Wl,-e___entry"
+	def ldflags() = {
+		if (parent) {
+			options.os match {
+				case OS.Unix => "-Wl,-e__entry"
+				case OS.Windows => "-Wl,-e___entry"
+			}
+		} else {
+			""
+		}
 	}
 
 	private def arrayDim(length: ArrayLength) = s"[${length.value}]"
