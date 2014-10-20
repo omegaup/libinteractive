@@ -18,28 +18,75 @@ import scala.collection.mutable.MutableList
 import com.omegaup.libinteractive.idl.IDL
 import com.omegaup.libinteractive.idl.Interface
 
-object Command extends Enumeration {
-	type Command = Value
-	val Verify, Generate = Value
-}
-import Command.Command
+// DIY enum type, from https://gist.github.com/viktorklang/1057513
+trait Enum {
+	import java.util.concurrent.atomic.AtomicReference
 
-object OS extends Enumeration {
-	type OS = Value
-	val Unix, Windows = Value
+	// This is a type that needs to be found in the implementing class
+	type EnumVal <: Value
+
+	// Stores our enum values
+	private val _values = new AtomicReference(Vector[EnumVal]())
+
+	// Adds an EnumVal to our storage, uses CCAS to make sure it's thread safe, returns
+	// the ordinal
+	private final def addEnumVal(newVal: EnumVal): Int = {
+		import _values.{get, compareAndSet => CAS}
+
+		val oldVec = get
+		val newVec = oldVec :+ newVal
+		if ((get eq oldVec) && CAS(oldVec, newVec)) {
+			newVec.indexWhere(_ eq newVal)
+		} else {
+			addEnumVal(newVal)
+		}
+	}
+
+	// Here you can get all the enums that exist for this type
+	def values: Vector[EnumVal] = _values.get
+
+	// This is the trait that we need to extend our EnumVal type with, it does the
+	// book-keeping for us
+	protected trait Value { self: EnumVal => // Enforce that no one mixes in Value in a
+	                                         // non-EnumVal type
+		// Adds the EnumVal and returns the ordinal
+		final val ordinal = addEnumVal(this)
+
+		// All enum values should have a name
+		def name: String
+
+		def find(name: String): Option[EnumVal] = values.find(_.name == name)
+		// And that name is used for the toString operation
+		override def toString = name
+		override def equals(other: Any) = this eq other.asInstanceOf[AnyRef]
+		override def hashCode = 31 * (this.getClass.## + name.## + ordinal)
+	}
 }
-import OS.OS
+
+object Command extends Enum {
+	sealed trait EnumVal extends Value
+
+	val Verify = new EnumVal { val name = "verify" }
+	val Generate = new EnumVal { val name = "generate" }
+}
+
+object OS extends Enum {
+	sealed trait EnumVal extends Value
+
+	val Unix = new EnumVal { val name = "unix" }
+	val Windows = new EnumVal { val name = "windows" }
+}
 
 case class Options(
 	childLang: String = "c",
-	command: Command = Command.Verify,
+	command: Command.EnumVal = Command.Verify,
 	force: Boolean = false,
 	generateTemplate: Boolean = false,
 	idlFile: Path = null,
 	makefile: Boolean = false,
 	moduleName: String = "",
 	outputDirectory: Path = Paths.get("libinteractive"),
-	os: OS = OS.Unix,
+	os: OS.EnumVal = OS.Unix,
 	root: Path = Paths.get(".").normalize,
 	parentLang: String = "c",
 	pipeDirectories: Boolean = false,
