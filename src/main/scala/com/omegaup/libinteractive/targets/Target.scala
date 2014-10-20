@@ -253,6 +253,7 @@ object Generator {
 		lang match {
 			case "c" => new C(idl, options, input, parent)
 			case "cpp" => new Cpp(idl, options, input, parent)
+			case "cpp11" => new Cpp(idl, options, input, parent)
 			case "java" => new Java(idl, options, input, parent)
 			case "pas" => new Pascal(idl, options, input, parent)
 			case "py" => new Python(idl, options, input, parent)
