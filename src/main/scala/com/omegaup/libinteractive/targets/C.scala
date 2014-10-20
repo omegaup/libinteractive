@@ -360,18 +360,6 @@ s"""\tif ((${pipeName(idl.main)} =
 		perror("open");
 		exit(1);
 	}\n"""
-		val closePipes = (idl.interfaces ++ List(idl.main)).map(interface => {
-			(if (options.verbose) {
-				s"""\tfprintf(stderr, "\\t[${idl.main.name}] closing """ +
-					s"""`${pipeFilename(interface, idl.main)}'\\n");\n"""
-			} else {
-				""
-			}) +
-s"""\tif (${pipeName(interface)} != -1) {
-		if (close(${pipeName(interface)}) == -1) {
-			perror("close");
-		}
-	}"""}).mkString("\n")
 		val builder = new StringBuilder
 		builder ++= s"""/* $message */
 #define _XOPEN_SOURCE 600
@@ -443,19 +431,12 @@ static void writefull(int fd, const void* buf, size_t count) {
 
 void __entry() {
 $openPipes
-
-	// Register __exit to be called when main returns.
-	atexit(__exit);
 	// Perform regular libc startup
 	#if defined(_WIN32)
 	mainCRTStartup();
 	#else
 	_start();
 	#endif
-}
-
-void __exit() {
-$closePipes
 }
 
 """
