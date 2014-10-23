@@ -20,6 +20,7 @@ mappings in (Compile, packageBin) ++= Seq(
 
 libraryDependencies ++= Seq(
 	"com.github.scopt" %% "scopt" % "3.2.0",
+	"org.apache.commons" % "commons-compress" % "1.8.1",
 	"org.scalatest" %% "scalatest" % "2.2.1" % "test"
 )
 

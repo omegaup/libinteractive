@@ -4,13 +4,21 @@
 
 package com.omegaup.libinteractive.target
 
+import java.io.Closeable
 import java.io.File
+import java.io.FileOutputStream
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.LinkOption
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.Random
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
+import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry
+import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
+import org.apache.commons.compress.archivers.tar.TarConstants
 
 import scala.collection.JavaConversions.asJavaIterable
 import scala.collection.mutable.MutableList
@@ -66,8 +74,9 @@ trait Enum {
 object Command extends Enum {
 	sealed trait EnumVal extends Value
 
-	val Verify = new EnumVal { val name = "verify" }
+	val Validate = new EnumVal { val name = "validate" }
 	val Generate = new EnumVal { val name = "generate" }
+	val GenerateAll = new EnumVal { val name = "generate-all" }
 }
 
 object OS extends Enum {
@@ -79,7 +88,7 @@ object OS extends Enum {
 
 case class Options(
 	childLang: String = "c",
-	command: Command.EnumVal = Command.Verify,
+	command: Command.EnumVal = Command.Validate,
 	force: Boolean = false,
 	generateTemplate: Boolean = false,
 	idlFile: Path = null,
@@ -88,7 +97,9 @@ case class Options(
 	outputDirectory: Path = Paths.get("libinteractive"),
 	os: OS.EnumVal = OS.Unix,
 	root: Path = Paths.get(".").normalize,
+	packageDirectory: Path = Paths.get(".").normalize,
 	parentLang: String = "c",
+	parentSource: Option[Path] = None,
 	pipeDirectories: Boolean = false,
 	quiet: Boolean = false,
 	seed: Long = System.currentTimeMillis,
@@ -96,41 +107,119 @@ case class Options(
 	verbose: Boolean = false
 )
 
-abstract class OutputPath(path: Path) {
-	def install(root: Path): Unit
-}
+abstract class OutputPath(val path: Path)
+case class OutputDirectory(override val path: Path) extends OutputPath(path)
+case class OutputFile(override val path: Path, val contents: String,
+	val relative: Boolean = true)	extends OutputPath(path)
+case class OutputLink(override val path: Path, val target: Path)
+		extends OutputPath(path)
 
-case class OutputDirectory(path: Path) extends OutputPath(path) {
-	override def install(root: Path) {
-		val directory = root.resolve(path).normalize
-		if (!Files.exists(directory)) {
-			Files.createDirectories(directory)
+class InstallVisitor(installPath: Path, root: Path) {
+	def apply(outputPath: OutputPath) = outputPath match {
+		case dir: OutputDirectory => {
+			val directory = installPath.resolve(dir.path).normalize
+			if (!Files.exists(directory)) {
+				Files.createDirectories(directory)
+			}
+		}
+
+		case file: OutputFile => {
+			val destination = (if (file.relative) {
+				installPath.resolve(file.path)
+			} else {
+				file.path
+			})
+			Files.write(destination, List(file.contents), StandardCharsets.UTF_8)
+		}
+
+		case link: OutputLink => { 
+			val linkPath = installPath.resolve(link.path)
+			if (!Files.exists(linkPath, LinkOption.NOFOLLOW_LINKS)) {
+				Files.createSymbolicLink(linkPath,
+					linkPath.getParent.relativize(link.target))
+			}
 		}
 	}
 }
 
-case class OutputFile(path: Path, contents: String) extends OutputPath(path) {
-	override def install(root: Path) {
-		Files.write(root.resolve(path), List(contents), StandardCharsets.UTF_8)
+abstract class ArchiveVisitor(installPath: Path) extends Closeable {
+	def apply(outputPath: OutputPath): Unit
+}
+
+class CompressedTarballVisitor(installPath: Path, tgzFilename: Path)
+		extends ArchiveVisitor(installPath) {
+	val bz2 = new BZip2CompressorOutputStream(new FileOutputStream(tgzFilename.toFile))
+	val tar = new TarArchiveOutputStream(bz2)
+
+	override def apply(outputPath: OutputPath) = outputPath match {
+		case dir: OutputDirectory => {
+			val directory = installPath.resolve(dir.path).normalize
+			tar.putArchiveEntry(
+				new TarArchiveEntry(directory.toString + "/", TarConstants.LF_DIR))
+			tar.closeArchiveEntry
+		}
+
+		case file: OutputFile => {
+			val entry = new TarArchiveEntry((if (file.relative) {
+				installPath.resolve(file.path)
+			} else {
+				file.path
+			}).toString, TarConstants.LF_NORMAL)
+			val bytes = file.contents.getBytes(StandardCharsets.UTF_8)
+			entry.setSize(bytes.length)
+			entry.setUserId(1000)
+			entry.setUserName("omegaup")
+			entry.setModTime(System.currentTimeMillis)
+			tar.putArchiveEntry(entry)
+			tar.write(bytes, 0, bytes.length)
+			tar.closeArchiveEntry
+		}
+
+		case link: OutputLink => {
+			val linkPath = installPath.resolve(link.path)
+			val entry = new TarArchiveEntry(linkPath.toString, TarConstants.LF_SYMLINK)
+			entry.setLinkName(linkPath.getParent.relativize(link.target).toString)
+			entry.setUserId(1000)
+			entry.setUserName("omegaup")
+			entry.setModTime(System.currentTimeMillis)
+			tar.putArchiveEntry(entry)
+			tar.closeArchiveEntry
+		}
+	}
+
+	override def close() = {
+		tar.close
 	}
 }
 
-case class OutputMakefile(path: Path, contents: String) extends OutputPath(path) {
-	override def install(root: Path) {
-		val directory = path.getParent
-		if (directory != null && !Files.exists(directory)) {
-			Files.createDirectories(directory)
-		}
-		Files.write(path, List(contents), StandardCharsets.UTF_8)
-	}
-}
+class ZipVisitor(installPath: Path, zipFilename: Path)
+		extends ArchiveVisitor(installPath) {
+	val zip = new ZipOutputStream(new FileOutputStream(zipFilename.toFile))
 
-case class OutputLink(path: Path, target: Path) extends OutputPath(path) {
-	override def install(root: Path) {
-		val link = root.resolve(path)
-		if (!Files.exists(link, LinkOption.NOFOLLOW_LINKS)) {
-			Files.createSymbolicLink(link, link.getParent.relativize(target))
+	override def apply(outputPath: OutputPath) = outputPath match {
+		case dir: OutputDirectory => {
+			val directory = installPath.resolve(dir.path).normalize
+			zip.putNextEntry(new ZipEntry(directory.toString + "/"))
+			zip.closeEntry
 		}
+
+		case file: OutputFile => {
+			val entry = new ZipEntry((if (file.relative) {
+				installPath.resolve(file.path)
+			} else {
+				file.path
+			}).toString)
+			val bytes = file.contents.getBytes(StandardCharsets.UTF_8)
+			entry.setSize(bytes.length)
+			entry.setTime(System.currentTimeMillis)
+			zip.putNextEntry(entry)
+			zip.write(bytes, 0, bytes.length)
+			zip.closeEntry
+		}
+	}
+
+	override def close() = {
+		zip.close
 	}
 }
 
@@ -174,9 +263,8 @@ object WindowsLineEndingFilter extends OutputPathFilter {
 	override def apply(input: OutputPath) = {
 		input match {
 			case file: OutputFile =>
-				Some(new OutputFile(file.path, file.contents.replace("\n", "\r\n")))
-			case file: OutputMakefile =>
-				Some(new OutputMakefile(file.path, file.contents.replace("\n", "\r\n")))
+				Some(OutputFile(file.path, file.contents.replace("\n", "\r\n"),
+					file.relative))
 			case path: OutputPath => Some(path)
 		}
 	}

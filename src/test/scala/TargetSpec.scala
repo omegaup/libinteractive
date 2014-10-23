@@ -74,14 +74,15 @@ class TargetSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
 		val parser = new Parser
 		val idl = parser.parse(Source.fromFile(idlFile.toFile).mkString)
 
-		new OutputDirectory(Paths.get(".")).install(options.outputDirectory)
+		val installer = new InstallVisitor(root.resolve("libinteractive"), root)
 		val problemsetter = deploy(path.resolve(
 			s"${idl.main.name}.${options.parentLang}"))
 		val contestant = deploy(path.resolve(
 			s"${options.moduleName}.${options.childLang}"))
 
+		installer.apply(new OutputDirectory(Paths.get(".")))
 		Generator.generate(idl, options, problemsetter, contestant).foreach(
-			_.install(options.outputDirectory))
+			installer.apply)
 
 		val process = Runtime.getRuntime.exec(Array(
 			"/usr/bin/make", "-s", "run", "-C", root.toString

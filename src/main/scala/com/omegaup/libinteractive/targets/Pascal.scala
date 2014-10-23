@@ -117,7 +117,7 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 		}
 		builder ++= "\nend.\n"
 
-		List(OutputFile(input.toAbsolutePath, builder.mkString))
+		List(OutputFile(input, builder.mkString, false))
 	}
 
 	override def generateRunCommands() = {

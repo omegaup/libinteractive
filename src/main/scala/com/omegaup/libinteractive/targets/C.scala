@@ -105,7 +105,7 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 			}
 		}
 
-		List(OutputFile(input.toAbsolutePath, builder.mkString))
+		List(OutputFile(input, builder.mkString, false))
 	}
 
 	def compiler() = Compiler.Gcc
@@ -396,7 +396,6 @@ void _start();
 #endif
 
 void __entry();
-static void __exit();
 static int ${idl.allInterfaces.map(pipeName).mkString(", ")};
 
 static void readfull(int fd, void* buf, size_t count) {

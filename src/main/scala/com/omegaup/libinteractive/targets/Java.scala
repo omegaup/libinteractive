@@ -115,7 +115,7 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 			builder ++= "\n}\n"
 		}
 
-		List(OutputFile(input.toAbsolutePath, builder.mkString))
+		List(OutputFile(input, builder.mkString, false))
 	}
 
 	private def formatLength(length: ArrayLength, function: Option[Function]) = {

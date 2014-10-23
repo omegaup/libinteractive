@@ -5,6 +5,7 @@
 package com.omegaup.libinteractive
 
 import java.io.File
+import java.nio.file.Files
 import java.nio.file.Paths
 
 import com.omegaup.libinteractive.idl.IDL
@@ -23,7 +24,7 @@ object Main {
 			opt[File]("output-directory") action
 					{ (x, c) => c.copy(outputDirectory = x.toPath) } text
 					("the directory in which to generate the files")
-			cmd("validate") action { (_, c) => c.copy(command = Command.Verify) } text
+			cmd("validate") action { (_, c) => c.copy(command = Command.Validate) } text
 					("only validate the .idl file") children(
 				arg[File]("file") action { (x, c) => c.copy(idlFile = x.toPath) } text
 						("the .idl file that describes the interfaces")
@@ -52,6 +53,13 @@ object Main {
 						("add verbose logging information to the generated shims"),
 				opt[Unit]("windows") action { (_, c) => c.copy(os = OS.Windows) } text
 						("generates code that can be run on Microsoft Windows")
+			)
+			cmd("generate-all") action { (_, c) => c.copy(command = Command.GenerateAll) } text
+				("generate templates and pack them up for all language/OS combinations") children(
+					arg[File]("file") action { (x, c) => c.copy(idlFile = x.toPath) } text
+						("the .idl file that describes the interfaces"),
+					opt[File]("package-directory") action { (x, c) => c.copy(packageDirectory = x.toPath) } text
+						("the directory in which the packaged templates are to be saved")
 			)
 			checkConfig { c => {
 				if (c.idlFile == null)
@@ -88,16 +96,86 @@ object Main {
 			}
 			options.command match {
 				case Command.Generate => {
-					new OutputDirectory(Paths.get(".")).install(options.outputDirectory)
+					val installer = new InstallVisitor(options.outputDirectory, options.root)
 					val problemsetter = options.idlFile.resolve(
 						s"../${idl.main.name}.${options.parentLang}").normalize
 					val contestant = options.idlFile.resolve(
 						s"../${options.moduleName}.${options.childLang}").normalize
 
-					val outputs = Generator.generate(idl, options, problemsetter, contestant)
-						.foreach(_.install(options.outputDirectory))
+					installer.apply(new OutputDirectory(Paths.get(".")))
+					Generator.generate(idl, options, problemsetter, contestant)
+						.foreach(installer.apply)
 				}
-				case Command.Verify =>
+				case Command.GenerateAll => {
+					val supportedLanguages = List("c", "cpp", "java", "py", "pas")
+					val candidates = supportedLanguages.map(
+						lang => (lang, options.idlFile.resolve(
+							s"../${idl.main.name}.${lang}").normalize)
+					).filter(x => Files.exists(x._2))
+
+					if (candidates.isEmpty) {
+						System.err.println(
+							s"""${idl.main.name}.{${supportedLanguages.mkString(",")}} not found""")
+						System.exit(1)
+					} else if (candidates.length > 1) {
+						System.err.println(s"Multiple parent files found")
+						System.exit(1)
+					}
+
+					val finalOptions = options.copy(
+						parentLang = candidates(0)._1,
+						parentSource = Some({
+							val distribPath = options.idlFile.resolve(
+								s"../${idl.main.name}.distrib.${candidates(0)._1}").normalize
+							if (Files.exists(distribPath)) {
+								distribPath
+							} else {
+								candidates(0)._2
+							}
+						})
+					)
+
+					val problemsetter = Paths.get(
+						s"${idl.main.name}.${finalOptions.parentLang}")
+					val problemsetterSource = Source.fromFile((finalOptions.parentSource match {
+							case None => {
+								problemsetter
+							}
+							case Some(path) => path
+					}).toFile).mkString
+
+					for (os <- OS.values) {
+						for (lang <- supportedLanguages) {
+							val localOptions = finalOptions.copy(
+								childLang = lang,
+								os = os,
+								makefile = true,
+								generateTemplate = true
+							)
+							val contestant = Paths.get(
+								s"${finalOptions.moduleName}.${lang}")
+
+							val outputs = Generator.generate(idl, localOptions, problemsetter,
+								contestant)
+
+							val visitor = os match {
+								case OS.Windows => new ZipVisitor(finalOptions.outputDirectory,
+									finalOptions.packageDirectory.resolve(
+										s"windows_${lang}.zip"))
+								case OS.Unix => new CompressedTarballVisitor(finalOptions.outputDirectory,
+									finalOptions.packageDirectory.resolve(
+										s"unix_${lang}.tar.bz2"))
+							}
+							try {
+								visitor.apply(OutputFile(problemsetter, problemsetterSource, false))
+								outputs.foreach(visitor.apply)
+							} finally {
+								visitor.close
+							}
+						}
+					}
+				}
+				case Command.Validate =>
 					System.out.println("OK")
 			}
 		}} getOrElse {

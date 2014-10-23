@@ -42,7 +42,7 @@ run: $allExecutables
 	@${relativeToRoot(options.outputDirectory.resolve(Paths.get("run")))}
 """
 
-		OutputMakefile(options.root.resolve("Makefile"), builder.mkString)
+		OutputFile(options.root.resolve("Makefile"), builder.mkString, false)
 	}
 
 	private def generateWindowsBuildRule(rule: MakefileRule) = {
@@ -175,7 +175,7 @@ IF "%NEWEST%" == "%SOURCE%" (SET RECOMPILE=1) ELSE (GOTO params)
 GOTO:EOF
 """
 
-		OutputMakefile(options.root.resolve("run.bat"), builder.mkString)
+		OutputFile(options.root.resolve("run.bat"), builder.mkString, false)
 	}
 
 	private def resolve(rule: MakefileRule) = {

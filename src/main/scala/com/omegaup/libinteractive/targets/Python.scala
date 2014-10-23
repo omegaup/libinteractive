@@ -97,7 +97,7 @@ class Python(idl: IDL, options: Options, input: Path, parent: Boolean)
 			}
 		}
 
-		List(OutputFile(input.toAbsolutePath, builder.mkString))
+		List(OutputFile(input, builder.mkString, false))
 	}
 
 	def structFormat(formatType: Type): String = {
