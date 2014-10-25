@@ -98,6 +98,7 @@ case class Options(
 	os: OS.EnumVal = OS.Unix,
 	root: Path = Paths.get(".").normalize,
 	packageDirectory: Path = Paths.get(".").normalize,
+	packagePrefix: String = "",
 	parentLang: String = "c",
 	parentSource: Option[Path] = None,
 	pipeDirectories: Boolean = false,

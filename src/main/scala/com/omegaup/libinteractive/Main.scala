@@ -59,7 +59,9 @@ object Main {
 					arg[File]("file") action { (x, c) => c.copy(idlFile = x.toPath) } text
 						("the .idl file that describes the interfaces"),
 					opt[File]("package-directory") action { (x, c) => c.copy(packageDirectory = x.toPath) } text
-						("the directory in which the packaged templates are to be saved")
+						("the directory in which the packaged templates are to be saved"),
+					opt[String]("package-prefix") action { (x, c) => c.copy(packagePrefix = x) } text
+						("the prefix of the generated packages")
 			)
 			checkConfig { c => {
 				if (c.idlFile == null)
@@ -161,10 +163,10 @@ object Main {
 							val visitor = os match {
 								case OS.Windows => new ZipVisitor(finalOptions.outputDirectory,
 									finalOptions.packageDirectory.resolve(
-										s"windows_${lang}.zip"))
+										s"${finalOptions.packagePrefix}windows_${lang}.zip"))
 								case OS.Unix => new CompressedTarballVisitor(finalOptions.outputDirectory,
 									finalOptions.packageDirectory.resolve(
-										s"unix_${lang}.tar.bz2"))
+										s"${finalOptions.packagePrefix}unix_${lang}.tar.bz2"))
 							}
 							try {
 								visitor.apply(OutputFile(problemsetter, problemsetterSource, false))
