@@ -50,14 +50,14 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 				List(
 					Paths.get(idl.main.name, s"${idl.main.name}.$extension"),
 					Paths.get(idl.main.name, s"${idl.main.name}_entry.$extension")),
-				compiler, s"$cflags -o $$@ $$^ -lm -O2 $ldflags -Wall"))
+				compiler, s"$cflags -o $$@ $$^ -lm -O2 -g $ldflags -Wno-unused-result"))
 		} else {
 			idl.interfaces.map(interface =>
 				MakefileRule(Paths.get(interface.name, interface.name + executableExtension),
 					List(
 						Paths.get(interface.name, s"${options.moduleName}.$extension"),
 						Paths.get(interface.name, s"${interface.name}_entry.$extension")),
-					compiler, s"$cflags -o $$@ $$^ -lm -O2 $ldflags -Wall"))
+					compiler, s"$cflags -o $$@ $$^ -lm -O2 -g $ldflags -Wno-unused-result"))
 		}
 	}
 
@@ -232,37 +232,13 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 #define O_BINARY 0
 #endif
 
-static int __in = -1, __out = -1;
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-static void readfull(int fd, void* buf, size_t count) {
-	ssize_t bytes;
-	while (count > 0) {
-		bytes = read(fd, buf, count);
-		if (bytes <= 0) {
-			fprintf(stderr, "Incomplete message missing %" PRIuS " bytes\\n", count);
-			exit(1);
-		}
-		buf = bytes + (char*)buf;
-		count -= bytes;
-	}
-}
+${generateStreamFunctions}
 
-static void writefull(int fd, const void* buf, size_t count) {
-	ssize_t bytes;
-	while (count > 0) {
-		bytes = write(fd, buf, count);
-		if (bytes <= 0) {
-			fprintf(stderr, "Incomplete message missing %" PRIuS " bytes\\n", count);
-			exit(1);
-		}
-		buf = bytes + (char*)buf;
-		count -= bytes;
-	}
-}
+static struct __stream __in, __out;
 
 #ifdef __cplusplus
 }
@@ -277,41 +253,28 @@ int main(int argc, char* argv[]) {
 		"\tfprintf(stderr, \"\\t[" + interface.name + "] opening `" +
 			pipeFilename(interface, interface) + "'\\n\");\n"
 	} else ""}
-	if ((__in = open("${pipeFilename(interface, interface)}", O_RDONLY | O_BINARY)) == -1) {
-		perror("open");
-		retval = 1;
-		goto cleanup;
-	}
+	openstream(&__in, "${pipeFilename(interface, interface)}", O_RDONLY);
 	${if (options.verbose) {
 		"\tfprintf(stderr, \"\\t[" + interface.name + "] opening `" +
 			pipeFilename(idl.main, interface) + "'\\n\");\n"
 	} else ""}
-	if ((__out = open("${pipeFilename(idl.main, interface)}", O_WRONLY | O_BINARY)) == -1) {
-		perror("open");
-		retval = 1;
-		goto cleanup;
-	}
+	openstream(&__out, "${pipeFilename(idl.main, interface)}", O_WRONLY);
 
 	__message_loop(-1);
 
-cleanup:
 	${if (options.verbose) {
 		"\tfprintf(stderr, \"\\t[" + interface.name + "] closing `" +
 			pipeFilename(interface, interface) + "'\\n\");\n"
 	} else ""}
-	if (__in != -1) {
-		if (close(__in) == -1) {
-			perror("close");
-		}
+	if (close(__in.fd) == -1) {
+		perror("close");
 	}
 	${if (options.verbose) {
 		"\tfprintf(stderr, \"\\t[" + interface.name + "] closing `" +
 			pipeFilename(idl.main, interface) + "'\\n\");\n"
 	} else ""}
-	if (__out != -1) {
-		if (close(__out) == -1) {
-			perror("close");
-		}
+	if (close(__out.fd) == -1) {
+		perror("close");
 	}
 
 	return retval;
@@ -344,28 +307,23 @@ cleanup:
 			} else {
 				""
 			}) +
-s"""\tif ((${pipeName(interface)} =
-			open("${pipeFilename(interface, idl.main)}", O_WRONLY | O_BINARY)) == -1) {
-		perror("open");
-		exit(1);
-	}\n"""}).mkString("\n") +
+s"""\topenstream(&${pipeName(interface)}, "${pipeFilename(interface, idl.main)}",
+				O_WRONLY);\n"""}).mkString("\n") +
 			(if (options.verbose) {
 				s"""\tfprintf(stderr, "\\t[${idl.main.name}] opening """ +
 					s"""`${pipeFilename(idl.main, idl.main)}'\\n");\n"""
 			} else {
 				""
 			}) +
-s"""\tif ((${pipeName(idl.main)} =
-			open("${pipeFilename(idl.main, idl.main)}", O_RDONLY | O_BINARY)) == -1) {
-		perror("open");
-		exit(1);
-	}\n"""
+s"""\topenstream(&${pipeName(idl.main)}, "${pipeFilename(idl.main, idl.main)}",
+			O_RDONLY);\n"""
 		val builder = new StringBuilder
 		builder ++= s"""/* $message */
 #define _XOPEN_SOURCE 600
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <unistd.h>
 #include "${options.moduleName}.h"
@@ -396,33 +354,10 @@ void _start();
 #endif
 
 void __entry();
-static int ${idl.allInterfaces.map(pipeName).mkString(", ")};
 
-static void readfull(int fd, void* buf, size_t count) {
-	ssize_t bytes;
-	while (count > 0) {
-		bytes = read(fd, buf, count);
-		if (bytes <= 0) {
-			fprintf(stderr, "Incomplete message missing %" PRIuS " bytes\\n", count);
-			exit(1);
-		}
-		buf = bytes + (char*)buf;
-		count -= bytes;
-	}
-}
+${generateStreamFunctions}
 
-static void writefull(int fd, const void* buf, size_t count) {
-	ssize_t bytes;
-	while (count > 0) {
-		bytes = write(fd, buf, count);
-		if (bytes <= 0) {
-			fprintf(stderr, "Incomplete message missing %" PRIuS " bytes\\n", count);
-			exit(1);
-		}
-		buf = bytes + (char*)buf;
-		count -= bytes;
-	}
-}
+static struct __stream ${idl.allInterfaces.map(pipeName).mkString(", ")};
 
 #ifdef __cplusplus
 }
@@ -462,7 +397,7 @@ $openPipes
 		val builder = new StringBuilder
 		builder ++= s"""static void __message_loop(int __current_function) {
 	int __msgid;
-	while (read($infd, &__msgid, sizeof(int)) == sizeof(int)) {
+	while (readfull(&$infd, &__msgid, sizeof(int), 0)) {
 		if (__msgid == __current_function) return;
 		switch (__msgid) {\n"""
 		for ((caller, callee, outfd) <- interfaces) {
@@ -480,18 +415,18 @@ $openPipes
 						case array: ArrayType => {
 							s"\t\t\t\t${declareVar(param, function)} = (${formatType(array)})" +
 							s"malloc(${fieldLength(array, Some(function))});\n" +
-							s"\t\t\t\treadfull($infd, ${function.name}_${param.name}, " +
-							s"${fieldLength(array, Some(function))});\n"
+							s"\t\t\t\treadfull(&$infd, ${function.name}_${param.name}, " +
+							s"${fieldLength(array, Some(function))}, 1);\n"
 						}
 						case primitive: PrimitiveType => {
 							s"\t\t\t\t${declareVar(param, function)};\n" +
-							s"\t\t\t\treadfull($infd, &${function.name}_${param.name}, " +
-							s"${fieldLength(primitive, Some(function))});\n"
+							s"\t\t\t\treadfull(&$infd, &${function.name}_${param.name}, " +
+							s"${fieldLength(primitive, Some(function))}, 1);\n"
 						}
 					})
 				}
 				builder ++= s"\t\t\t\tint __cookie;\n"
-				builder ++= s"\t\t\t\treadfull($infd, &__cookie, sizeof(int));\n"
+				builder ++= s"\t\t\t\treadfull(&$infd, &__cookie, sizeof(int), 1);\n"
 				builder ++= (if (function.returnType == PrimitiveType("void")) {
 					"\t\t\t\t"
 				} else {
@@ -499,11 +434,12 @@ $openPipes
 				})
 				builder ++=
 					s"""${function.name}(${function.params.map(function.name + "_" + _.name).mkString(", ")});\n"""
-				builder ++= s"\t\t\t\twritefull($outfd, &__msgid, sizeof(int));\n"
+				builder ++= s"\t\t\t\twritefull(&$outfd, &__msgid, sizeof(int));\n"
 				if (function.returnType != PrimitiveType("void")) {
-					builder ++= s"\t\t\t\twritefull($outfd, &result, sizeof(result));\n"
+					builder ++= s"\t\t\t\twritefull(&$outfd, &result, sizeof(result));\n"
 				}
-				builder ++= s"\t\t\t\twritefull($outfd, &__cookie, sizeof(int));\n"
+				builder ++= s"\t\t\t\twritefull(&$outfd, &__cookie, sizeof(int));\n"
+				builder ++= s"\t\t\t\twriteflush(&$outfd);\n"
 				for (param <- function.params) {
 					param.paramType match {
 						case array: ArrayType => {
@@ -548,26 +484,27 @@ $openPipes
 		}
 		builder ++= "\tconst int __msgid = "
 		builder ++= f"0x${functionIds((caller.name, callee.name, function.name))}%x;\n"
-		builder ++= s"\twritefull($outfd, &__msgid, sizeof(int));\n"
+		builder ++= s"\twritefull(&$outfd, &__msgid, sizeof(int));\n"
 		function.params.foreach(param => {
 			builder ++= (param.paramType match {
 				case _: PrimitiveType =>
-					s"\twritefull($outfd, &${param.name}, " +
+					s"\twritefull(&$outfd, &${param.name}, " +
 					s"${fieldLength(param.paramType)});\n"
 				case _: ArrayType =>
-					s"\twritefull($outfd, ${param.name}, " +
+					s"\twritefull(&$outfd, ${param.name}, " +
 					s"${fieldLength(param.paramType)});\n"
 			})
 		})
 		builder ++= f"\tint __cookie = 0x${rand.nextInt}%x;\n"
-		builder ++= s"\twritefull($outfd, &__cookie, sizeof(__cookie));\n"
+		builder ++= s"\twritefull(&$outfd, &__cookie, sizeof(__cookie));\n"
+		builder ++= s"\twriteflush(&$outfd);\n"
 		builder ++= "\t__message_loop(__msgid);\n"
 		if (function.returnType != PrimitiveType("void")) {
 			builder ++= s"\t${formatType(function.returnType)} __ans = 0;\n"
-			builder ++= s"\treadfull($infd, &__ans, sizeof(__ans));\n"
+			builder ++= s"\treadfull(&$infd, &__ans, sizeof(__ans), 1);\n"
 		}
 		builder ++= "\tint __cookie_result = 0;\n"
-		builder ++= s"\treadfull($infd, &__cookie_result, sizeof(int));\n"
+		builder ++= s"\treadfull(&$infd, &__cookie_result, sizeof(int), 1);\n"
 
 		builder ++= "\tif (__cookie != __cookie_result) {\n"
 		builder ++= "\t\tfprintf(stderr, \"invalid __cookie\\n\");\n"
@@ -587,6 +524,77 @@ $openPipes
 
 		builder
 	}
+
+	private def generateStreamFunctions() = """
+struct __stream {
+	int fd;
+	size_t capacity;
+	size_t pos;
+	char buffer[4096];
+};
+
+static int readfull(struct __stream* stream, void* buf, size_t count, int fatal) {
+	ssize_t bytes;
+	while (count > 0) {
+		if (stream->pos == stream->capacity) {
+			stream->pos = 0;
+			bytes = read(stream->fd, stream->buffer, sizeof(stream->buffer));
+			if (bytes <= 0) {
+				if (!fatal) return 0;
+				fprintf(stderr, "Incomplete message missing %" PRIuS " bytes\\n", count);
+				exit(1);
+			}
+			stream->capacity = (size_t)bytes;
+		}
+
+		bytes = (count < stream->capacity - stream->pos) ? count : (stream->capacity - stream->pos);
+		memcpy(buf, stream->buffer + stream->pos, bytes);
+		stream->pos += bytes;
+		count -= bytes;
+		buf = bytes + (char*)buf;
+	}
+	return 1;
+}
+
+static void writeflush(struct __stream* stream) {
+	const char* to_write = stream->buffer;
+	size_t remaining = stream->pos;
+	while (remaining > 0) {
+		ssize_t bytes = write(stream->fd, to_write, remaining);
+		if (bytes <= 0) {
+			fprintf(stderr, "Incomplete message missing %" PRIuS " bytes\\n", remaining);
+			exit(1);
+		}
+		to_write = bytes + to_write;
+		remaining -= bytes;
+	}
+	stream->pos = 0;
+}
+
+static void writefull(struct __stream* stream, const void* buf, size_t count) {
+	ssize_t bytes;
+	while (count > 0) {
+		bytes = (count < sizeof(stream->buffer) - stream->pos) ? count : (sizeof(stream->buffer) - stream->pos);
+		memcpy(stream->buffer + stream->pos, buf, bytes);
+		stream->pos += bytes;
+		buf = bytes + (char*)buf;
+		count -= bytes;
+
+		if (stream->pos == sizeof(stream->buffer)) {
+			writeflush(stream);
+		}
+	}
+}
+
+static void openstream(struct __stream* stream, const char* path, int flags) {
+	stream->fd = open(path, flags | O_BINARY);
+	if (stream->fd == -1) {
+		perror("open");
+		exit(1);
+	}
+	stream->pos = 0;
+	stream->capacity = 0;
+}"""
 }
 
 class Cpp(idl: IDL, options: Options, input: Path, parent: Boolean)
