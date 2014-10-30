@@ -102,7 +102,8 @@ GOTO:EOF
 REG QUERY HKCU\\Software\\CodeBlocks /v Path 2>NUL >NUL
 IF "%ERRORLEVEL%" NEQ "0" (
 ECHO Please install the latest version of CodeBlocks and launch it once
-ECHO http://www.codeblocks.org/downloads/binaries#windows
+ECHO http://www.codeblocks.org/downloads/binaries#windows (mingw-setup.exe)
+EXIT 1
 GOTO:EOF
 )
 FOR /F "tokens=2*" %%A IN ('REG QUERY HKCU\\Software\\CodeBlocks /v Path') DO SET GCC=%%B
@@ -114,7 +115,8 @@ GOTO:EOF
 REG QUERY HKCU\\Software\\CodeBlocks /v Path 2>NUL >NUL
 IF "%ERRORLEVEL%" NEQ "0" (
 ECHO Please install the latest version of CodeBlocks and launch it once
-ECHO http://www.codeblocks.org/downloads/binaries#windows
+ECHO http://www.codeblocks.org/downloads/binaries#windows (mingw-setup.exe)
+EXIT 1
 GOTO:EOF
 )
 FOR /F "tokens=2*" %%A IN ('REG QUERY HKCU\\Software\\CodeBlocks /v Path') DO SET G++=%%B
@@ -127,6 +129,7 @@ REG QUERY "HKLM\\Software\\JavaSoft\\Java Development Kit" /v CurrentVersion 2>N
 IF "%ERRORLEVEL%" NEQ "0" (
 ECHO Please install the latest version of the Java Development Kit
 ECHO http://www.oracle.com/technetwork/java/javase/downloads/
+EXIT 1
 GOTO:EOF
 )
 FOR /F "tokens=2*" %%A IN ('REG QUERY "HKLM\\Software\\JavaSoft\\Java Development Kit" /v CurrentVersion') DO SET JAVA_VERSION=%%B
@@ -140,6 +143,7 @@ REG QUERY HKLM\\Software\\Python\\PythonCore\\2.7\\InstallPath /ve 2>NUL >NUL
 IF "%ERRORLEVEL%" NEQ "0" (
 ECHO Please install the latest version of Python 2.7
 ECHO https://www.python.org/downloads/
+EXIT 1
 GOTO:EOF
 )
 FOR /F "tokens=2*" %%A IN ('REG QUERY HKLM\\Software\\Python\\PythonCore\\2.7\\InstallPath /ve') DO SET PYTHON=%%B
@@ -151,6 +155,7 @@ GOTO:EOF
 IF NOT EXIST "%LOCALAPPDATA%\\lazarus\\environmentoptions.xml" (
 ECHO Please install the latest version of Lazarus and run it once
 ECHO http://www.lazarus.freepascal.org/index.php?page=downloads
+EXIT 1
 GOTO:EOF
 )
 FOR /F tokens^=2^ delims^=^" %%A IN ('findstr "<CompilerFilename" "%LOCALAPPDATA%\\lazarus\\environmentoptions.xml"') DO SET FPC=%%A
