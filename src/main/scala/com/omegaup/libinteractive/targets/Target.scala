@@ -109,7 +109,8 @@ case class Options(
 )
 
 abstract class OutputPath(val path: Path)
-case class OutputDirectory(override val path: Path) extends OutputPath(path)
+case class OutputDirectory(override val path: Path,
+	val relative: Boolean = true) extends OutputPath(path)
 case class OutputFile(override val path: Path, val contents: String,
 	val relative: Boolean = true)	extends OutputPath(path)
 case class OutputLink(override val path: Path, val target: Path)
@@ -118,7 +119,11 @@ case class OutputLink(override val path: Path, val target: Path)
 class InstallVisitor(installPath: Path, root: Path) {
 	def apply(outputPath: OutputPath) = outputPath match {
 		case dir: OutputDirectory => {
-			val directory = installPath.resolve(dir.path).normalize
+			val directory = (if (dir.relative) {
+				installPath.resolve(dir.path).normalize
+			} else {
+				dir.path
+			})
 			if (!Files.exists(directory)) {
 				Files.createDirectories(directory)
 			}
@@ -154,7 +159,11 @@ class CompressedTarballVisitor(installPath: Path, tgzFilename: Path)
 
 	override def apply(outputPath: OutputPath) = outputPath match {
 		case dir: OutputDirectory => {
-			val directory = installPath.resolve(dir.path).normalize
+			val directory = (if (dir.relative) {
+				installPath.resolve(dir.path).normalize
+			} else {
+				dir.path
+			})
 			tar.putArchiveEntry(
 				new TarArchiveEntry(directory.toString + "/", TarConstants.LF_DIR))
 			tar.closeArchiveEntry
@@ -199,7 +208,11 @@ class ZipVisitor(installPath: Path, zipFilename: Path)
 
 	override def apply(outputPath: OutputPath) = outputPath match {
 		case dir: OutputDirectory => {
-			val directory = installPath.resolve(dir.path).normalize
+			val directory = (if (dir.relative) {
+				installPath.resolve(dir.path).normalize
+			} else {
+				dir.path
+			})
 			zip.putNextEntry(new ZipEntry(directory.toString + "/"))
 			zip.closeEntry
 		}

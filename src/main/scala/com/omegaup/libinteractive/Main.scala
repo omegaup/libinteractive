@@ -13,6 +13,7 @@ import com.omegaup.libinteractive.idl.Parser
 import com.omegaup.libinteractive.idl.ParseException
 import com.omegaup.libinteractive.target._
 import scala.io.Source
+import scala.collection.JavaConversions.iterableAsScalaIterable
 
 object Main {
 	def main(args: Array[String]): Unit = {
@@ -146,6 +147,28 @@ object Main {
 							case Some(path) => path
 					}).toFile).mkString
 
+					val examplesPath = options.idlFile.resolve(
+						s"../examples").normalize
+					val examples = (if (Files.isDirectory(examplesPath)) {
+						val stream = Files.newDirectoryStream(examplesPath)
+
+						List(OutputDirectory(Paths.get("examples"), true)) ++
+						stream.flatMap(entry => {
+							val name = entry.getName(entry.getNameCount - 1).toString
+							if (name.endsWith(".in")) {
+								Some(OutputFile(
+									Paths.get("examples", name),
+									Source.fromFile(entry.toFile).mkString,
+									false
+								))
+							} else {
+								None
+							}
+						})
+					} else {
+						List()
+					})
+
 					for (os <- OS.values) {
 						for (lang <- supportedLanguages) {
 							val localOptions = finalOptions.copy(
@@ -168,6 +191,7 @@ object Main {
 									finalOptions.packageDirectory.resolve(
 										s"${finalOptions.packagePrefix}unix_${lang}.tar.bz2"))
 							}
+							examples.foreach(visitor.apply)
 							try {
 								visitor.apply(OutputFile(problemsetter, problemsetterSource, false))
 								outputs.foreach(visitor.apply)
