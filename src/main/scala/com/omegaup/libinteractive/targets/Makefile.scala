@@ -16,7 +16,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 	override def generate() = {
 		options.os match {
 			case OS.Unix => List(generateMakefileContents, generateRunDriver)
-			case OS.Windows => List(generateBatchFileContents, generateRunDriverWindows)
+			case OS.Windows => generateBatchFileContents ++ List(generateRunDriverWindows)
 		}
 	}
 
@@ -38,8 +38,13 @@ ${allRules.map(
 	rule => s"${rule.target}: ${rule.requisites.mkString(" ")}\n" +
 			s"\t${rule.compiler} ${rule.params}\n"
 ).mkString("\n")}
+.PHONY: run
 run: $allExecutables
 	@${relativeToRoot(options.outputDirectory.resolve(Paths.get("run")))}
+
+.PHONY: test
+test: $allExecutables
+	@${relativeToRoot(options.outputDirectory.resolve(Paths.get("run")))} < examples/sample.in
 """
 
 		OutputFile(options.root.resolve("Makefile"), builder.mkString, false)
@@ -180,7 +185,11 @@ IF "%NEWEST%" == "%SOURCE%" (SET RECOMPILE=1) ELSE (GOTO params)
 GOTO:EOF
 """
 
-		OutputFile(options.root.resolve("run.bat"), builder.mkString, false)
+		List(
+			OutputFile(options.root.resolve("run.bat"), builder.mkString, false),
+			OutputFile(options.root.resolve("test.bat"), "@ECHO OFF\nREM $message\n\n" +
+				"run.bat < examples\\sample.in", false)
+		)
 	}
 
 	private def resolve(rule: MakefileRule) = {
