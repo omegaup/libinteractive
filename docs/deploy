@@ -1,0 +1,12 @@
+#!/bin/bash
+
+if [ "$#" -ne 1 ]; then
+	echo "$0 deployment-path"
+	exit 1
+fi
+
+for dir in */; do
+	pushd $dir
+	mkdocs build --site_dir=$1/$dir --clean
+	popd
+done
