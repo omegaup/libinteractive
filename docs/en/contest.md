@@ -1,53 +1,54 @@
-# Ejecutar programas de libinteractive
+# Running libinteractive problems
 
-libinteractive es una manera sencilla de hacer problemas interactivos. El
-proceso para compilar, ejecutar y probar los programas es ligeramente distinto
-al que estás acostumbrado, pero es sencillo. Los pasos específicos dependen del
-sistema operativo que estés usando:
+libinteractive is an easy way to write interactive problems. The process to
+compile, run, and test programs is slightly different to the one you are used
+to, but it is simple. The specific steps depend on the operating system you are
+using:
 
 ### Windows
 
-* Extrae todos los archivos a una carpeta, abre la consola y dirígete a la
-  carpeta donde extrajiste los archivos.
-* Debes tener instalado [CodeBlocks](http://www.codeblocks.org/downloads/binaries#windows)
-  (asegúrate de bajar la versión que dice MinGW) y haberlo ejecutado al menos
-  una vez.
-    * Si quieres usar Java, debes tener instalado el
+* Extract all files in the template into a folder. Open the Commandline
+	(Windows+R, type `cmd` and press Return),	and navigate to the folder you just
+	created.
+* You must have previously installed [CodeBlocks](http://www.codeblocks.org/downloads/binaries#windows)
+  (make sure to install the version that says MinGW) and run it at least once.
+    * If you are using Java, you must install the
       [JDK](http://www.oracle.com/technetwork/java/javase/downloads/).
-    * Si quieres usar Pascal, debes tener instalado
-      [Lazarus](http://www.lazarus.freepascal.org/index.php?page=downloads) y
-      haberlo ejecutado al menos una vez.
-    * Si quieres usar Python, debes tener instalado [Python 2.7](https://www.python.org/downloads/)
-* Escribe `run` (o `run.bat`) para compilar todos los programas que necesitas y
-  posteriormente ejecutar tu código. Recuerda que el validador espera una
-  entrada en la consola, así que debes ya sea escribirla o pasársela como
-  archivo (`run < entrada.in`).
-* Para probar tu solución con un caso de prueba, escribe `test` (o `test.bat`).
-  Esto es equivalente a correr `run.bat < examples\sample.in`.
+    * If you want to use Pascal, you need to install
+      [Lazarus](http://www.lazarus.freepascal.org/index.php?page=downloads) and
+			have launched it at least once.
+    * If you want to use Python, you need to install
+		  [Python 2.7](https://www.python.org/downloads/).
+* To compile all required programs, type `run` (or `run.bat`). This will also
+	run your code. Remember that the problemsetter program expects to read the
+	case from stdin, so you either need to type it on the commandline or redirect
+	stdin (`run < input.in`).
+* To test your solution with a test case, write `test` (or `test.bat`). This is
+  equivalent to running `run.bat < examples\sample.in`.
 
 ### Linux/Mac OS X
 
-* Extrae todos los archivos a una carpeta y abre la terminal y dirígete a la
-  carpeta donde extrajiste los archivos.
-* Se recomienda que tengas instalados los siguientes paquetes: `make`, `gcc`,
-  `g++`, `fpc`, `python` y `openjdk-7-jdk`.
-* Escribe `make` para compilar todos los programas que necesitas y `make run`
-  para ejecutar tu código. Recuerda que el validador espera una entrada en la
-  consola, así que debes ya sea escribirla o pasársela como archivo (`make run
-  < entrada.in`).
-* Para probar tu solución con un caso de prueba, escribe `make test`. Esto es
-  equivalente a correr `make run < examples/sample.in`.
+* Extract all template files to a directory, open the terminal and navigate to
+  the recently created directory.
+* It is recommended that you have the following packages installed: `make`,
+  `gcc`, `g++`, `fpc`, `python` y `openjdk-7-jdk`.
+* Write `make` to compile all needed programs and `make run` to execute your
+  code. Rembember that the problemsetter program expects to read a test case
+	from stdin, so either type it on the terminal or redirect stdin (`make run
+  < input.in`).
+* To test your solution against a test case, write `make test`. This is
+  equivalent to running `make run < examples/sample.in`.
 
-# Notas generales
+# General notes
 
-* Para resolver el problema, debes enviar únicamente el archivo que te indica
-  la página. No envíes ningún otro archivo o resultará en un error de
-  compilación.
-* Algunos problemas tendrán más casos de ejemplo en la carpeta `examples` además
-  de `sample.in`. Intenta hacer que tu código pase con todos esos casos. Puedes
-  probarlo corriendo ya sea `run < examples/archivo.in` o `make run < examples/archivo.in`,
-  depende de tu sistema operativo.
-* Para obtener todos los puntos de un problema, tu programa debe poder resolver
-  todos los casos posibles. Intenta pensar en casos de ejemplo adicionales a
-  los que se encuentren en la plantilla, corre tu código con ellos y verifica
-  que de el resultado correcto. Mucha suerte!
+* To correctly solve the problem, you must only submit the file that the
+	website tells you. Don't send any other file or it will result in a
+	compilation error.
+* Some problems will have extra test inputs beside `sample.in`. Try to make
+	your code run correctly with all those cases. You can try them out by running
+	either `run < examples/file.in` or `make run < examples/file.in`, depending
+	on your operating system.
+* To get all possible points in a problem, your program must solve all possible
+	test cases, even some not included in the `examples` folder. Try to think of
+	additional test cases, run your code with them and verify that the result is
+	correct. Good luck!
