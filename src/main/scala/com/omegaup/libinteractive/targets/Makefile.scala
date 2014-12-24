@@ -89,7 +89,7 @@ SETLOCAL EnableDelayedExpansion
 
 REM Get all compilers/paths needed
 ${allRules.map(rule => s"CALL :get${rule.compiler} || EXIT /B 1").toSet.mkString("\n")}
-${if (options.parentLang == "py" || options.childLang == "py") "call:getpython" else ""}
+${if (options.parentLang == "py" || options.childLang == "py") "CALL :getpython || EXIT /B 1" else ""}
 
 REM Update all "links"
 ${resolvedLinks.map(generateWindowsLink).mkString("\n")}
@@ -104,6 +104,8 @@ IF !ERRORLEVEL! NEQ 0 EXIT /B !ERRORLEVEL!
 GOTO:EOF
 
 :getgcc
+FOR %%A IN (gcc.exe) DO (SET GCC="%%~$$PATH:A")
+IF DEFINED GCC GOTO:EOF
 REG QUERY HKCU\\Software\\CodeBlocks /v Path 2>NUL >NUL
 IF "%ERRORLEVEL%" NEQ "0" (
 ECHO Please install the latest version of CodeBlocks and launch it once
@@ -117,6 +119,8 @@ SET GCC="%GCC%\\MinGW\\bin\\gcc.exe"
 GOTO:EOF
 
 :getg++
+FOR %%A IN (g++.exe) DO (SET G++="%%~$$PATH:A")
+IF DEFINED G++ GOTO:EOF
 REG QUERY HKCU\\Software\\CodeBlocks /v Path 2>NUL >NUL
 IF "%ERRORLEVEL%" NEQ "0" (
 ECHO Please install the latest version of CodeBlocks and launch it once
@@ -130,6 +134,8 @@ SET G++="%G++%\\MinGW\\bin\\g++.exe"
 GOTO:EOF
 
 :getjavac
+FOR %%A IN (javac.exe) DO (SET JAVAC="%%~$$PATH:A")
+IF DEFINED JAVAC GOTO:EOF
 REG QUERY "HKLM\\Software\\JavaSoft\\Java Development Kit" /v CurrentVersion 2>NUL >NUL
 IF "%ERRORLEVEL%" NEQ "0" (
 ECHO Please install the latest version of the Java Development Kit
@@ -144,6 +150,8 @@ SET JAVAC="%JAVAC%\\bin\\javac.exe"
 GOTO:EOF
 
 :getpython
+FOR %%A IN (python.exe) DO (SET PYTHON="%%~$$PATH:A")
+IF DEFINED PYTHON GOTO:EOF
 REG QUERY HKLM\\Software\\Python\\PythonCore\\2.7\\InstallPath /ve 2>NUL >NUL
 IF "%ERRORLEVEL%" NEQ "0" (
 ECHO Please install the latest version of Python 2.7
@@ -157,6 +165,8 @@ SET PYTHON="%PYTHON%\\python.exe"
 GOTO:EOF
 
 :getfpc
+FOR %%A IN (fpc.exe) DO (SET FPC="%%~$$PATH:A")
+IF DEFINED FPC GOTO:EOF
 IF NOT EXIST "%LOCALAPPDATA%\\lazarus\\environmentoptions.xml" (
 ECHO Please install the latest version of Lazarus and run it once
 ECHO http://www.lazarus.freepascal.org/index.php?page=downloads
@@ -187,7 +197,7 @@ GOTO:EOF
 
 		List(
 			OutputFile(options.root.resolve("run.bat"), builder.mkString, false),
-			OutputFile(options.root.resolve("test.bat"), "@ECHO OFF\nREM $message\n\n" +
+			OutputFile(options.root.resolve("test.bat"), s"@ECHO OFF\nREM $message\n\n" +
 				"run.bat < examples\\sample.in", false)
 		)
 	}
