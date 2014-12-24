@@ -107,12 +107,12 @@ GOTO:EOF
 REG QUERY HKCU\\Software\\CodeBlocks /v Path 2>NUL >NUL
 IF "%ERRORLEVEL%" NEQ "0" (
 ECHO Please install the latest version of CodeBlocks and launch it once
-ECHO http://www.codeblocks.org/downloads/binaries#windows (mingw-setup.exe)
+ECHO http://www.codeblocks.org/downloads/binaries#windows ^(mingw-setup.exe^)
 EXIT /B 1
 GOTO:EOF
 )
 FOR /F "tokens=2*" %%A IN ('REG QUERY HKCU\\Software\\CodeBlocks /v Path') DO SET GCC=%%B
-SET PATH=%PATH%;%GXX%\\MinGW\\bin
+SET PATH=%PATH%;%GCC%\\MinGW\\bin
 SET GCC="%GCC%\\MinGW\\bin\\gcc.exe"
 GOTO:EOF
 
@@ -120,7 +120,7 @@ GOTO:EOF
 REG QUERY HKCU\\Software\\CodeBlocks /v Path 2>NUL >NUL
 IF "%ERRORLEVEL%" NEQ "0" (
 ECHO Please install the latest version of CodeBlocks and launch it once
-ECHO http://www.codeblocks.org/downloads/binaries#windows (mingw-setup.exe)
+ECHO http://www.codeblocks.org/downloads/binaries#windows ^(mingw-setup.exe^)
 EXIT /B 1
 GOTO:EOF
 )
