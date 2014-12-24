@@ -262,6 +262,24 @@ var
 	__in: TFileStream;
 	__out: TFileStream;
 
+procedure __read_full(stream: TStream; var buffer; count: LongWord);
+var
+	bufPtr: Pointer;
+	bytesRead: LongInt;
+begin
+	bufPtr := @buffer;
+	while (count > 0) do
+	begin
+		bytesRead := stream.Read(bufPtr^, count);
+		if (bytesRead <= 0) then
+		begin
+			raise EStreamError.Create('Incomplete message. Exiting.');
+		end;
+		bufPtr += bytesRead;
+		count -= bytesRead;
+	end;
+end;
+
 ${generateMessageLoop(
 	List((idl.main, interface, "__out")),
 	options.moduleName,
@@ -347,17 +365,17 @@ var
 										s"${function.name}_${len.value});\n"
 								case _ => ""
 							}) +
-							s"\t\t\t\t$infd.ReadBuffer(${function.name}_${param.name}" +
+							s"\t\t\t\t__read_full($infd, ${function.name}_${param.name}" +
 								s"${array.lengths.map(_ => "[0]").mkString}, " +
 								s"""${fieldLength(array, Some(function))});\n"""
 						}
 						case primitive: PrimitiveType => {
-							s"\t\t\t\t$infd.ReadBuffer(${function.name}_${param.name}, " +
+							s"\t\t\t\t__read_full($infd, ${function.name}_${param.name}, " +
 								s"sizeof(${function.name}_${param.name}));\n"
 						}
 					})
 				}
-				builder ++= s"\t\t\t\t$infd.ReadBuffer(__cookie, sizeof(__cookie));\n"
+				builder ++= s"\t\t\t\t__read_full($infd, __cookie, sizeof(__cookie));\n"
 				builder ++= (if (function.returnType == PrimitiveType("void")) {
 					"\t\t\t\t"
 				} else {
@@ -432,9 +450,9 @@ end;
 		builder ++= s"\t$outfd.WriteBuffer(__cookie, sizeof(__cookie));\n"
 		builder ++= "\t__message_loop(__msgid);\n"
 		if (function.returnType != PrimitiveType("void")) {
-			builder ++= s"\t$infd.ReadBuffer(__result, sizeof(__result));\n"
+			builder ++= s"\t__read_full($infd, __result, sizeof(__result));\n"
 		}
-		builder ++= s"\t$infd.ReadBuffer(__cookie_result, sizeof(__cookie_result));\n"
+		builder ++= s"\t__read_full($infd, __cookie_result, sizeof(__cookie_result));\n"
 
 		builder ++= "\tif (__cookie <> __cookie_result) then\n"
 		builder ++= "\tbegin\n"
