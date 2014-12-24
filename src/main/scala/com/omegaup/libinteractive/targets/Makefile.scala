@@ -59,7 +59,7 @@ IF "%RECOMPILE%" == "1" (
 ECHO Compiling %TARGET%
 %${rule.compiler.toString.toUpperCase}% ${
 		rule.params.replace("$@", "%TARGET%").replace("$^", "%SOURCES%")}
-IF !ERRORLEVEL! NEQ 0 EXIT /b !ERRORLEVEL!
+IF !ERRORLEVEL! NEQ 0 EXIT /B !ERRORLEVEL!
 )"""
 	}
 
@@ -70,7 +70,7 @@ SET SOURCES=${relativeToRoot(link.target).toString.replace("/", "\\")}
 call:recompile %TARGET% %SOURCES%
 IF "%RECOMPILE%" == "1" (
 COPY %SOURCES% %TARGET%
-IF !ERRORLEVEL! NEQ 0 EXIT /b !ERRORLEVEL!
+IF !ERRORLEVEL! NEQ 0 EXIT /B !ERRORLEVEL!
 )"""
 	}
 
@@ -88,7 +88,7 @@ REM $message
 SETLOCAL EnableDelayedExpansion
 
 REM Get all compilers/paths needed
-${allRules.map(rule => s"call:get${rule.compiler}").toSet.mkString("\n")}
+${allRules.map(rule => s"CALL :get${rule.compiler} || EXIT /B 1").toSet.mkString("\n")}
 ${if (options.parentLang == "py" || options.childLang == "py") "call:getpython" else ""}
 
 REM Update all "links"
@@ -100,7 +100,7 @@ ${allRules.map(generateWindowsBuildRule).mkString("\n")}
 REM Run the driver
 ${relativeToRoot(options.outputDirectory.resolve(Paths.get("run.exe")))
 		.toString.replace("/", "\\")}
-IF !ERRORLEVEL! NEQ 0 EXIT /b !ERRORLEVEL!
+IF !ERRORLEVEL! NEQ 0 EXIT /B !ERRORLEVEL!
 GOTO:EOF
 
 :getgcc
@@ -108,7 +108,7 @@ REG QUERY HKCU\\Software\\CodeBlocks /v Path 2>NUL >NUL
 IF "%ERRORLEVEL%" NEQ "0" (
 ECHO Please install the latest version of CodeBlocks and launch it once
 ECHO http://www.codeblocks.org/downloads/binaries#windows (mingw-setup.exe)
-EXIT 1
+EXIT /B 1
 GOTO:EOF
 )
 FOR /F "tokens=2*" %%A IN ('REG QUERY HKCU\\Software\\CodeBlocks /v Path') DO SET GCC=%%B
@@ -121,7 +121,7 @@ REG QUERY HKCU\\Software\\CodeBlocks /v Path 2>NUL >NUL
 IF "%ERRORLEVEL%" NEQ "0" (
 ECHO Please install the latest version of CodeBlocks and launch it once
 ECHO http://www.codeblocks.org/downloads/binaries#windows (mingw-setup.exe)
-EXIT 1
+EXIT /B 1
 GOTO:EOF
 )
 FOR /F "tokens=2*" %%A IN ('REG QUERY HKCU\\Software\\CodeBlocks /v Path') DO SET G++=%%B
@@ -134,7 +134,7 @@ REG QUERY "HKLM\\Software\\JavaSoft\\Java Development Kit" /v CurrentVersion 2>N
 IF "%ERRORLEVEL%" NEQ "0" (
 ECHO Please install the latest version of the Java Development Kit
 ECHO http://www.oracle.com/technetwork/java/javase/downloads/
-EXIT 1
+EXIT /B 1
 GOTO:EOF
 )
 FOR /F "tokens=2*" %%A IN ('REG QUERY "HKLM\\Software\\JavaSoft\\Java Development Kit" /v CurrentVersion') DO SET JAVA_VERSION=%%B
@@ -148,7 +148,7 @@ REG QUERY HKLM\\Software\\Python\\PythonCore\\2.7\\InstallPath /ve 2>NUL >NUL
 IF "%ERRORLEVEL%" NEQ "0" (
 ECHO Please install the latest version of Python 2.7
 ECHO https://www.python.org/downloads/
-EXIT 1
+EXIT /B 1
 GOTO:EOF
 )
 FOR /F "tokens=2*" %%A IN ('REG QUERY HKLM\\Software\\Python\\PythonCore\\2.7\\InstallPath /ve') DO SET PYTHON=%%B
@@ -160,7 +160,7 @@ GOTO:EOF
 IF NOT EXIST "%LOCALAPPDATA%\\lazarus\\environmentoptions.xml" (
 ECHO Please install the latest version of Lazarus and run it once
 ECHO http://www.lazarus.freepascal.org/index.php?page=downloads
-EXIT 1
+EXIT /B 1
 GOTO:EOF
 )
 FOR /F tokens^=2^ delims^=^" %%A IN ('findstr "<CompilerFilename" "%LOCALAPPDATA%\\lazarus\\environmentoptions.xml"') DO SET FPC=%%A
