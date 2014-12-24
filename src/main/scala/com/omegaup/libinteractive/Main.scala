@@ -50,6 +50,8 @@ object Main {
 				opt[Unit]("template") action
 						{ (_, c) => c.copy(generateTemplate = true) } text
 						("also generate a template for the contestant"),
+				opt[Unit]("unix") action { (_, c) => c.copy(os = OS.Unix) } text
+						("generates code that can be run on Linux/Mac OSX"),
 				opt[Unit]("verbose") action { (_, c) => c.copy(verbose = true) } text
 						("add verbose logging information to the generated shims"),
 				opt[Unit]("windows") action { (_, c) => c.copy(os = OS.Windows) } text
@@ -72,7 +74,13 @@ object Main {
 			}}
 		}
 
-		optparse.parse(args, Options()) map { rawOptions => {
+		// To avoid always having to pass in the --windows flag in Windows.
+		val defaultOS = (if (System.getProperty("os.name").startsWith("Windows")) {
+			OS.Windows
+		} else {
+			OS.Unix
+		})
+		optparse.parse(args, Options(os = defaultOS)) map { rawOptions => {
 			val fileName =
 					rawOptions.idlFile.getName(rawOptions.idlFile.getNameCount - 1).toString
 			val extPos = fileName.lastIndexOf('.')

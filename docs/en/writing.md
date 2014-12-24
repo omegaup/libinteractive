@@ -63,7 +63,7 @@ automatically generated.
 	written on. For instance, for the problem `sums.idl`, the solution must be
 	placed in the file `sums.cpp`.
 * Each interface will be compiled into a different executable, and will be run
-  in separatr processes. This means that no variables may be shared, so it will
+  in separate processes. This means that no variables may be shared, so it will
 	be necessary to communicate any state using functions.
 * All interfaces may call the functions in the Main interface, and Main may
 	call any function in any other interface. Other interfaces cannot call each
