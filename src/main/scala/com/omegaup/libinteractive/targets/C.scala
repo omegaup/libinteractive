@@ -603,7 +603,10 @@ class Cpp(idl: IDL, options: Options, input: Path, parent: Boolean)
 
 	override def compiler() = Compiler.Gxx
 
-	override def cflags() = "-std=c++11"
+	override def cflags() = options.legacyFlags match {
+		case false => "-std=c++11"
+		case true => "-std=c++0x"
+	}
 }
 
 /* vim: set noexpandtab: */

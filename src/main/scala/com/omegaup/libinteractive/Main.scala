@@ -40,6 +40,8 @@ object Main {
 						("the language in which the submission is written"),
 				opt[Unit]("force") action { (x, c) => c.copy(force = true) } text
 						("overwrites files if needed"),
+				opt[Unit]("legacy") action { (x, c) => c.copy(legacyFlags = true) } text
+						("use flags for older compilers"),
 				opt[Unit]("makefile") action { (_, c) => c.copy(makefile = true) } text
 						("also generate a Makefile"),
 				opt[Unit]("pipe-dirs") action { (_, c) => c.copy(pipeDirectories = true) } text
@@ -134,6 +136,7 @@ object Main {
 					}
 
 					val finalOptions = options.copy(
+						legacyFlags = true,
 						parentLang = candidates(0)._1,
 						parentSource = Some({
 							val distribPath = options.idlFile.resolve(
