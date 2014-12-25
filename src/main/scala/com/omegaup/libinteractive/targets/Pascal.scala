@@ -302,7 +302,7 @@ begin
 	__out := TFileStream.Create('${pipeFilename(idl.main, interface)
 		.replace("\\\\", "\\")}',
 			fmOpenWrite or fmShareDenyNone);
-	__message_loop($$FFFFFFFF);
+	__message_loop($$FFFFFFFF, true);
 end;
 
 """
@@ -319,7 +319,7 @@ end;
 	private def generateMessageLoop(interfaces: List[(Interface, Interface, String)],
 			calleeModule: String, infd: String) = {
 		val builder = new StringBuilder
-		builder ++= s"""procedure __message_loop(__current_function: LongWord);
+		builder ++= s"""procedure __message_loop(__current_function: LongWord; __noreturn: Boolean);
 var
 	__bytesRead: LongInt;
 	__msgid: LongWord;
@@ -448,7 +448,7 @@ end;
 		})
 		builder ++= f"\t__cookie := $$${rand.nextInt}%x;\n"
 		builder ++= s"\t$outfd.WriteBuffer(__cookie, sizeof(__cookie));\n"
-		builder ++= "\t__message_loop(__msgid);\n"
+		builder ++= s"\t__message_loop(__msgid, ${function.noReturn});\n"
 		if (function.returnType != PrimitiveType("void")) {
 			builder ++= s"\t__read_full($infd, __result, sizeof(__result));\n"
 		}

@@ -28,9 +28,13 @@ case class Interface(name: String, functions: List[Function])
 	override def children() = functions
 }
 
-case class Function(returnType: PrimitiveType, name: String, params: List[Parameter])
-		extends Object with AstNode {
+case class Function(returnType: PrimitiveType, name: String, params: List[Parameter],
+		attributes: List[Attribute]) extends Object with AstNode {
 	override def children() = List(returnType) ++ params
+	def noReturn() = attributes.exists(_ match {
+		case NoReturnAttribute => true
+		case _ => false
+	})
 }
 
 abstract class Type extends Object with AstNode {}
@@ -77,6 +81,7 @@ case class ParameterExpression(param: Parameter) extends Expression {
 }
 
 abstract class Attribute extends Object with AstNode {}
+object NoReturnAttribute extends Attribute {}
 case class RangeAttribute(min: Expression, max: Expression) extends Attribute {
 	override def children() = List(min, max)
 	def range() = {
@@ -205,7 +210,7 @@ class Parser extends StandardTokenParsers {
 	lexical.delimiters ++= List("(", ")", "[", "]", "{", "}", ",", ";")
 	lexical.reserved += (
 			"bool", "char", "short", "int", "long", "float", "double", "string", "void",
-			"interface", "Range")
+			"interface", "NoReturn", "Range")
 
 	def parse(input: String): IDL = {
 		interfaceList(new lexical.Scanner(input)) match {
@@ -230,11 +235,12 @@ class Parser extends StandardTokenParsers {
 			{ case name ~ functions => new Interface(name, functions) }
 
 	private def function =
-			returnType ~ name ~ ("(" ~> repsep(param, ",") <~ ")") <~ ";" ^^
+			(rep(functionAttributes) ~ returnType ~ name ~
+			("(" ~> repsep(param, ",") <~ ")") <~ ";") ^^
 			{
-				case returnType ~ name ~ params => {
+				case attributes ~ returnType ~ name ~ params => {
 					declaredParams.clear
-					new Function(returnType, name, params)
+					new Function(returnType, name, params, attributes)
 				}
 			}
 	private def returnType =
@@ -298,9 +304,11 @@ class Parser extends StandardTokenParsers {
 					Validator.validateParam(attributes, paramType, name, declaredParams).get
 			})
 
-	private def paramAttributes = range
+	private def functionAttributes = "[" ~> noret <~ "]"
+	private def noret = "NoReturn" ^^	{ case _ => NoReturnAttribute }
+	private def paramAttributes = "[" ~> range <~ "]"
 	private def range =
-			"[" ~> "Range" ~> "(" ~> expression ~ ("," ~> expression) <~ ")" <~ "]" ^^
+			"Range" ~> "(" ~> expression ~ ("," ~> expression) <~ ")" ^^
 			{ case minExpr ~ maxExpr => new RangeAttribute(minExpr, maxExpr) }
 }
 

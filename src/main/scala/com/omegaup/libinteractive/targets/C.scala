@@ -260,7 +260,7 @@ int main(int argc, char* argv[]) {
 	} else ""}
 	openstream(&__out, "${pipeFilename(idl.main, interface)}", O_WRONLY);
 
-	__message_loop(-1);
+	__message_loop(-1, 1);
 
 	${if (options.verbose) {
 		"\tfprintf(stderr, \"\\t[" + interface.name + "] closing `" +
@@ -395,7 +395,7 @@ $openPipes
 	private def generateMessageLoop(interfaces: List[(Interface, Interface, String)],
 			infd: String) = {
 		val builder = new StringBuilder
-		builder ++= s"""static void __message_loop(int __current_function) {
+		builder ++= s"""static void __message_loop(int __current_function, int __noreturn) {
 	int __msgid;
 	while (readfull(&$infd, &__msgid, sizeof(int), 0)) {
 		if (__msgid == __current_function) return;
@@ -463,6 +463,9 @@ $openPipes
 			}
 		}
 	}
+	if (__noreturn) {
+		exit(0);
+	}
 	if (__current_function != -1) {
 		fprintf(stderr, "Confused about exiting\n");
 		exit(1);
@@ -498,7 +501,10 @@ $openPipes
 		builder ++= f"\tint __cookie = 0x${rand.nextInt}%x;\n"
 		builder ++= s"\twritefull(&$outfd, &__cookie, sizeof(__cookie));\n"
 		builder ++= s"\twriteflush(&$outfd);\n"
-		builder ++= "\t__message_loop(__msgid);\n"
+		builder ++= "\t__message_loop(__msgid, " + (function.noReturn match {
+			case true => 1
+			case false => 0
+		}) + ");\n"
 		if (function.returnType != PrimitiveType("void")) {
 			builder ++= s"\t${formatType(function.returnType)} __ans = 0;\n"
 			builder ++= s"\treadfull(&$infd, &__ans, sizeof(__ans), 1);\n"

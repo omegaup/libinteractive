@@ -279,7 +279,7 @@ ${generateMessageLoop(List((idl.main, interface, "__out")), "__in")}
 					new LEDataOutputStream("${pipeFilename(idl.main, interface)}")) {
 				__in = fin;
 				__out = fout;
-				__message_loop(-1);
+				__message_loop(-1, true);
 			}
 		}
 	}
@@ -382,7 +382,7 @@ public class ${idl.main.name}_entry {
 			infd: String) = {
 		val builder = new StringBuilder
 		builder ++=
-			s"""	static void __message_loop(int __current_function) throws IOException {
+			s"""	static void __message_loop(int __current_function, boolean __noreturn) throws IOException {
 		int __msgid;
 		while (true) {
 			try {
@@ -447,6 +447,9 @@ public class ${idl.main.name}_entry {
 				}
 			}
 		}
+		if (__noreturn) {
+			System.exit(0);
+		}
 		if (__current_function != -1) {
 			System.err.printf("Confused about exiting\n");
 			System.exit(1);
@@ -484,7 +487,7 @@ public class ${idl.main.name}_entry {
 		builder ++= f"\t\t\tint __cookie = 0x${rand.nextInt}%x;\n"
 		builder ++= s"\t\t\t$outfd.writeInt(__cookie);\n"
 		builder ++= s"\t\t\t$outfd.flush();\n"
-		builder ++= s"\t\t\t${caller.name}_entry.__message_loop(__msgid);\n"
+		builder ++= s"\t\t\t${caller.name}_entry.__message_loop(__msgid, ${function.noReturn});\n"
 		if (function.returnType != PrimitiveType("void")) {
 			builder ++= s"\t\t\t${formatType(function.returnType)} __ans = "
 			builder ++= s"$infd.${readPrimitive(function.returnType)}();\n"

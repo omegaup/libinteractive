@@ -268,7 +268,7 @@ ${if (options.verbose) {
 } else ""}
 	with open("${pipeFilename(idl.main, interface)}", 'wb') as __fout:
 		import ${options.moduleName}
-		__message_loop(-1)
+		__message_loop(-1, True)
 """
 		OutputFile(
 			Paths.get(interface.name, s"${idl.main.name}.py"),
@@ -312,7 +312,7 @@ ${if (options.verbose) {
 	private def generateMessageLoop(interfaces: List[(Interface, Interface, String)],
 			calleeModule: String, infd: String) = {
 		val builder = new StringBuilder
-		builder ++= s"""def __message_loop(__current_function):
+		builder ++= s"""def __message_loop(__current_function, __noreturn):
 	global $infd, ${interfaces.map(_._3).mkString(", ")}
 	while True:
 		__buf = $infd.read(4)
@@ -373,6 +373,8 @@ ${if (options.verbose) {
 		builder ++= """		else:
 			print>>sys.stderr, "Unknown message id 0x%x" % __msgid
 			sys.exit(1)
+	if __noreturn:
+		sys.exit(0)
 	if __current_function != -1:
 		print>>sys.stderr, "Confused about exiting"
 		sys.exit(1)
@@ -409,7 +411,10 @@ ${if (options.verbose) {
 		}
 		builder ++= s"\t$outfd.write(struct.pack('I', __cookie))\n"
 		builder ++= s"\t$outfd.flush()\n"
-		builder ++= "\t__message_loop(__msgid)\n"
+		builder ++= "\t__message_loop(__msgid, " + (function.noReturn match {
+			case true => "True"
+			case false => "False"
+		}) + ")\n"
 		if (function.returnType != PrimitiveType("void")) {
 			builder ++= s"\t__ans = struct.unpack(${structFormat(function.returnType)}, " +
 					s"$infd.read(${fieldLength(function.returnType)}))[0]\n"
