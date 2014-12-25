@@ -256,19 +256,6 @@ ${commands.map(command =>
 	"}").mkString(",\n")}
 };
 
-static void writefull(int fd, const void* buf, size_t count) {
-	ssize_t bytes;
-	while (count > 0) {
-		bytes = write(fd, buf, count);
-		if (bytes <= 0) {
-			fprintf(stderr, "Incomplete message missing %zu bytes\\n", count);
-			exit(1);
-		}
-		buf = bytes + (char*)buf;
-		count -= bytes;
-	}
-}
-
 typedef struct {
 	int fd;
 	int closed;
@@ -430,7 +417,7 @@ int main(int argc, char* argv[]) {
 					}
 					buffers[i].pos -= off;
 				} else if (buffers[i].pos == sizeof(buffers[i].buf)) {
-					writefull(i == 0 ? 1 : 2, buffers[i].buf, sizeof(buffers[i].buf));
+					fwrite(buffers[i].buf, sizeof(buffers[i].buf), 1, i == 0 ? stdout : stderr);
 					buffers[i].pos = 0;
 				}
 			} else {
