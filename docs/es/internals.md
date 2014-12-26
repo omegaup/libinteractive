@@ -31,17 +31,17 @@ cookie de verificación que se debe regresar tal cual para validar que el
 mensaje fue transmitido correctamente. El formato binario específico que se
 utiliza se muestra a continuación:
 
-	message = function-id *field cookie
-	function-id = int ; un entero de 32-bits que identifica la función a llamar
-	cookie = int ; un entero de 32-bits que se utiliza como sentinela
-	field = byte | short | int | float | long | double | array
-	byte = UNSIGNED_CHAR
-	short = SHORT
-	int = INT
-	float = INT ; IEEE-754 binary32
-	double = LONG ; IEEE-754 binary64
-	long = LONG
-	array = *byte ; tantos bytes como sea necesario para representar el arreglo
+    message = function-id *field cookie
+    function-id = int ; un entero de 32-bits que identifica la función a llamar
+    cookie = int ; un entero de 32-bits que se utiliza como sentinela
+    field = byte | short | int | float | long | double | array
+    byte = UNSIGNED_CHAR
+    short = SHORT
+    int = INT
+    float = INT ; IEEE-754 binary32
+    double = LONG ; IEEE-754 binary64
+    long = LONG
+    array = *byte ; tantos bytes como sea necesario para representar el arreglo
 
 Todos los enteros utilizan la codificación little-endian (la nativa en x86),
 por lo que la implementación en C simplemente necesita invocar la llamada de
@@ -78,11 +78,23 @@ solución está escrita en C, depende de si es posible realizar _inlining_ de la
 función o no) ahora requiere realizar dos llamadas de sistema y dos cambios de
 proceso que agrega 7-10 microsegundos al tiempo total de ejecución (wall time),
 y alrededor de 2-3 microsegundos al tiempo de ejecución del concursante (user
-time). Eso quiere decir que si un problema requiere hacer más de 400,000
+time). Eso quiere decir que si un problema requiere hacer más de ~400,000
 llamadas a función entre los programas del juez y concursante, los programas
 generados por libinteractive van a ocasionar que los envíos excedan los tiempos
-límite. Estos tiempos extra son causados por el sistema operativo y no hay mucho
-que se pueda hacer al respecto.
+límite.
+
+La mayoría de este tiempo extra es causada por el hecho que hay que copiar
+datos a buffers compartidos fuera del proceso, y no es posible mejorarlo sin
+cambiar el modelo de programación, pero eso rompería el requerimiento de que
+debe ser posible enlazar ambos subprogramas en un mismo proceso si están
+escritos en el mismo lenguaje, y haría todo más complicado para los
+concursantes. El resto del tiempo extra es causado por el sistema operativo al
+momento de hacer llamadas de sistema y los cambios de proceso, así que no hay
+mucho que se pueda hacer al respecto. Experimentos con métodos alternativos de
+hacer llamadas entre proceso (memoria compartida + semáforos para indicar
+disponibilidad) demostraron que el tiempo total para evaluar un envío podría
+mejorar en menos del 5%, a cambio de aumentar el tiempo del concursante por
+hasta un 50%.
 
 Si el problema no requiere un gran volumen de llamadas, libinteractive es una
 excelente opción para hacer problemas interactivos.
@@ -92,14 +104,15 @@ excelente opción para hacer problemas interactivos.
 Otros escenarios que son bastante eficientes hacerlos bajo libinteractive son:
 
 * Pasar arreglos gigantes de millones de elementos entre el programa del juez y
-	concursante es bastante más eficiente que leerlo de entrada estándar, así que
-	eso disminuirá el tiempo del concursante.
+  concursante es bastante más eficiente que leerlo de entrada estándar (solo
+  una llamada de sistema si los datos caben en un buffer de 4096 bytes), así
+  que eso disminuirá el tiempo del concursante.
 * Tener problemas de varias fases (como Parrots en la IOI 2011) era bastante
   complicado antes pero es un escenario considerado en libinteractive.
 * Autogenerar la entrada del concursante. Por ejemplo, una técnica utilizada
-	comúnmente en el Facebook Hacker Cup es pedirle al concursante que genere la
-	entrada utilizando un [generador de números aleatorios con congruencia linear](http://en.wikipedia.org/wiki/Linear_congruential_generator).
-	Esto evita desperdiciar tiempo leyendo archivos gigantes de entrada estándar.
-* Al ser separados los procesos, no es necesario esconder/encriptar la memoria.
+  comúnmente en el Facebook Hacker Cup es pedirle al concursante que genere la
+  entrada utilizando un [generador de números aleatorios con congruencia linear](http://en.wikipedia.org/wiki/Linear_congruential_generator).
+  Esto evita desperdiciar tiempo leyendo archivos gigantes de entrada estándar.
+* Al ser separados los procesos, no es necesario esconder/obfuscar la memoria.
   Esto permite que el programa del juez a su vez sea el validador y regrese la
-	calificación.
+  calificación.

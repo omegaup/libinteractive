@@ -28,25 +28,25 @@ distributed to the contestants in the template files by adding a file with
 in `Main.cpp`, the second, public version can be placed in `Main.distrib.cpp`
 and it will be the one that will be copied into the templates.
 
-Once y ou are happy with the problem, it must be converted to omegaUp format to
+Once you are happy with the problem, it must be converted to omegaUp format to
 upload it. To do so, the following folders must be present:
 
 * `cases`, with the official cases. The inputs must be saved in files with the
   `.in` extension, and the outputs in files with the same name but with `.out`
   extension.
 * `statements` with the problem statements. The statements must be written in
-	Markdown and there must be one per language. For instance, for a problem that
-	will be in both english and spanish, there must be two files: `es.markdown`
-	and `en.markdown`. To include the control to download the libinteractive
-	templates, the `.markdown` files must include the string
-	`{{libinteractive:download}}` in a line of its own, with no extra text.
+  Markdown and there must be one per language. For instance, for a problem that
+  will be in both english and spanish, there must be two files: `es.markdown`
+  and `en.markdown`. To include the control to download the libinteractive
+  templates, the `.markdown` files must include the string
+  `{{libinteractive:download}}` in a line of its own, with no extra text.
 * `interactive` with the interactive problem. This should **only** contain the
-	.idl file, the problemsetter problem (`Main.cpp`), and the `examples` folder
-	with `sample.in` and any other sample input. Optionally, the
-	`Main.distrib.cpp` file may be present if `Main.cpp` has implementation
-	details that should not be distributed. In particular, the Makefile, the
-	sample solution and the `libinteractive` generated directory should not be
-	present in the .zip.
+  .idl file, the problemsetter problem (`Main.cpp`), and the `examples` folder
+  with `sample.in` and any other sample input. Optionally, the
+  `Main.distrib.cpp` file may be present if `Main.cpp` has implementation
+  details that should not be distributed. In particular, the Makefile, the
+  sample solution and the `libinteractive` generated directory should not be
+  present in the .zip.
 
 These three folders must be saved in a .zip file, without any intermediate
 folders. The templates that will be distributed to the contestants will be
@@ -55,29 +55,34 @@ automatically generated.
 # Conventions
 
 * The first interface in the .idl file is the problemsetter program and
-	**must** be called `Main`. The problemsetter program must then be placed in a
-	file called `Main.cpp` (probably with a different extension, depending of the
-	programming language it is written on).
+  **must** be called `Main`. The problemsetter program must then be placed in a
+  file called `Main.cpp` (probably with a different extension, depending of the
+  programming language it is written on).
 * The contestant's program(s) must be saved in a file with the same name as the
-	.idl file, but with the correct extension for the programming language it is
-	written on. For instance, for the problem `sums.idl`, the solution must be
-	placed in the file `sums.cpp`.
+  .idl file, but with the correct extension for the programming language it is
+  written on. For instance, for the problem `sums.idl`, the solution must be
+  placed in the file `sums.cpp`.
 * Each interface will be compiled into a different executable, and will be run
   in separate processes. This means that no variables may be shared, so it will
-	be necessary to communicate any state using functions.
+  be necessary to communicate any state using functions.
 * All interfaces may call the functions in the Main interface, and Main may
-	call any function in any other interface. Other interfaces cannot call each
-	other's functions.
+  call any function in any other interface. Other interfaces cannot call each
+  other's functions.
 * Arrays as parameter types are allowed, but their dimensions must obey the
   rules for C arrays: all dimensions (except the first one) must be integer
-	constantes.
+  constantes.
 * Arrays may declare its first dimension as a variable, but this variable
   must be of type `int`, it must be passed as a parameter to the function, and
-	it must come before the array in the parameter list.
+  it must come before the array in the parameter list.
 * The parameters that are used as array dimensions must declare the `Range`
-	attribute, with the minimum and maximum values that the parameter might take.
-	This is used to know the maximum size in bytes that the message needs
-	allocated so that the arrays fit in them.
+  attribute, with the minimum and maximum values that the parameter might take.
+  This is used to know the maximum size in bytes that the message needs
+  allocated so that the arrays fit in them.
+* If you expect that a function might legitimately exit the process (because it
+  is the function that is called when the correct answer is reached, or because
+  it might detect an error on the contestant's data), the function must possess
+  the `NoReturn` attribute to avoid causing the other process to get confused
+  about exiting when it stops receiving information mid-call.
 
 # Sample .idl files
 
@@ -116,6 +121,17 @@ automatically generated.
         void decode([Range(0, 64)] int N, [Range(0, 320)] int L, int[L] X);
     };
 
+[Cave](http://www.ioi2013.org/wp-content/uploads/tasks/day2/cave/cave.pdf)
+
+    interface Main {
+        [NoReturn] int tryCombination([Range(0, 5000)] int N, int[N] S);
+        [NoReturn] void answer([Range(0, 5000)] int N, int[N] S, int[N] D);
+    };
+
+    interface cave {
+        void exploreCave(int N);
+    };
+
 # IDL Grammar
 
 IDL is almost a subset of [WebIDL](http://www.w3.org/TR/2012/WD-WebIDL-20120207/),
@@ -147,7 +163,8 @@ but with some syntax to help programming contests.
         ;
     
     function
-        = return-type, ident, "(", param-list , ")", ";"
+        = { function-attribute }, return-type, ident,
+          "(", param-list , ")", ";"
         ;
     
     param-list
@@ -178,7 +195,15 @@ but with some syntax to help programming contests.
     param
         = { param-attribute }, type, ident
         ;
+
+    function-attribute
+        = "[", noreturn-attribute, "]"
+        ;
     
+    noreturn-attribute
+        = "NoReturn"
+        ;
+
     param-attribute
         = "[", range-attribute, "]"
         ;

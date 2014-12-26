@@ -33,19 +33,19 @@ Una vez que se está contento con el problema, se debe convertir a formato
 omegaUp para subirlo. Para hacerlo, deben existir las siguientes carpetas:
 
 * `cases`, con los casos oficiales. Las entradas deben estar en archivos con
-	extensión `.in` y las salidas en archivos con el mismo nombre pero
-	terminación `.out`.
+  extensión `.in` y las salidas en archivos con el mismo nombre pero
+  terminación `.out`.
 * `statements` con las redacciones. Las redacciones se deben escribir en formato
-	Markdown, y debe haber una por lenguaje. Por ejemplo, para un problema en
-	inglés y español, deben existir dos archivos: `es.markdown` y `en.markdown`.
-	Para incluir el control para descargar las plantillas, los archivos `.markdown`
-	deben contener la cadena `{{libinteractive:download}}` en un renglón, sin texto
-	extra.
+  Markdown, y debe haber una por lenguaje. Por ejemplo, para un problema en
+  inglés y español, deben existir dos archivos: `es.markdown` y `en.markdown`.
+  Para incluir el control para descargar las plantillas, los archivos `.markdown`
+  deben contener la cadena `{{libinteractive:download}}` en un renglón, sin texto
+  extra.
 * `interactive` con el problema interactivo. Aquí solo debe estar el archivo .idl,
-	el programa del juez (`Main.cpp`) y la carpeta `examples` con `sample.in` y
-	cualquier otro caso de entrada necesario. Opcionalmente puede estar el
-	archivo `Main.distrib.cpp` si `Main.cpp` tiene parte de la solución. No se debe
-	incluir el Makefile, la solución de prueba o la carpeta libinteractive.
+  el programa del juez (`Main.cpp`) y la carpeta `examples` con `sample.in` y
+  cualquier otro caso de entrada necesario. Opcionalmente puede estar el
+  archivo `Main.distrib.cpp` si `Main.cpp` tiene parte de la solución. No se debe
+  incluir el Makefile, la solución de prueba o la carpeta libinteractive.
 
 Por último, esas tres carpetas deben guardarse en un archivo .zip sin carpetas
 intermedias. Las plantillas que se distribuirán a los concursantes se generarán
@@ -57,26 +57,32 @@ de manera automática.
   programa del juez, entonces, debe estar en un archivo llamado `Main.cpp` (o
   la extensión que utilice el lenguaje de programación en el que se escribe).
 * El programa del concursante debe estar en un archivo con el mismo nombre que
-	el archivo .idl, pero con la extensión apropiada para ese lenguaje de
-	programación. Por ejemplo, para el problema `sumas`, la solución del
-	concursante en `sumas.cpp`.
+  el archivo .idl, pero con la extensión apropiada para ese lenguaje de
+  programación. Por ejemplo, para el problema `sumas`, la solución del
+  concursante en `sumas.cpp`.
 * Cada interfaz producirá un ejecutable distinto, y se correrán en procesos
-	separados. Eso quiere decir que ninguna variable se puede compartir, así que
-	es necesario pasarlas como parámetros a funciones.
+  separados. Eso quiere decir que ninguna variable se puede compartir, así que
+  es necesario pasarlas como parámetros a funciones.
 * Todas las interfaces se pueden comunicar con Main, y Main se puede comunicar
-	con todas las demás interfaces, pero dos interfaces del concursante no se
-	pueden comunicar entre sí.
+  con todas las demás interfaces, pero dos interfaces del concursante no se
+  pueden comunicar entre sí.
 * Los arreglos como tipos de parámetros de función son permitidos, pero sus
   dimensiones deben obedecer las reglas de los arreglos en C: todas las
-	dimensiones (excepto la primera) deben ser constantes enteras.
+  dimensiones (excepto la primera) deben ser constantes enteras.
 * Los arreglos pueden declarar su primera dimensión como una variable, pero
   esta variable debe aparecer como parámetro en la misma función, y debe
-	aparecer antes en la lista de parámetros.
+  aparecer antes en la lista de parámetros.
 * Los parámetros que sean utilizados como dimensiones de arreglos deben
   declarar el atributo `Range`, con los valores mínimo y máximo que puede
-	tomar ese parámetro. Esto se utiliza para saber de antemano qué tan grande
-	puede ser la memoria que es necesario alojar para que quepa el arreglo
-	entero.
+  tomar ese parámetro. Esto se utiliza para saber de antemano qué tan grande
+  puede ser la memoria que es necesario alojar para que quepa el arreglo
+  entero.
+* Si experas que una función pueda terminar el proceso legítimamente (porque es
+  la función que se debe llamar para reportar la respuesta correcta, o porque
+  es una función del evaluador que puede terminar porque el concursante realizó
+  una operación inválida), la función debe tener el atributo `NoReturn` para
+  evitar que el otro proceso se confunda cuando deje de recibir información a
+  media llamada.
 
 # Ejemplos de archivos .idl
 
@@ -115,6 +121,17 @@ de manera automática.
         void decode([Range(0, 64)] int N, [Range(0, 320)] int L, int[L] X);
     };
 
+[Cave](http://www.ioi2013.org/wp-content/uploads/tasks/day2/cave/cave.pdf)
+
+    interface Main {
+        [NoReturn] int tryCombination([Range(0, 5000)] int N, int[N] S);
+        [NoReturn] void answer([Range(0, 5000)] int N, int[N] S, int[N] D);
+    };
+
+    interface cave {
+        void exploreCave(int N);
+    };
+
 # Gramática IDL
 
 IDL es casi un subconjunto de WebIDL, pero con un poco de sintaxis extra para
@@ -146,7 +163,8 @@ concursos de programación:
         ;
     
     function
-        = return-type, ident, "(", param-list , ")", ";"
+        = { function-attribute }, return-type, ident,
+          "(", param-list , ")", ";"
         ;
     
     param-list
@@ -178,6 +196,14 @@ concursos de programación:
         = { param-attribute }, type, ident
         ;
     
+    function-attribute
+        = "[", noreturn-attribute, "]"
+        ;
+    
+    noreturn-attribute
+        = "NoReturn"
+        ;
+
     param-attribute
         = "[", range-attribute, "]"
         ;
