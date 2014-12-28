@@ -363,14 +363,62 @@ static struct __stream ${idl.allInterfaces.map(pipeName).mkString(", ")};
 }
 #endif
 
-void __entry() {
+static void __libinteractive_init() {
 $openPipes
-	// Perform regular libc startup
-	#if defined(_WIN32)
-	mainCRTStartup();
+}
+
+void __entry() {
+	#if !defined(_WIN32)
+
+	// _start expects the stack in a very specific configuration.
+	#if defined(__x86_64__)
+	__asm__(
+		"popq %%rbp\\n"	// Remove %rbp from the stack that gcc helpfully added.
+		"pushq %%rdx\\n" // Store %rdx since we will need it later.
+		:::
+	);
 	#else
-	_start();
-	#endif
+	__asm__(
+		"popl %%ebp\\n"	// Remove %ebp from the stack that gcc helpfully added.
+		"pushl %%eax\\n" // Save all registers that contain stuff _start expects.
+		"pushl %%edx\\n"
+		"pushl %%ecx\\n"
+		:::
+	);
+	#endif // __x86_64__
+
+	__libinteractive_init();
+
+	// Perform regular libc startup
+	// Restore all arch-specific registers.
+	#if defined(__x86_64__)
+	__asm__ (
+		"popq %%rdx\\n"
+		:::
+	);
+	#else
+	__asm__ (
+		"popl %%ecx\\n"
+		"popl %%edx\\n"
+		"popl %%eax\\n"
+		:::
+	);
+	#endif // __x86_64__
+	// We cannot call _start since that would add stuff to the stack.
+	// Jump to it and everything should be exactly as it expects it to be.
+	__asm__ (
+		"jmp _start@plt\\n"
+		:::
+	);
+
+	#else
+
+	// The Windows case is much simpler, fortunately :)
+	__libinteractive_init();
+	// Perform regular libc startup
+	mainCRTStartup();
+
+	#endif // _WIN32
 }
 
 """
