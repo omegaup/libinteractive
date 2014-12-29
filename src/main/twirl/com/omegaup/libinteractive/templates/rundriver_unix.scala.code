@@ -2,7 +2,8 @@
 @import com.omegaup.libinteractive.idl.IDL
 @import com.omegaup.libinteractive.target.ExecDescription
 @import com.omegaup.libinteractive.target.Target
-@(target: Target, message: String, idl: IDL, commands: Iterable[ExecDescription], numProcesses: Int, maxNameLength: Int, maxCommandLength: Int, maxDebugCommandLength: Int, maxEnvLength: Int)
+@import com.omegaup.libinteractive.target.Options
+@(target: Target, options: Options, message: String, idl: IDL, commands: Iterable[ExecDescription], numProcesses: Int, maxNameLength: Int, maxCommandLength: Int, maxDebugCommandLength: Int, maxEnvLength: Int)
 /* @message */
 #include <errno.h>
 #include <fcntl.h>
@@ -126,6 +127,7 @@ int run(int input, int debug) {
 	long long utime = 0;
 
 	int retval = 0;
+@if(!options.transact) {
 	struct stat st;
 	for (int i = 0; i < NUM_PIPES; i++) {
 		if (stat(pipeNames[i], &st) != -1) {
@@ -150,6 +152,7 @@ int run(int input, int debug) {
 			goto cleanup;
 		}
 	}
+}
 
 	memset(buffers, 0, sizeof(buffers));
 
@@ -244,6 +247,7 @@ int run(int input, int debug) {
 		}
 	}
 
+@if(!options.transact) {
 cleanup:
 	for (int i = 0; i < NUM_PIPES; i++) {
 		if (unlink(pipeNames[i]) == -1) {
@@ -251,6 +255,7 @@ cleanup:
 		}
 	}
 
+}
 	fprintf(stderr, "\nMemory: %7.3f MB\n", maxrss / 1024.0f);
 	fprintf(stderr, "Time:   %7.3f s\n", utime / 1e6);
 

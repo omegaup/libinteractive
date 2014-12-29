@@ -54,6 +54,8 @@ object Main {
 				opt[Unit]("template") action
 						{ (_, c) => c.copy(generateTemplate = true) } text
 						("also generate a template for the contestant"),
+				opt[Unit]("transact") action { (_, c) => c.copy(transact = true) } text
+						("use shared memory and the transact kernel module (experimental)"),
 				opt[Unit]("unix") action { (_, c) => c.copy(os = OS.Unix) } text
 						("generates code that can be run on Linux/Mac OSX"),
 				opt[Unit]("verbose") action { (_, c) => c.copy(verbose = true) } text

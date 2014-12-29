@@ -37,13 +37,26 @@ case class Function(returnType: PrimitiveType, name: String, params: List[Parame
 	})
 }
 
-abstract class Type extends Object with AstNode {}
-case class PrimitiveType(name: String) extends Type {}
+abstract class Type extends Object with AstNode {
+	def byteSize(): Long
+}
+case class PrimitiveType(name: String) extends Type {
+	override def byteSize() = name match {
+		case "void" => 0
+		case "bool" => 1
+		case "char" => 1
+		case "short" => 2
+		case "int" => 4
+		case "float" => 4
+		case "long" => 8
+		case "double" => 8
+	}
+}
 case class ArrayType(primitive: PrimitiveType, lengths: List[ArrayLength])
 		extends Type {
 	override def children() = List(primitive) ++ lengths
 	def byteSize() = {
-		var size: Long = 1
+		var size: Long = primitive.byteSize
 		lengths foreach(size *= _.range.get.max)
 		size
 	}

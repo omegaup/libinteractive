@@ -6,11 +6,18 @@
 /* @c.message */
 #define _XOPEN_SOURCE 600
 #include <fcntl.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+@if(options.transact) {
+
+#include <sched.h>
+#include <sys/mman.h>
+
+}
 #include "@(options.moduleName).h"
 
 #if defined(__GNUC__)
@@ -46,20 +53,38 @@ void _start();
 
 void __entry();
 
+@if(options.transact) {
+@c_transact_functions(options.verbose)
+
+static struct interface @idl.interfaces.map(c.transactName).mkString(", ");
+} else {
 @c_stream_functions(options.verbose)
 
 static struct __stream @idl.interfaces.flatMap(interface =>
 		List(c.pipeName(interface, true), c.pipeName(interface, false))
 ).mkString(", ");
+}
 
 #ifdef __cplusplus
 }
 #endif
 
 static void __NOINLINE __libinteractive_init() {
+@if(options.transact) {
+	cpu_set_t mask;
+	CPU_ZERO(&mask);
+	CPU_SET(0, &mask);
+	sched_setaffinity(0, sizeof(mask), &mask);
+
+@for(interface <- idl.interfaces) {
+	__interface_init(&@c.transactName(interface), 1, "@interface.name",
+		"@c.transactFilename(interface)", "@c.shmFilename(interface)", 65536);
+}
+} else {
 @for(interface <- idl.interfaces) {
 	openstream(&@c.pipeName(interface, true), "@c.pipeFilename(interface, idl.main, true)", O_WRONLY);
 	openstream(&@c.pipeName(interface, false), "@c.pipeFilename(interface, idl.main, false)", O_RDONLY);
+}
 }
 }
 
@@ -118,12 +143,20 @@ void __entry() {
 }
 
 @for(interface <- idl.interfaces) {
+@if(options.transact) {
+@c_message_loop_transact(c, options, interface, idl.main, c.transactName(interface))
+} else {
 @c_message_loop(c, options, interface, idl.main,
 		c.pipeName(interface, true), c.pipeName(interface, false))
+}
 
 @for(function <- interface.functions) {
+@if(options.transact) {
+@c_shim_transact(c, options, function, interface, idl.main, c.transactName(interface))
+} else {
 @c_shim(c, options, function, interface, idl.main,
 	c.pipeName(interface, true), c.pipeName(interface, false))
+}
 
 }
 }

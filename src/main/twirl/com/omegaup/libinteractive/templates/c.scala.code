@@ -6,11 +6,17 @@
 /* @c.message */
 #include "@(options.moduleName).h"
 #define _XOPEN_SOURCE 600
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
+@if(options.transact) {
+
+#include <sched.h>
+#include <sys/mman.h>
+}
 
 #if defined(_WIN32)
 #if !defined(PRIuS)
@@ -29,24 +35,52 @@
 extern "C" {
 #endif
 
+@if(options.transact) {
+@c_transact_functions(options.verbose)
+
+static struct interface @c.transactName(interface);
+} else {
 @c_stream_functions(options.verbose)
 
 static struct __stream __in, __out;
+}
 
 #ifdef __cplusplus
 }
 #endif
 
+@if(options.transact) {
+@c_message_loop_transact(c, options, idl.main, interface, c.transactName(interface))
+} else {
 @c_message_loop(c, options, idl.main, interface, "__out", "__in")
+}
 
 @for(function <- idl.main.functions) {
+@if(options.transact) {
+@c_shim_transact(c, options, function, idl.main, interface, c.transactName(interface))
+} else {
 @c_shim(c, options, function, idl.main, interface, "__out", "__in")
+}
 
 }
 
 int main(int argc, char* argv[]) {
 	int retval = 0;
 
+@if(options.transact) {
+	cpu_set_t mask;
+	CPU_ZERO(&mask);
+	CPU_SET(0, &mask);
+	sched_setaffinity(0, sizeof(mask), &mask);
+
+	__interface_init(&@c.transactName(interface), 0, "@interface.name",
+		"@c.transactFilename(interface)",
+		"@c.shmFilename(interface)", 65536);
+
+	struct message* message = @(c.transactName(interface)).shm->root +
+			@(c.transactName(interface)).shm->msg_offset;
+	__message_loop_@(idl.main.name)(message, -1, 1);
+} else {
 	openstream(&__in, "@c.pipeFilename(interface, interface, true)", O_RDONLY);
 	openstream(&__out, "@c.pipeFilename(interface, interface, false)", O_WRONLY);
 
@@ -54,6 +88,7 @@ int main(int argc, char* argv[]) {
 
 	closestream(&__in);
 	closestream(&__out);
+}
 
 	return retval;
 }

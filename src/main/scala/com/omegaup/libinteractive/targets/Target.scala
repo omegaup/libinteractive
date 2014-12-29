@@ -109,6 +109,7 @@ case class Options(
 	sampleFiles: List[String] = List("examples/sample.in"),
 	seed: Long = System.currentTimeMillis,
 	sequentialIds: Boolean = false,
+	transact: Boolean = false,
 	verbose: Boolean = false
 )
 
@@ -296,6 +297,7 @@ object Compiler extends Enumeration {
 	val Javac = Value("javac")
 	val Python = Value("python")
 	val Ruby = Value("ruby")
+	val Shell = Value("")
 }
 import Compiler.Compiler
 
@@ -325,6 +327,22 @@ abstract class Target(idl: IDL, options: Options) {
 		}
 	}
 
+	def transactFilename(interface: Interface) = {
+		if (options.pipeDirectories) {
+			s"${interface.name}_transact/transact"
+		} else {
+			s"${interface.name}_transact"
+		}
+	}
+
+	def shmFilename(interface: Interface) = {
+		if (options.pipeDirectories) {
+			s"${interface.name}_transact/shm"
+		} else {
+			s"${interface.name}_shm"
+		}
+	}
+
 	def pipeFilename(interface: Interface, caller: Interface, input: Boolean) = {
 		(if (options.pipeDirectories) {
 			s"${interface.name}_pipes/"
@@ -344,6 +362,10 @@ abstract class Target(idl: IDL, options: Options) {
 			case true => "in"
 			case false => "out"
 		})
+	}
+
+	def transactName(interface: Interface) = {
+		s"__${interface.name}_transact"
 	}
 
 	def outputResolve(path: Path): Path = {

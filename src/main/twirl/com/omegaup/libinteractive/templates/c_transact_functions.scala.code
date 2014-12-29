@@ -1,0 +1,110 @@
+@(verbose: Boolean = false)
+struct message {
+	ptrdiff_t next;
+	size_t size;
+	size_t free;
+	size_t msgid;
+	char data[32];
+};
+
+struct message_root {
+	ptrdiff_t msg_offset;
+	ptrdiff_t free_offset;
+	size_t size;
+	ptrdiff_t message_list;
+
+	union {
+		struct message root[0];
+		char padding[32];
+	};
+};
+
+struct interface {
+	int transact_fd;
+	int shm_fd;
+	const char* name;
+	unsigned long long peer_dead;
+	struct message_root* shm;
+};
+
+static void __interface_init(struct interface* interface, int parent, const char* name, const char* transact_name, const char* shm_name, size_t size) {
+	interface->name = name;
+@if(verbose) {
+	fprintf(stderr, "Opening `%s'\n", interface->name);
+}
+	interface->transact_fd = open(transact_name, parent ? O_RDWR : O_RDONLY);
+	if (interface->transact_fd == -1) {
+		write(2, "transactfd\n", 11);
+		exit(1);
+	}
+	interface->shm_fd = open(shm_name, O_RDWR);
+	if (interface->shm_fd == -1) {
+		write(2, "shm_open\n", 9);
+		exit(1);
+	}
+	if (parent && ftruncate(interface->shm_fd, size) == -1) {
+		write(2, "ftruncat\n", 9);
+		exit(1);
+	}
+	interface->shm = (struct message_root*)mmap(NULL, size, PROT_READ | PROT_WRITE,
+			MAP_SHARED, interface->shm_fd, 0);
+	if (interface->shm == (struct message_root*)-1) {
+		write(2, "mmap\n", 5);
+		exit(1);
+	}
+	if (parent) {
+		interface->shm->free_offset = 0;
+		interface->shm->size = size - 32;
+		interface->shm->message_list = (ptrdiff_t)-1;
+	}
+}
+
+static struct message* __message_alloc(struct interface* interface, size_t bytes) {
+	bytes += 32; // For the page header.
+	bytes += (~(bytes - 1) & 0x3F);
+
+	ptrdiff_t next = interface->shm->message_list;
+
+	// Try to reuse an old allocation.
+	while (next != (ptrdiff_t)-1) {
+		struct message* ptr = interface->shm->root + next;
+		if (ptr->free && ptr->size == bytes) {
+			ptr->free = 0;
+			return ptr;
+		}
+		next = ptr->next;
+	}
+
+	// Need to perform allocation.
+	if (interface->shm->size < interface->shm->free_offset * sizeof(struct message) + bytes) {
+		// No more memory.
+		fprintf(stderr, "No more memory for arena allocation. "
+				"Need shm size to be at least %zu\n", interface->shm->free_offset * sizeof(struct message) + bytes + 32);
+		exit(1);
+	}
+	struct message* ptr = interface->shm->root + interface->shm->free_offset;
+	ptr->next = interface->shm->message_list;
+	ptr->size = bytes;
+	ptr->free = 0;
+	interface->shm->message_list = interface->shm->free_offset;
+	interface->shm->free_offset += bytes / sizeof(struct message);
+
+	return ptr;
+}
+
+static void __message_free(struct interface* interface, struct message* message) {
+	message->free = 1;
+}
+
+static struct message* __message_call(struct interface* interface, struct message* request, int noret) {
+	interface->shm->msg_offset = request - interface->shm->root;
+	if (read(interface->transact_fd, &interface->peer_dead, sizeof(interface->peer_dead)) == -1 || interface->peer_dead) {
+		if (noret) {
+			exit(0);
+		}
+		fprintf(stderr, "%s died unexpectedly while calling 0x%zx\n", interface->name, request->msgid);
+		exit(1);
+	}
+	__message_free(interface, request);
+	return interface->shm->root + interface->shm->msg_offset;
+}

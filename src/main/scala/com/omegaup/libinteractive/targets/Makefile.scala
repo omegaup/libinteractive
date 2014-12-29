@@ -156,7 +156,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 	}
 
 	private def generateRunDriver() = {
-		val rundriver = templates.code.rundriver_unix(this, message, idl, commands,
+		val rundriver = templates.code.rundriver_unix(this, options, message, idl, commands,
 			numProcesses = commands.foldLeft(0)((length, _) => length + 1),
 			maxCommandLength = commands.foldLeft(0)((length, exec) =>
 				Math.max(length, exec.args.length)) + 1,
