@@ -23,7 +23,7 @@ struct interface {
 	int transact_fd;
 	int shm_fd;
 	const char* name;
-	unsigned long long peer_dead;
+	unsigned long long message;
 	struct message_root* shm;
 };
 
@@ -32,7 +32,7 @@ static void __interface_init(struct interface* interface, int parent, const char
 @if(verbose) {
 	fprintf(stderr, "Opening `%s'\n", interface->name);
 }
-	interface->transact_fd = open(transact_name, parent ? O_RDWR : O_RDONLY);
+	interface->transact_fd = open(transact_name, O_RDWR);
 	if (interface->transact_fd == -1) {
 		write(2, "transactfd\n", 11);
 		exit(1);
@@ -52,11 +52,15 @@ static void __interface_init(struct interface* interface, int parent, const char
 		write(2, "mmap\n", 5);
 		exit(1);
 	}
+	unsigned long long message = 0;
 	if (parent) {
 		interface->shm->free_offset = 0;
 		interface->shm->size = size - 32;
 		interface->shm->message_list = (ptrdiff_t)-1;
+		message = 1;
 	}
+	// Make sure the child process waits until the parent issues a read() call.
+	write(interface->transact_fd, &message, sizeof(message));
 }
 
 static struct message* __message_alloc(struct interface* interface, size_t bytes) {
@@ -98,7 +102,7 @@ static void __message_free(struct interface* interface, struct message* message)
 
 static struct message* __message_call(struct interface* interface, struct message* request, int noret) {
 	interface->shm->msg_offset = request - interface->shm->root;
-	if (read(interface->transact_fd, &interface->peer_dead, sizeof(interface->peer_dead)) == -1 || interface->peer_dead) {
+	if (read(interface->transact_fd, &interface->message, sizeof(interface->message)) != sizeof(interface->message)) {
 		if (noret) {
 			exit(0);
 		}

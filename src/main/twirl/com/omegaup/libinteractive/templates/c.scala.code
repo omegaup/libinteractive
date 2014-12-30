@@ -12,17 +12,17 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
-@if(options.transact) {
-
-#include <sched.h>
-#include <sys/mman.h>
-}
 
 #if defined(_WIN32)
 #if !defined(PRIuS)
 #define PRIuS "Iu"
 #endif
 #else
+@if(options.transact) {
+#include <sched.h>
+#include <sys/mman.h>
+
+}
 #if !defined(PRIuS)
 #define PRIuS "zu"
 #endif
