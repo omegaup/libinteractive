@@ -1,0 +1,67 @@
+@import com.omegaup.libinteractive.idl.ArrayType
+@import com.omegaup.libinteractive.idl.Interface
+@import com.omegaup.libinteractive.idl.PrimitiveType
+@import com.omegaup.libinteractive.target.Java
+@import com.omegaup.libinteractive.target.Options
+@(java: Java, options: Options, interfaces: Iterable[(Interface, Interface, String)], infd: String)
+	static void __message_loop(int __current_function, boolean __noreturn) throws IOException {
+		int __msgid;
+		while (true) {
+			try {
+				__msgid = @(infd).readInt();
+			} catch (EOFException e) {
+				break;
+			}
+			if (__msgid == __current_function) return;
+			switch (__msgid) {
+@for((caller, callee, outfd) <- interfaces) {
+@for(function <- callee.functions) {
+				case 0x@("%x" format java.functionIds((caller.name, callee.name, function.name))): {
+					// @(caller.name) -> @(callee.name).@function.name
+@if(options.verbose) {
+					System.err.printf("calling @function.name begin\n");
+}
+@for(param <- function.params) {
+@* Workaround for https://github.com/playframework/twirl/issues/35 *@
+@if(param.paramType.isInstanceOf[ArrayType]) {
+					@java.declareVar(param, function) =
+						@java.allocateArray(param.paramType.asInstanceOf[ArrayType], function);
+@java.readArray(infd, param, param.paramType.asInstanceOf[ArrayType], Some(function), 5)
+} else {
+					@java.declareVar(param, function) =
+						@(infd).@(java.readPrimitive(param.paramType.asInstanceOf[PrimitiveType]))();
+}
+}
+					int __cookie = @(infd).readInt();
+@if(function.returnType != PrimitiveType("void")) {
+					@java.formatType(function.returnType) __result = 
+}
+					@(callee.name).@(function.name)(
+						@function.params.map(function.name + "_" + _.name).mkString(", "));
+					@(outfd).writeInt(__msgid);
+@if(function.returnType != PrimitiveType("void")) {
+					@(outfd).@(java.writePrimitive(function.returnType))(__result);
+}
+					@(outfd).writeInt(__cookie);
+					@(outfd).flush();
+@if(options.verbose) {
+					System.err.printf("calling @function.name end\n");
+}
+					break;
+				}
+}
+}
+				default: {
+					System.err.printf("Unknown message id 0x%x\n", __msgid);
+					System.exit(1);
+				}
+			}
+		}
+		if (__noreturn) {
+			System.exit(0);
+		}
+		if (__current_function != -1) {
+			System.err.printf("Confused about exiting\n");
+			System.exit(1);
+		}
+	}

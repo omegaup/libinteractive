@@ -1,0 +1,24 @@
+@import com.omegaup.libinteractive.idl.Interface
+@import com.omegaup.libinteractive.idl.PrimitiveType
+@import com.omegaup.libinteractive.target.Options
+@import com.omegaup.libinteractive.target.Python
+@(python: Python, options: Options, callableInterfaces: Iterable[Interface], interfacesToImplement: Iterable[Interface])
+#!/usr/bin/python
+@for(interface <- callableInterfaces) {
+import @interface.name
+@if(interface.functions.exists(_ => true)) {
+@for(function <- interface.functions) {
+#	@python.declareFunction(function)
+}
+}
+}
+
+@for(interface <- interfacesToImplement) {
+@for(function <- interface.functions) {
+@python.declareFunction(function):
+	# FIXME
+@if(function.returnType != PrimitiveType("void")) {
+	return @python.defaultValue(function.returnType)
+}
+}
+}

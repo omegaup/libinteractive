@@ -1,0 +1,87 @@
+@(verbose: Boolean = false)
+struct __stream {
+	int fd;
+@if(verbose) {
+	const char* path;
+}
+	size_t capacity;
+	size_t pos;
+	char buffer[4096];
+};
+
+static void openstream(struct __stream* stream, const char* path, int flags) {
+@if(verbose) {
+	stream->path = path;
+	fprintf(stderr, "Opening `%s'\n", stream->path);
+}
+	stream->fd = open(path, flags | O_BINARY);
+	if (stream->fd == -1) {
+		perror("open");
+		exit(1);
+	}
+	stream->pos = 0;
+	stream->capacity = 0;
+}
+
+static void closestream(struct __stream* stream) {
+@if(verbose) {
+	stream->path = path;
+	fprintf(stderr, "Closing `%s'\n", stream->path);
+}
+	if (close(stream->fd) == -1) {
+		perror("close");
+	}
+}
+
+static int readfull(struct __stream* stream, void* buf, size_t count, int fatal) {
+	ssize_t bytes;
+	while (count > 0) {
+		if (stream->pos == stream->capacity) {
+			stream->pos = 0;
+			bytes = read(stream->fd, stream->buffer, sizeof(stream->buffer));
+			if (bytes <= 0) {
+				if (!fatal) return 0;
+				fprintf(stderr, "Incomplete message missing %" PRIuS " bytes\n", count);
+				exit(1);
+			}
+			stream->capacity = (size_t)bytes;
+		}
+
+		bytes = (count < stream->capacity - stream->pos) ? count : (stream->capacity - stream->pos);
+		memcpy(buf, stream->buffer + stream->pos, bytes);
+		stream->pos += bytes;
+		count -= bytes;
+		buf = bytes + (char*)buf;
+	}
+	return 1;
+}
+
+static void writeflush(struct __stream* stream) {
+	const char* to_write = stream->buffer;
+	size_t remaining = stream->pos;
+	while (remaining > 0) {
+		ssize_t bytes = write(stream->fd, to_write, remaining);
+		if (bytes <= 0) {
+			fprintf(stderr, "Incomplete message missing %" PRIuS " bytes\n", remaining);
+			exit(1);
+		}
+		to_write = bytes + to_write;
+		remaining -= bytes;
+	}
+	stream->pos = 0;
+}
+
+static void writefull(struct __stream* stream, const void* buf, size_t count) {
+	ssize_t bytes;
+	while (count > 0) {
+		bytes = (count < sizeof(stream->buffer) - stream->pos) ? count : (sizeof(stream->buffer) - stream->pos);
+		memcpy(stream->buffer + stream->pos, buf, bytes);
+		stream->pos += bytes;
+		buf = bytes + (char*)buf;
+		count -= bytes;
+
+		if (stream->pos == sizeof(stream->buffer)) {
+			writeflush(stream);
+		}
+	}
+}

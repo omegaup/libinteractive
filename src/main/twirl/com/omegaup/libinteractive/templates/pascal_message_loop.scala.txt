@@ -1,0 +1,90 @@
+@import com.omegaup.libinteractive.idl.ArrayType
+@import com.omegaup.libinteractive.idl.Interface
+@import com.omegaup.libinteractive.idl.ParameterLength
+@import com.omegaup.libinteractive.idl.PrimitiveType
+@import com.omegaup.libinteractive.target.Options
+@import com.omegaup.libinteractive.target.Pascal
+@(pascal: Pascal, options: Options, interfaces: Iterable[(Interface, Interface, String)], calleeModule: String, infd: String)
+procedure __message_loop(__current_function: LongWord; __noreturn: Boolean);
+var
+	__bytesRead: LongInt;
+	__msgid: LongWord;
+	__cookie: LongWord;
+@for((caller, callee, outfd) <- interfaces) {
+@for(function <- callee.functions) {
+@if(function.returnType != PrimitiveType("void")) {
+	@(function.name)___result: @pascal.formatType(function.returnType);
+}
+@for(param <- function.params) {
+	@(function.name)_@(param.name): @pascal.formatType(param.paramType);
+}
+}
+}
+begin
+	while true do
+	begin
+		__bytesRead := @(infd).Read(__msgid, sizeof(__msgid));
+		if (__bytesRead <> sizeof(__msgid)) then
+			break;
+		if (__msgid = __current_function) then
+			exit;
+		case __msgid of
+@for((caller, callee, outfd) <- interfaces) {
+@for(function <- callee.functions) {
+			$@("%x" format pascal.functionIds((caller.name, callee.name, function.name))):
+			begin
+				{ @caller.name -> @(callee.name).@(function.name) }
+@if(options.verbose) {
+				Writeln(ErrOutput, #9'calling @function.name begin');
+}
+@for(param <- function.params) {
+@* Workaround for https://github.com/playframework/twirl/issues/35 *@
+@if(param.paramType.isInstanceOf[ArrayType]) {
+@defining(param.paramType.asInstanceOf[ArrayType]) { array =>
+@if(array.lengths.head.isInstanceOf[ParameterLength]) {
+				SetLength(@(function.name)_@(param.name),
+					@(function.name)_@(array.lengths.head.asInstanceOf[ParameterLength].value));
+}
+				__read_full(@infd,
+						@(function.name)_@(param.name)@array.lengths.map(_ => "[0]").mkString,
+						@pascal.fieldLength(array, Some(function)));
+}
+} else {
+				__read_full(@infd, @(function.name)_@(param.name),
+						sizeof(@(function.name)_@(param.name)));
+}
+}
+				__read_full(@infd, __cookie, sizeof(__cookie));
+@if(function.returnType != PrimitiveType("void")) {
+				@(function.name)___result :=
+}
+				@(calleeModule).@(function.name)(@function.params.map(
+						function.name + "_" + _.name).mkString(", "));
+				@(outfd).WriteBuffer(__msgid, sizeof(__msgid));
+@if(function.returnType != PrimitiveType("void")) {
+				@(outfd).WriteBuffer(@(function.name)___result,
+						sizeof(@(function.name)___result));
+}
+				@(outfd).WriteBuffer(__cookie, sizeof(__cookie));
+@if(options.verbose) {
+				Writeln(ErrOutput, #9,'calling @function.name end');
+}
+			end;
+}
+}
+			else begin
+				Writeln(ErrOutput, 'Unknown message id 0x', IntToHex(__msgid, 8));
+				halt(1);
+			end;
+		end;
+	end;
+	if (__noreturn) then
+	begin
+		Halt(0);
+	end;
+	if (__current_function <> $FFFFFFFF) then
+	begin
+		Writeln(ErrOutput, 'Confused about exiting');
+		Halt(1);
+	end;
+end;

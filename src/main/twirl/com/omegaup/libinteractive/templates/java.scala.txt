@@ -1,0 +1,47 @@
+@import com.omegaup.libinteractive.idl.Interface
+@import com.omegaup.libinteractive.idl.PrimitiveType
+@import com.omegaup.libinteractive.target.Java
+@import com.omegaup.libinteractive.target.Options
+@(java: Java, options: Options, interface: Interface, main: Interface)
+/* @java.message */
+
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.EOFException;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FilterInputStream;
+import java.io.FilterOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+
+@java_stream_functions(options.verbose)
+
+public class @(interface.name)_entry {
+	static LEDataInputStream __in = null;
+	static LEDataOutputStream __out = null;
+
+@java_message_loop(java, options, List((main, interface, "__out")), "__in")
+
+	public static void main(String[] args) throws IOException {
+		try (LEDataInputStream fin =
+				new LEDataInputStream("@java.pipeFilename(interface, interface)")) {
+			try (LEDataOutputStream fout =
+					new LEDataOutputStream("@java.pipeFilename(main, interface)")) {
+				__in = fin;
+				__out = fout;
+				__message_loop(-1, true);
+			}
+		}
+	}
+}
+
+class @(main.name) {
+@for(function <- main.functions) {
+@java_shim(java, options, function, main, interface,
+		s"${interface.name}_entry.__out",
+		s"${interface.name}_entry.__in")
+}
+}

@@ -1,0 +1,70 @@
+@import com.omegaup.libinteractive.idl.ArrayType
+@import com.omegaup.libinteractive.idl.Interface
+@import com.omegaup.libinteractive.idl.PrimitiveType
+@import com.omegaup.libinteractive.target.C
+@import com.omegaup.libinteractive.target.Options
+@(c: C, options: Options, interfaces: Iterable[(Interface, Interface, String)], infd: String)
+static void __message_loop(int __current_function, int __noreturn) {
+	int __msgid;
+	while (readfull(&@infd, &__msgid, sizeof(int), 0)) {
+		if (__msgid == __current_function) return;
+		switch (__msgid) {
+@for((caller, callee, outfd) <- interfaces) {
+@for(function <- callee.functions) {
+			case 0x@("%x" format c.functionIds((caller.name, callee.name, function.name))): {
+				// @caller.name -> @(callee.name).@(function.name)
+@if(options.verbose) {
+				fprintf(stderr, "calling @function.name begin\n");
+}
+@for(param <- function.params) {
+@* Workaround for https://github.com/playframework/twirl/issues/35 *@
+@if(param.paramType.isInstanceOf[ArrayType]) {
+				@c.declareVar(param, function) =
+					(@c.formatType(param.paramType))malloc(@c.fieldLength(param.paramType, Some(function)));
+				readfull(&@infd, @(function.name)_@param.name,
+					@c.fieldLength(param.paramType, Some(function)), 1);
+} else {
+				@c.declareVar(param, function);
+				readfull(&@infd, &@(function.name)_@param.name,
+					@c.fieldLength(param.paramType, Some(function)), 1);
+}
+}
+				int __cookie;
+				readfull(&@infd, &__cookie, sizeof(int), 1);
+@if(function.returnType != PrimitiveType("void")) {
+				@c.formatType(function.returnType) result =
+}
+				@(function.name)(@function.params.map(function.name + "_" + _.name).mkString(", "));
+				writefull(&@outfd, &__msgid, sizeof(int));
+@if(function.returnType != PrimitiveType("void")) {
+				writefull(&@outfd, &result, sizeof(result));
+}
+				writefull(&@outfd, &__cookie, sizeof(int));
+				writeflush(&@outfd);
+@for(param <- function.params) {
+@* Workaround for https://github.com/playframework/twirl/issues/35 *@
+@if(param.paramType.isInstanceOf[ArrayType]) {
+				free(@(function.name)_@param.name);
+}
+}
+@if(options.verbose) {
+				fprintf(stderr, "calling @function.name end\n");
+}
+				break;
+			}
+}
+}
+			default: {
+				fprintf(stderr, "Unknown message id 0x%x\n", __msgid);
+				exit(1);
+			}
+		}
+	}
+	if (__noreturn) {
+		exit(0);
+	}
+	if (__current_function != -1) {
+		fprintf(stderr, "Confused about exiting\n");
+		exit(1);
+	}
+}

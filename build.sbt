@@ -4,9 +4,11 @@ version := "1.4.0"
 
 organization := "omegaup"
 
-scalaVersion := "2.10.3"
+scalaVersion := "2.10.4"
 
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
+
+lazy val root = (project in file(".")).enablePlugins(SbtTwirl)
 
 exportJars := true
 

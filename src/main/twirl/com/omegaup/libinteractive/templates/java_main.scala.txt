@@ -1,0 +1,53 @@
+@import com.omegaup.libinteractive.idl.IDL
+@import com.omegaup.libinteractive.idl.Interface
+@import com.omegaup.libinteractive.idl.PrimitiveType
+@import com.omegaup.libinteractive.target.Java
+@import com.omegaup.libinteractive.target.Options
+@(java: Java, options: Options, idl: IDL)
+/* @java.message */
+
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.EOFException;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FilterInputStream;
+import java.io.FilterOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+
+@java_stream_functions(options.verbose)
+
+public class @(idl.main.name)_entry {
+	static long __elapsed_time = 0;
+	static LEDataInputStream @java.pipeName(idl.main) = null;
+	static LEDataOutputStream @idl.interfaces.map(java.pipeName).mkString(", ");
+
+@java_message_loop(java, options, idl.interfaces.map {
+	interface => (interface, idl.main, java.pipeName(interface))
+	},
+	java.pipeName(idl.main)
+)
+
+	public static void main(String[] args) throws IOException {
+@for(interface <- idl.interfaces) {
+		@java.pipeName(interface) =
+				new LEDataOutputStream("@java.pipeFilename(interface, idl.main)");
+}
+		@java.pipeName(idl.main) =
+				new LEDataInputStream("@java.pipeFilename(idl.main, idl.main)");
+		@(idl.main.name).main(args);
+	}
+}
+		
+@for(interface <- idl.interfaces) {
+class @(interface.name) {
+@for(function <- interface.functions) {
+@java_shim(java, options, function, interface, idl.main,
+		s"${idl.main.name}_entry.${java.pipeName(interface)}",
+		s"${idl.main.name}_entry.${java.pipeName(idl.main)}")
+}
+}
+}

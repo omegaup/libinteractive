@@ -1,0 +1,123 @@
+@import com.omegaup.libinteractive.idl.IDL
+@import com.omegaup.libinteractive.idl.Interface
+@import com.omegaup.libinteractive.target.C
+@import com.omegaup.libinteractive.target.Options
+@(c: C, options: Options, idl: IDL)
+/* @c.message */
+#define _XOPEN_SOURCE 600
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+#include "@(options.moduleName).h"
+
+#if defined(_WIN32)
+#if !defined(PRIuS)
+#define PRIuS "Iu"
+#endif
+#else
+#if !defined(PRIuS)
+#define PRIuS "zu"
+#endif
+// Windows requires this flag to open files in binary mode using the
+// open syscall.
+#define O_BINARY 0
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#if defined(_WIN32)
+// declared in windows.h
+void mainCRTStartup();
+#else
+// declared in crt1.o
+void _start();
+#endif
+
+void __entry();
+
+@c_stream_functions(options.verbose)
+
+static struct __stream @idl.allInterfaces.map(c.pipeName).mkString(", ");
+
+#ifdef __cplusplus
+}
+#endif
+
+static void __libinteractive_init() {
+@for(interface <- idl.interfaces) {
+	openstream(&@c.pipeName(interface), "@c.pipeFilename(interface, idl.main)", O_WRONLY);
+}
+	openstream(&@c.pipeName(idl.main), "@c.pipeFilename(idl.main, idl.main)", O_RDONLY);
+}
+
+void __entry() {
+	#if !defined(_WIN32)
+
+	// _start expects the stack in a very specific configuration.
+	#if defined(__x86_64__)
+	__asm__(
+		"popq %%rbp\n"	// Remove %rbp from the stack that gcc helpfully added.
+		"pushq %%rdx\n" // Store %rdx since we will need it later.
+		:::
+	);
+	#else
+	__asm__(
+		"popl %%ebp\n"	// Remove %ebp from the stack that gcc helpfully added.
+		"pushl %%eax\n" // Save all registers that contain stuff _start expects.
+		"pushl %%edx\n"
+		"pushl %%ecx\n"
+		:::
+	);
+	#endif // __x86_64__
+
+	__libinteractive_init();
+
+	// Perform regular libc startup
+	// Restore all arch-specific registers.
+	#if defined(__x86_64__)
+	__asm__ (
+		"popq %%rdx\n"
+		:::
+	);
+	#else
+	__asm__ (
+		"popl %%ecx\n"
+		"popl %%edx\n"
+		"popl %%eax\n"
+		:::
+	);
+	#endif // __x86_64__
+	// We cannot call _start since that would add stuff to the stack.
+	// Jump to it and everything should be exactly as it expects it to be.
+	__asm__ (
+		"jmp _start@@plt\n"
+		:::
+	);
+
+	#else
+
+	// The Windows case is much simpler, fortunately :)
+	__libinteractive_init();
+	// Perform regular libc startup
+	mainCRTStartup();
+
+	#endif // _WIN32
+}
+
+@c_message_loop(c, options,
+	idl.interfaces.map {
+		interface => (interface, idl.main, c.pipeName(interface))
+	},
+	c.pipeName(idl.main)
+)
+@for(interface <-	idl.interfaces) {
+@for(function <- interface.functions) {
+@c_shim(c, options, function, interface, idl.main,
+	c.pipeName(interface), c.pipeName(idl.main))
+}
+}

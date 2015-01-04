@@ -1,0 +1,58 @@
+@import com.omegaup.libinteractive.idl.ArrayType
+@import com.omegaup.libinteractive.idl.Interface
+@import com.omegaup.libinteractive.idl.PrimitiveType
+@import com.omegaup.libinteractive.target.Options
+@import com.omegaup.libinteractive.target.Python
+@(python: Python, options: Options, interfaces: Iterable[(Interface, Interface, String)], calleeModule: String, infd: String)
+def __message_loop(__current_function, __noreturn):
+	global @infd, @interfaces.map(_._3).mkString(", ")
+	while True:
+		__buf = @(infd).read(4)
+		if len(__buf) == 0:
+			break
+		elif len(__buf) != 4:
+			print>>sys.stderr, "Incomplete message"
+			sys.exit(1)
+		__msgid = struct.unpack('I', __buf)[0]
+		if __msgid == __current_function:
+			return
+@for((caller, callee, outfd) <- interfaces) {
+@for(function <- callee.functions) {
+		elif __msgid == 0x@("%x" format python.functionIds((caller.name, callee.name, function.name))):
+			# @caller.name -> @(callee.name).@function.name
+@if(options.verbose) {
+			print>>sys.stderr, "\tcalling @function.name begin"
+}
+@for(param <- function.params) {
+@* Workaround for https://github.com/playframework/twirl/issues/35 *@
+@if(param.paramType.isInstanceOf[ArrayType]) {
+			@(function.name)_@param.name = @python.readArray(infd, param.paramType.asInstanceOf[ArrayType].primitive, param.paramType.asInstanceOf[ArrayType].lengths, Some(function))
+} else {
+			@(function.name)_@param.name = struct.unpack(@python.structFormat(param.paramType.asInstanceOf[PrimitiveType]), @(infd).read(@python.fieldLength(param.paramType.asInstanceOf[PrimitiveType])))[0]
+}
+}
+			__cookie = struct.unpack('I', @(infd).read(4))[0]
+@if(function.returnType != PrimitiveType("void")) {
+			__result = @(calleeModule).@(function.name)(@function.params.map(function.name + "_" + _.name).mkString(", "))
+} else {
+			@(calleeModule).@(function.name)(@function.params.map(function.name + "_" + _.name).mkString(", "))
+}
+			@(outfd).write(struct.pack('I', __msgid))
+@if(function.returnType != PrimitiveType("void")) {
+			@(outfd).write(struct.pack(@python.structFormat(function.returnType), __result))
+}
+			@(outfd).write(struct.pack('I', __cookie))
+			@(outfd).flush()
+@if(options.verbose) {
+			print>>sys.stderr, "\\tcalling @function.name end"
+}
+}
+}
+		else:
+			print>>sys.stderr, "Unknown message id 0x%x" % __msgid
+			sys.exit(1)
+	if __noreturn:
+		sys.exit(0)
+	if __current_function != -1:
+		print>>sys.stderr, "Confused about exiting"
+		sys.exit(1)

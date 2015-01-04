@@ -1,0 +1,58 @@
+@import com.omegaup.libinteractive.idl.IDL
+@import com.omegaup.libinteractive.idl.Interface
+@import com.omegaup.libinteractive.target.C
+@import com.omegaup.libinteractive.target.Options
+@(c: C, idl: IDL, options: Options, interface: Interface)
+/* @c.message */
+#include "@(options.moduleName).h"
+#define _XOPEN_SOURCE 600
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+#if defined(_WIN32)
+#if !defined(PRIuS)
+#define PRIuS "Iu"
+#endif
+#else
+#if !defined(PRIuS)
+#define PRIuS "zu"
+#endif
+// Windows requires this flag to open files in binary mode using the
+// open syscall.
+#define O_BINARY 0
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+@c_stream_functions(options.verbose)
+
+static struct __stream __in, __out;
+
+#ifdef __cplusplus
+}
+#endif
+
+@c_message_loop(c, options, List((idl.main, interface, "__out")), "__in")
+
+int main(int argc, char* argv[]) {
+	int retval = 0;
+
+	openstream(&__in, "@c.pipeFilename(interface, interface)", O_RDONLY);
+	openstream(&__out, "@c.pipeFilename(idl.main, interface)", O_WRONLY);
+
+	__message_loop(-1, 1);
+
+	closestream(&__in);
+	closestream(&__out);
+
+	return retval;
+}
+
+@for(function <- idl.main.functions) {
+@c_shim(c, options, function, idl.main, interface, "__out", "__in")
+}

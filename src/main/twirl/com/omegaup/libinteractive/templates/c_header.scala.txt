@@ -1,0 +1,10 @@
+@import com.omegaup.libinteractive.idl.Interface
+@import com.omegaup.libinteractive.target.C
+@(c: C, interfaces: Iterable[Interface])
+/* @c.message */
+
+@for(interface <- interfaces) {
+@for(function <- interface.functions) {
+@(c.declareFunction(function));
+}
+}

@@ -1,0 +1,26 @@
+@import com.omegaup.libinteractive.idl.Interface
+@import com.omegaup.libinteractive.idl.PrimitiveType
+@import com.omegaup.libinteractive.target.Java
+@import com.omegaup.libinteractive.target.Options
+@(java: Java, options: Options, moduleName: String, callableInterfaces: Iterable[Interface], interfacesToImplement: Iterable[Interface])
+@for(interface <- callableInterfaces) {
+@if(interface.functions.exists(_ => true)) {
+// class @(interface.name) {
+@for(function <- interface.functions) {
+//	@java.declareFunction(function)
+}
+// }
+}
+}
+@for(interface <- interfacesToImplement) {
+@if(interface.name == moduleName) { public }class @(interface.name) {
+@for(function <- interface.functions) {
+	public static @(java.declareFunction(function)) {
+		// FIXME
+@if(function.returnType != PrimitiveType("void")) {
+		return @java.defaultValue(function.returnType);
+}
+	}
+}
+}
+}

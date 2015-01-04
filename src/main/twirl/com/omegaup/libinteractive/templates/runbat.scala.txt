@@ -1,0 +1,136 @@
+@import _root_.java.nio.file.Paths
+@import com.omegaup.libinteractive.target.MakefileRule
+@import com.omegaup.libinteractive.target.Options
+@import com.omegaup.libinteractive.target.ResolvedOutputLink
+@import com.omegaup.libinteractive.target.Target
+@(target: Target, message: String, allRules: Iterable[MakefileRule], resolvedLinks: Iterable[ResolvedOutputLink], options: Options)
+@@ECHO OFF
+REM @message
+SETLOCAL EnableDelayedExpansion
+
+REM Get all compilers/paths needed
+@for(rule: MakefileRule <- allRules.toSet) {
+CALL :get@rule.compiler || EXIT /B 1
+}
+@if(options.parentLang == "py" || options.childLang == "py") {
+CALL :getpython || EXIT /B 1
+}
+
+REM Update all "links"
+@for(link <- resolvedLinks) {
+SET TARGET=@target.relativeToRoot(link.link).toString.replace("/", "\\")
+SET SOURCES=@target.relativeToRoot(link.target).toString.replace("/", "\\")
+call:recompile %TARGET% %SOURCES%
+IF "%RECOMPILE%" == "1" (
+COPY %SOURCES% %TARGET%
+IF !ERRORLEVEL! NEQ 0 EXIT /B !ERRORLEVEL!
+)
+}
+
+REM Build all binaries (if needed)
+@for(rule <- allRules) {
+SET TARGET=@rule.target.toString.replace("/", "\\")
+SET SOURCES=@rule.requisites.map(_.toString.replace("/", "\\")).mkString(" ")
+call:recompile %TARGET% %SOURCES%
+IF "%RECOMPILE%" == "1" (
+ECHO Compiling %TARGET%
+%@rule.compiler.toString.toUpperCase% @rule.params.replace("$@", "%TARGET%").replace("$^", "%SOURCES%")
+IF !ERRORLEVEL! NEQ 0 EXIT /B !ERRORLEVEL!
+)
+}
+
+REM Run the driver
+@target.relativeToRoot(options.outputDirectory.resolve(Paths.get("run.exe"))).toString.replace("/", "\\")
+IF !ERRORLEVEL! NEQ 0 EXIT /B !ERRORLEVEL!
+GOTO:EOF
+
+:getgcc
+FOR %%A IN (gcc.exe) DO (SET GCC="%%~$PATH:A")
+IF DEFINED GCC GOTO:EOF
+REG QUERY HKCU\Software\CodeBlocks /v Path 2>NUL >NUL
+IF "%ERRORLEVEL%" NEQ "0" (
+ECHO Please install the latest version of CodeBlocks and launch it once
+ECHO http://www.codeblocks.org/downloads/binaries#windows ^(mingw-setup.exe^)
+EXIT /B 1
+GOTO:EOF
+)
+FOR /F "tokens=2*" %%A IN ('REG QUERY HKCU\Software\CodeBlocks /v Path') DO SET GCC=%%B
+SET PATH=%PATH%;%GCC%\MinGW\bin
+SET GCC="%GCC%\MinGW\bin\gcc.exe"
+GOTO:EOF
+
+:getg++
+FOR %%A IN (g++.exe) DO (SET G++="%%~$PATH:A")
+IF DEFINED G++ GOTO:EOF
+REG QUERY HKCU\Software\CodeBlocks /v Path 2>NUL >NUL
+IF "%ERRORLEVEL%" NEQ "0" (
+ECHO Please install the latest version of CodeBlocks and launch it once
+ECHO http://www.codeblocks.org/downloads/binaries#windows ^(mingw-setup.exe^)
+EXIT /B 1
+GOTO:EOF
+)
+FOR /F "tokens=2*" %%A IN ('REG QUERY HKCU\Software\CodeBlocks /v Path') DO SET G++=%%B
+SET PATH=%PATH%;%G++%\MinGW\bin
+SET G++="%G++%\MinGW\bin\g++.exe"
+GOTO:EOF
+
+:getjavac
+FOR %%A IN (javac.exe) DO (SET JAVAC="%%~$PATH:A")
+IF DEFINED JAVAC GOTO:EOF
+REG QUERY "HKLM\Software\JavaSoft\Java Development Kit" /v CurrentVersion 2>NUL >NUL
+IF "%ERRORLEVEL%" NEQ "0" (
+ECHO Please install the latest version of the Java Development Kit
+ECHO http://www.oracle.com/technetwork/java/javase/downloads/
+EXIT /B 1
+GOTO:EOF
+)
+FOR /F "tokens=2*" %%A IN ('REG QUERY "HKLM\Software\JavaSoft\Java Development Kit" /v CurrentVersion') DO SET JAVA_VERSION=%%B
+FOR /F "tokens=2*" %%A IN ('REG QUERY "HKLM\Software\JavaSoft\Java Development Kit\%JAVA_VERSION%" /v JavaHome') DO SET JAVAC=%%B
+SET PATH=%PATH%;%JAVAC%\bin
+SET JAVAC="%JAVAC%\bin\javac.exe"
+GOTO:EOF
+
+:getpython
+FOR %%A IN (python.exe) DO (SET PYTHON="%%~$PATH:A")
+IF DEFINED PYTHON GOTO:EOF
+REG QUERY HKLM\Software\Python\PythonCore\2.7\InstallPath /ve 2>NUL >NUL
+IF "%ERRORLEVEL%" NEQ "0" (
+ECHO Please install the latest version of Python 2.7
+ECHO https://www.python.org/downloads/
+EXIT /B 1
+GOTO:EOF
+)
+FOR /F "tokens=2*" %%A IN ('REG QUERY HKLM\Software\Python\PythonCore\2.7\InstallPath /ve') DO SET PYTHON=%%B
+SET PATH=%PATH%;%PYTHON%
+SET PYTHON="%PYTHON%\python.exe"
+GOTO:EOF
+
+:getfpc
+FOR %%A IN (fpc.exe) DO (SET FPC="%%~$PATH:A")
+IF DEFINED FPC GOTO:EOF
+IF NOT EXIST "%LOCALAPPDATA%\lazarus\environmentoptions.xml" (
+ECHO Please install the latest version of Lazarus and run it once
+ECHO http://www.lazarus.freepascal.org/index.php?page=downloads
+EXIT /B 1
+GOTO:EOF
+)
+FOR /F tokens^=2^ delims^=^" %%A IN ('findstr "<CompilerFilename" "%LOCALAPPDATA%\lazarus\environmentoptions.xml"') DO SET FPC=%%A
+SET PATH=%PATH%;%FPC\..
+SET FPC="%FPC%"
+GOTO:EOF
+
+:recompile
+SET RECOMPILE=0
+IF NOT EXIST %~1 (
+SET RECOMPILE=1
+GOTO:EOF
+)
+FOR /F %%i IN ('DIR /S /B %~1') DO SET TARGET=%%i
+:params
+SHIFT
+IF "%~1" == "" GOTO endparams
+FOR /F %%i IN ('DIR /S /B %~1') DO SET SOURCE=%%i
+FOR /F %%i IN ('DIR /S /B /O:D %TARGET% %SOURCE%') DO SET NEWEST=%%i
+IF "%NEWEST%" == "%SOURCE%" (SET RECOMPILE=1) ELSE (GOTO params)
+:endparams
+GOTO:EOF

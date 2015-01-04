@@ -1,0 +1,49 @@
+@import com.omegaup.libinteractive.idl.ArrayType
+@import com.omegaup.libinteractive.idl.Function
+@import com.omegaup.libinteractive.idl.IDL
+@import com.omegaup.libinteractive.idl.Interface
+@import com.omegaup.libinteractive.idl.PrimitiveType
+@import com.omegaup.libinteractive.target.C
+@import com.omegaup.libinteractive.target.Options
+@(c: C, options: Options, function: Function, callee: Interface, caller: Interface, outfd: String, infd: String)
+@(c.declareFunction(function)) {
+@if(options.verbose) {
+	fprintf(stderr, "invoking @function.name begin\n")
+}
+	const int __msgid = 0x@("%x" format c.functionIds((caller.name, callee.name, function.name)));
+	writefull(&@outfd, &__msgid, sizeof(int));
+@for(param <- function.params) {
+@param.paramType match {
+	case _: PrimitiveType => {
+	writefull(&@outfd, &@param.name, @c.fieldLength(param.paramType));
+	}
+	case _: ArrayType => {
+	writefull(&@outfd, @param.name, @c.fieldLength(param.paramType));
+	}
+}
+}
+	int __cookie = 0x@("%x" format c.rand.nextInt);
+	writefull(&@outfd, &__cookie, sizeof(__cookie));
+	writeflush(&@outfd);
+
+	__message_loop(__msgid, @if(function.noReturn) { 1 } else { 0 });
+@if(function.returnType != PrimitiveType("void")) {
+	@c.formatType(function.returnType) __ans = @c.defaultValue(function.returnType);
+	readfull(&@infd, &__ans, sizeof(__ans), 1);
+}
+	int __cookie_result = 0;
+	readfull(&@infd, &__cookie_result, sizeof(int), 1);
+
+	if (__cookie != __cookie_result) {
+		fprintf(stderr, "invalid __cookie\n");
+		exit(1);
+	}
+
+@if(options.verbose) {
+	fprintf(stderr, "invoking @function.name end\n");
+}
+
+@if(function.returnType != PrimitiveType("void")) {
+	return __ans;
+}
+}

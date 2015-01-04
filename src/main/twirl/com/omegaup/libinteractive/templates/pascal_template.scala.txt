@@ -1,0 +1,41 @@
+@import com.omegaup.libinteractive.idl.Interface
+@import com.omegaup.libinteractive.idl.PrimitiveType
+@import com.omegaup.libinteractive.target.Options
+@import com.omegaup.libinteractive.target.Pascal
+@(pascal: Pascal, options: Options, moduleName: String, callableInterfaces: Iterable[Interface], interfacesToImplement: Iterable[Interface], callableModuleName: String)
+unit @moduleName;
+{
+	unit @callableModuleName;
+@for(interface <- callableInterfaces) {
+@for(function <- interface.functions) {
+	@pascal.declareFunction(function)
+}
+}
+}
+
+interface
+@if(pascal.arrayTypes.size > 0) {
+type
+@pascal.arrayTypes.mkString("\n")
+}
+@for(interface <- interfacesToImplement) {
+@for(function <- interface.functions) {
+	@pascal.declareFunction(function)
+}
+}
+
+implementation
+
+uses @callableModuleName;
+@for(interface <- interfacesToImplement) {
+@for(function <- interface.functions) {
+@pascal.declareFunction(function)
+begin
+	{ FIXME }
+@if(function.returnType != PrimitiveType("void")) {
+	@function.name := @pascal.defaultValue(function.returnType);
+}
+end;
+}
+}
+end.

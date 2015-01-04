@@ -1,0 +1,113 @@
+@(verbose: Boolean)
+/**
+ * Generates little-endian streams that are compatible with the C implementation.
+ * This makes libinteractive work in 95% of the CPUs out there.
+ */
+class LEDataInputStream extends FilterInputStream {
+	public LEDataInputStream(String path) throws FileNotFoundException {
+@if(verbose) {
+		System.err.printf("opening `%s'\n", path);
+}
+		super(new BufferedInputStream(new FileInputStream(path)));
+	}
+
+	public boolean readBool() throws IOException {
+		int c = in.read();
+		if (c == -1) {
+			throw new EOFException();
+		}
+		return c != 0;
+	}
+
+	public char readChar() throws IOException {
+		int c = in.read();
+		if (c == -1) {
+			throw new EOFException();
+		}
+		return (char)c;
+	}
+
+	public float readFloat() throws IOException {
+		return Float.intBitsToFloat(readInt());
+	}
+
+	public double readDouble() throws IOException {
+		return Double.longBitsToDouble(readLong());
+	}
+
+	public long readLong() throws IOException {
+		byte[] b = new byte[8];
+		if (in.read(b) != 8) {
+			throw new EOFException();
+		}
+		return ((b[7] & 0xffL) << 56L) | ((b[6] & 0xffL) << 48L) |
+				((b[5] & 0xffL) << 40L) | ((b[4] & 0xffL) << 32L) |
+				((b[3] & 0xffL) << 24L) | ((b[2] & 0xffL) << 16L) |
+				((b[1] & 0xffL) << 8L) | (b[0] & 0xffL);
+	}
+
+	public int readInt() throws IOException {
+		byte[] b = new byte[4];
+		if (in.read(b) != 4) {
+			throw new EOFException();
+		}
+		return ((b[3] & 0xff) << 24) | ((b[2] & 0xff) << 16) |
+			((b[1] & 0xff) << 8) | (b[0] & 0xff);
+	}
+
+	public short readShort() throws IOException {
+		byte[] b = new byte[2];
+		if (in.read(b) != 2) {
+			throw new EOFException();
+		}
+		return (short)(((b[1] & 0xff) << 8) | (b[0] & 0xff));
+	}
+}
+
+class LEDataOutputStream extends FilterOutputStream {
+	public LEDataOutputStream(String path) throws FileNotFoundException {
+@if(verbose) {
+		System.err.printf("opening `%s'\n", path);
+}
+		super(new BufferedOutputStream(new FileOutputStream(path)));
+	}
+
+	public void writeShort(short x) throws IOException {
+		out.write((x >>> 0) & 0xFF);
+		out.write((x >>> 8) & 0xFF);
+	}
+
+	public void writeInt(int x) throws IOException {
+		out.write((x >>> 0) & 0xFF);
+		out.write((x >>> 8) & 0xFF);
+		out.write((x >>> 16) & 0xFF);
+		out.write((x >>> 24) & 0xFF);
+	}
+
+	public void writeLong(long x) throws IOException {
+		out.write((int)((x >>> 0L) & 0xFF));
+		out.write((int)((x >>> 8L) & 0xFF));
+		out.write((int)((x >>> 16L) & 0xFF));
+		out.write((int)((x >>> 24L) & 0xFF));
+		out.write((int)((x >>> 32L) & 0xFF));
+		out.write((int)((x >>> 40L) & 0xFF));
+		out.write((int)((x >>> 48L) & 0xFF));
+		out.write((int)((x >>> 56L) & 0xFF));
+	}
+
+	public void writeChar(char c) throws IOException {
+		out.write((int)c);
+	}
+
+	public void writeFloat(float f) throws IOException {
+		writeInt(Float.floatToIntBits(f));
+	}
+
+	public void writeDouble(double d) throws IOException {
+		writeLong(Double.doubleToLongBits(d));
+	}
+
+	public void writeBool(boolean b) throws IOException {
+		out.write(b ? 1 : 0);
+	}
+}

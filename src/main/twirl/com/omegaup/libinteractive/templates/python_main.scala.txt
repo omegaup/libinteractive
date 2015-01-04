@@ -1,0 +1,44 @@
+@import com.omegaup.libinteractive.idl.IDL
+@import com.omegaup.libinteractive.idl.Interface
+@import com.omegaup.libinteractive.target.Options
+@import com.omegaup.libinteractive.target.Python
+@(python: Python, options: Options, idl: IDL)
+#!/usr/bin/python
+# @python.message
+
+import array
+import struct
+import sys
+import time
+
+def __readarray(infd, format, l):
+	arr = array.array(format)
+	arr.fromstring(infd.read(l))
+	return arr
+
+@python_message_loop(python, options,
+	idl.interfaces.map{
+		interface => (interface, idl.main, python.pipeName(interface))
+	},
+	idl.main.name,
+	python.pipeName(idl.main)
+)
+
+@for(interface <- idl.interfaces) {
+@for(function <- interface.functions) {
+@python_shim(python, options, function, interface, idl.main,
+		python.pipeName(interface), python.pipeName(idl.main))
+}
+}
+
+@for(interface <- idl.interfaces) {
+@if(options.verbose) {
+print>>sys.stderr, "\topening `@python.pipeFilename(interface, idl.main)'"
+}
+@python.pipeName(interface) = open("@python.pipeFilename(interface, idl.main)", 'wb')
+}
+@if(options.verbose) {
+print>>sys.stderr, "\topening `@python.pipeFilename(idl.main, idl.main)'"
+}
+@python.pipeName(idl.main) = open("@python.pipeFilename(idl.main, idl.main)", 'rb')
+import @idl.main.name

@@ -1,0 +1,69 @@
+@import com.omegaup.libinteractive.idl.Interface
+@import com.omegaup.libinteractive.idl.PrimitiveType
+@import com.omegaup.libinteractive.target.Options
+@import com.omegaup.libinteractive.target.Pascal
+@(pascal: Pascal, options: Options, interface: Interface, main: Interface)
+{ @pascal.message }
+
+unit @main.name;
+
+interface
+@if(pascal.arrayTypes.size > 0) {
+type
+@pascal.arrayTypes.mkString("\n")
+}
+	procedure __entry();
+@main.functions.map("\t" + pascal.declareFunction(_)).mkString("\n")
+
+implementation
+
+uses
+  @(options.moduleName), Classes, SysUtils;
+
+var
+	__in: TFileStream;
+	__out: TFileStream;
+
+procedure __read_full(stream: TStream; var buffer; count: LongWord);
+var
+	bufPtr: Pointer;
+	bytesRead: LongInt;
+begin
+	bufPtr := @@buffer;
+	while (count > 0) do
+	begin
+		bytesRead := stream.Read(bufPtr^, count);
+		if (bytesRead <= 0) then
+		begin
+			raise EStreamError.Create('Incomplete message. Exiting.');
+		end;
+		bufPtr += bytesRead;
+		count -= bytesRead;
+	end;
+end;
+
+@pascal_message_loop(pascal, options,
+	List((main, interface, "__out")),
+	options.moduleName,
+	"__in")
+
+procedure __entry();
+begin
+@if(options.verbose) {
+	Writeln(ErrOutput, #9'opening `@pascal.pipeFilename(interface, interface).replace("\\\\", "\\")''');
+}
+	__in := TFileStream.Create('@pascal.pipeFilename(interface, interface).replace("\\\\", "\\")',
+			fmOpenRead or fmShareDenyNone);
+@if(options.verbose) {
+	Writeln(ErrOutput, #9'opening `@pascal.pipeFilename(main, interface).replace("\\\\", "\\")''');
+}
+	__out := TFileStream.Create('@pascal.pipeFilename(main, interface).replace("\\\\", "\\")',
+			fmOpenWrite or fmShareDenyNone);
+	__message_loop($FFFFFFFF, true);
+end;
+
+@for(function <- main.functions) {
+@pascal_shim(pascal, options, function, main, interface, "__out", "__in")
+}
+
+end.
