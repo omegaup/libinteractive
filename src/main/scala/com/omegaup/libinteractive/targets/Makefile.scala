@@ -28,7 +28,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 				List(Paths.get("run.c")),
 				Compiler.Gcc, "-std=c99 -o $@ -lrt $^ -O2 -D_XOPEN_SOURCE=600 " +
 				"-D_BSD_SOURCE -Wall"))).map(resolve)
-		val makefile = templates.txt.makefile(message,
+		val makefile = templates.code.makefile(message,
 			allRules = allRules,
 			allExecutables = allRules.map(_.target).mkString(" "),
 			runPath = relativeToRoot(options.outputDirectory.resolve(Paths.get("run"))))
@@ -43,7 +43,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 					List(Paths.get("run.c")),
 					Compiler.Gcc, "-std=c99 -o $@ $^ -O2 -lpsapi -Wall"))).map(resolve)
 
-		val runbat = templates.txt.runbat(this, message, allRules, resolvedLinks, options)
+		val runbat = templates.code.runbat(this, message, allRules, resolvedLinks, options)
 
 		List(
 			OutputFile(options.root.resolve("run.bat"), runbat.toString, false),
@@ -61,7 +61,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 	}
 
 	private def generateRunDriver() = {
-		val rundriver = templates.txt.rundriver_unix(this, message, idl, commands,
+		val rundriver = templates.code.rundriver_unix(this, message, idl, commands,
 			numProcesses = commands.foldLeft(0)((length, _) => length + 1),
 			maxCommandLength = commands.foldLeft(0)((length, exec) =>
 				Math.max(length, exec.args.length)) + 1,
@@ -74,7 +74,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 	}
 
 	private def generateRunDriverWindows() = {
-		val rundriver = templates.txt.rundriver_windows(this, message, idl, commands,
+		val rundriver = templates.code.rundriver_windows(this, message, idl, commands,
 			numProcesses = commands.foldLeft(0)((length, _) => length + 1),
 			maxNameLength = idl.allInterfaces.foldLeft(0)((length, interface) =>
 				Math.max(length, interface.name.length)))

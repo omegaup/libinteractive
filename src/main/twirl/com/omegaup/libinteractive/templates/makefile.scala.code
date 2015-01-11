@@ -4,11 +4,12 @@
 # @message
 
 all: @allExecutables
+
 @for(rule <- allRules) {
 @rule.target: @rule.requisites.mkString(" ")
 	@rule.compiler @rule.params
-}
 
+}
 .PHONY: run
 run: @allExecutables
 	@@@runPath

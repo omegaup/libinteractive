@@ -42,34 +42,31 @@ begin
 @if(param.paramType.isInstanceOf[ArrayType]) {
 @defining(param.paramType.asInstanceOf[ArrayType]) { array =>
 @if(array.lengths.head.isInstanceOf[ParameterLength]) {
-				SetLength(@(function.name)_@(param.name),
-					@(function.name)_@(array.lengths.head.asInstanceOf[ParameterLength].value));
+				SetLength(@(function.name)_@(param.name), @(function.name)_@(array.lengths.head.asInstanceOf[ParameterLength].value));
 }
-				__read_full(@infd,
-						@(function.name)_@(param.name)@array.lengths.map(_ => "[0]").mkString,
-						@pascal.fieldLength(array, Some(function)));
+				__read_full(@infd, @(function.name)_@(param.name)@array.lengths.map(_ => "[0]").mkString, @pascal.fieldLength(array, Some(function)));
 }
 } else {
-				__read_full(@infd, @(function.name)_@(param.name),
-						sizeof(@(function.name)_@(param.name)));
+				__read_full(@infd, @(function.name)_@(param.name), sizeof(@(function.name)_@(param.name)));
 }
 }
 				__read_full(@infd, __cookie, sizeof(__cookie));
 @if(function.returnType != PrimitiveType("void")) {
 				@(function.name)___result :=
 }
-				@(calleeModule).@(function.name)(@function.params.map(
-						function.name + "_" + _.name).mkString(", "));
+
+				@(calleeModule).@(function.name)(@function.params.map(function.name + "_" + _.name).mkString(", "));
+
 				@(outfd).WriteBuffer(__msgid, sizeof(__msgid));
 @if(function.returnType != PrimitiveType("void")) {
-				@(outfd).WriteBuffer(@(function.name)___result,
-						sizeof(@(function.name)___result));
+				@(outfd).WriteBuffer(@(function.name)___result, sizeof(@(function.name)___result));
 }
 				@(outfd).WriteBuffer(__cookie, sizeof(__cookie));
 @if(options.verbose) {
 				Writeln(ErrOutput, #9,'calling @function.name end');
 }
 			end;
+
 }
 }
 			else begin

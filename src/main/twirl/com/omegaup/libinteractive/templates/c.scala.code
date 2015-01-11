@@ -55,4 +55,5 @@ int main(int argc, char* argv[]) {
 
 @for(function <- idl.main.functions) {
 @c_shim(c, options, function, idl.main, interface, "__out", "__in")
+
 }

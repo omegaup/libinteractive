@@ -82,13 +82,13 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 				"Refusing to overwrite file. Delete it or invoke with --force to override.")
 		}
 
-		val template = templates.txt.c_template(this, options, callableInterfaces, interfacesToImplement)
+		val template = templates.code.c_template(this, options, callableInterfaces, interfacesToImplement)
 
 		List(OutputFile(input, template.toString, false))
 	}
 
 	private def generateHeader(interface: Interface) = {
-		val header = templates.txt.c_header(this, List(interface, idl.main))
+		val header = templates.code.c_header(this, List(interface, idl.main))
 
 		OutputFile(
 			Paths.get(interface.name, s"${options.moduleName}.h"),
@@ -96,7 +96,7 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 	}
 
 	private def generate(interface: Interface) = {
-		val child = templates.txt.c(this, idl, options, interface)
+		val child = templates.code.c(this, idl, options, interface)
 		
 		OutputFile(
 			Paths.get(interface.name, s"${interface.name}_entry.$extension"),
@@ -104,7 +104,7 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 	}
 
 	private def generateMainHeader() = {
-		val header = templates.txt.c_header(this, idl.allInterfaces)
+		val header = templates.code.c_header(this, idl.allInterfaces)
 
 		OutputFile(
 			Paths.get(idl.main.name, s"${options.moduleName}.h"),
@@ -112,7 +112,7 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 	}
 
 	private def generateMainFile() = {
-		val c = templates.txt.c_main(this, options, idl)
+		val c = templates.code.c_main(this, options, idl)
 		OutputFile(
 			Paths.get(idl.main.name, s"${idl.main.name}_entry.$extension"),
 			c.toString)

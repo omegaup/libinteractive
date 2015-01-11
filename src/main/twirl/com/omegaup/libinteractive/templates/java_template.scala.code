@@ -12,6 +12,7 @@
 // }
 }
 }
+
 @for(interface <- interfacesToImplement) {
 @if(interface.name == moduleName) { public }class @(interface.name) {
 @for(function <- interface.functions) {
@@ -21,6 +22,8 @@
 		return @java.defaultValue(function.returnType);
 }
 	}
+
 }
 }
+
 }

@@ -24,20 +24,19 @@
 @for(param <- function.params) {
 @* Workaround for https://github.com/playframework/twirl/issues/35 *@
 @if(param.paramType.isInstanceOf[ArrayType]) {
-					@java.declareVar(param, function) =
-						@java.allocateArray(param.paramType.asInstanceOf[ArrayType], function);
+					@java.declareVar(param, function) = @java.allocateArray(param.paramType.asInstanceOf[ArrayType], function);
 @java.readArray(infd, param, param.paramType.asInstanceOf[ArrayType], Some(function), 5)
 } else {
-					@java.declareVar(param, function) =
-						@(infd).@(java.readPrimitive(param.paramType.asInstanceOf[PrimitiveType]))();
+					@java.declareVar(param, function) = @(infd).@(java.readPrimitive(param.paramType.asInstanceOf[PrimitiveType]))();
 }
 }
 					int __cookie = @(infd).readInt();
+
 @if(function.returnType != PrimitiveType("void")) {
 					@java.formatType(function.returnType) __result = 
 }
-					@(callee.name).@(function.name)(
-						@function.params.map(function.name + "_" + _.name).mkString(", "));
+					@(callee.name).@(function.name)(@function.params.map(function.name + "_" + _.name).mkString(", "));
+
 					@(outfd).writeInt(__msgid);
 @if(function.returnType != PrimitiveType("void")) {
 					@(outfd).@(java.writePrimitive(function.returnType))(__result);
@@ -49,6 +48,7 @@
 }
 					break;
 				}
+
 }
 }
 				default: {

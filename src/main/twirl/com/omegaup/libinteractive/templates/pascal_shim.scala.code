@@ -19,20 +19,23 @@ begin
 	Writeln(ErrOutput, #9'invoking @function.name begin');
 }
 	__msgid := $@("%x" format pascal.functionIds((caller.name, callee.name, function.name)));
+	__cookie := $@("%x" format pascal.rand.nextInt);
+
 	@(outfd).WriteBuffer(__msgid, sizeof(__msgid));
 @for(param <- function.params) {
 @param.paramType match {
-	case array: ArrayType => {
+case array: ArrayType => {
 	@(outfd).WriteBuffer(@(param.name)@array.lengths.map(_ => "[0]").mkString, @pascal.fieldLength(array));
-	}
-	case primitive: PrimitiveType => {
+}
+case primitive: PrimitiveType => {
 	@(outfd).WriteBuffer(@param.name, sizeof(@param.name));
-	}
 }
 }
-	__cookie := $@("%x" format pascal.rand.nextInt);
+}
 	@(outfd).WriteBuffer(__cookie, sizeof(__cookie));
+
 	__message_loop(__msgid, @function.noReturn);
+
 @if(function.returnType != PrimitiveType("void")) {
 	__read_full(@infd, __result, sizeof(__result));
 }
@@ -42,11 +45,9 @@ begin
 		Writeln(ErrOutput, 'invalid cookie');
 		Halt(1);
 	end;
-
 @if(options.verbose) {
 	Writeln(ErrOutput, #9'invoking @function.name end');
 }
-
 @if(function.returnType != PrimitiveType("void")) {
 	@function.name := __result;
 }

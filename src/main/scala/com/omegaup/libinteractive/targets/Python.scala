@@ -76,10 +76,10 @@ class Python(idl: IDL, options: Options, input: Path, parent: Boolean)
 				"Refusing to overwrite file. Delete it or invoke with --force to override.")
 		}
 
-		val template = templates.txt.python_template(this,
+		val template = templates.code.python_template(this,
 			options, callableInterfaces, interfacesToImplement)
 
-		List(OutputFile(input, template.toString.trim, false))
+		List(OutputFile(input, template.toString, false))
 	}
 
 	def structFormat(formatType: Type): String = {
@@ -151,11 +151,11 @@ runpy.run_module("${idl.main.name}", run_name="__main__")
 	}
 
 	private def generateMain() = {
-		val main = templates.txt.python_main(this, options, idl) 
+		val main = templates.code.python_main(this, options, idl) 
 
 		OutputFile(
 			Paths.get(idl.main.name, s"${options.moduleName}.py"),
-			main.toString.trim)
+			main.toString)
 	}
 
 	private def generate(interface: Interface) = {
@@ -171,11 +171,11 @@ import ${idl.main.name}
 	}
 
 	private def generateLib(interface: Interface) = {
-		val python = templates.txt.python(this, options, interface, idl.main)
+		val python = templates.code.python(this, options, interface, idl.main)
 
 		OutputFile(
 			Paths.get(interface.name, s"${idl.main.name}.py"),
-			python.toString.trim)
+			python.toString)
 	}
 
 	def formatLength(length: ArrayLength, function: Option[Function]) = {

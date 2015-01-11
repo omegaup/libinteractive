@@ -11,18 +11,19 @@
 	fprintf(stderr, "invoking @function.name begin\n")
 }
 	const int __msgid = 0x@("%x" format c.functionIds((caller.name, callee.name, function.name)));
+	const int __cookie = 0x@("%x" format c.rand.nextInt);
+
 	writefull(&@outfd, &__msgid, sizeof(int));
 @for(param <- function.params) {
 @param.paramType match {
-	case _: PrimitiveType => {
+case _: PrimitiveType => {
 	writefull(&@outfd, &@param.name, @c.fieldLength(param.paramType));
-	}
-	case _: ArrayType => {
+}
+case _: ArrayType => {
 	writefull(&@outfd, @param.name, @c.fieldLength(param.paramType));
-	}
 }
 }
-	int __cookie = 0x@("%x" format c.rand.nextInt);
+}
 	writefull(&@outfd, &__cookie, sizeof(__cookie));
 	writeflush(&@outfd);
 
@@ -38,11 +39,10 @@
 		fprintf(stderr, "invalid __cookie\n");
 		exit(1);
 	}
-
 @if(options.verbose) {
+
 	fprintf(stderr, "invoking @function.name end\n");
 }
-
 @if(function.returnType != PrimitiveType("void")) {
 	return __ans;
 }

@@ -17,6 +17,7 @@ interface
 @if(pascal.arrayTypes.size > 0) {
 type
 @pascal.arrayTypes.mkString("\n")
+
 }
 @for(interface <- interfacesToImplement) {
 @for(function <- interface.functions) {
@@ -27,6 +28,7 @@ type
 implementation
 
 uses @callableModuleName;
+
 @for(interface <- interfacesToImplement) {
 @for(function <- interface.functions) {
 @pascal.declareFunction(function)
@@ -36,6 +38,7 @@ begin
 	@function.name := @pascal.defaultValue(function.returnType);
 }
 end;
+
 }
 }
 end.

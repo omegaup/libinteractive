@@ -71,7 +71,7 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 				"Refusing to overwrite file. Delete it or invoke with --force to override.")
 		}
 
-		val template = templates.txt.pascal_template(this,
+		val template = templates.code.pascal_template(this,
 			options, moduleName, callableInterfaces,
 			interfacesToImplement, callableModuleName)
 
@@ -109,7 +109,7 @@ end.
 	}
 
 	private def generate(interface: Interface) = {
-		val pascal = templates.txt.pascal(this, options, interface, idl.main)
+		val pascal = templates.code.pascal(this, options, interface, idl.main)
 
 		OutputFile(
 			Paths.get(interface.name, s"${idl.main.name}.pas"),

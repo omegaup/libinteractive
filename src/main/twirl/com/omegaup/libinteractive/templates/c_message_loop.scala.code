@@ -16,25 +16,24 @@ static void __message_loop(int __current_function, int __noreturn) {
 @if(options.verbose) {
 				fprintf(stderr, "calling @function.name begin\n");
 }
+				int __cookie;
 @for(param <- function.params) {
 @* Workaround for https://github.com/playframework/twirl/issues/35 *@
 @if(param.paramType.isInstanceOf[ArrayType]) {
-				@c.declareVar(param, function) =
-					(@c.formatType(param.paramType))malloc(@c.fieldLength(param.paramType, Some(function)));
-				readfull(&@infd, @(function.name)_@param.name,
-					@c.fieldLength(param.paramType, Some(function)), 1);
+				@c.declareVar(param, function) = (@c.formatType(param.paramType))malloc(@c.fieldLength(param.paramType, Some(function)));
+				readfull(&@infd, @(function.name)_@param.name, @c.fieldLength(param.paramType, Some(function)), 1);
 } else {
 				@c.declareVar(param, function);
-				readfull(&@infd, &@(function.name)_@param.name,
-					@c.fieldLength(param.paramType, Some(function)), 1);
+				readfull(&@infd, &@(function.name)_@param.name, @c.fieldLength(param.paramType, Some(function)), 1);
 }
 }
-				int __cookie;
 				readfull(&@infd, &__cookie, sizeof(int), 1);
+
 @if(function.returnType != PrimitiveType("void")) {
 				@c.formatType(function.returnType) result =
 }
 				@(function.name)(@function.params.map(function.name + "_" + _.name).mkString(", "));
+
 				writefull(&@outfd, &__msgid, sizeof(int));
 @if(function.returnType != PrimitiveType("void")) {
 				writefull(&@outfd, &result, sizeof(result));
@@ -52,6 +51,7 @@ static void __message_loop(int __current_function, int __noreturn) {
 }
 				break;
 			}
+
 }
 }
 			default: {

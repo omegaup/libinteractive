@@ -10,6 +10,8 @@ scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
 
 lazy val root = (project in file(".")).enablePlugins(SbtTwirl)
 
+TwirlKeys.templateFormats += ("code" -> "com.omegaup.libinteractive.templates.CodeFormat")
+
 exportJars := true
 
 packageOptions in (Compile, packageBin) +=
@@ -47,7 +49,7 @@ ProguardKeys.options in Proguard ++= Seq(
 ProguardKeys.inputFilter in Proguard := { file =>
   file.name match {
     case s if s.startsWith("libinteractive") => None
-    case _ => Some("!META-INF/MANIFEST.MF,!rootdoc.txt")
+    case _ => Some("!META-INF/MANIFEST.MF,!META-INF/LICENSE.txt,!META-INF/NOTICE.txt,!rootdoc.txt")
   }
 }
 

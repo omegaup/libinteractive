@@ -11,21 +11,24 @@
 			System.err.printf("invoking @function.name begin\n");
 }
 			final int __msgid = 0x@("%x" format java.functionIds((caller.name, callee.name, function.name)));
+			final int __cookie = 0x@("%x" format java.rand.nextInt);
+
 			@(outfd).writeInt(__msgid);
 @for(param <- function.params) {
 @param.paramType match {
-	case primitive: PrimitiveType => {
+case primitive: PrimitiveType => {
 			@(outfd).@(java.writePrimitive(primitive))(@param.name);
-	}
-	case array: ArrayType => {
+}
+case array: ArrayType => {
 @java.writeArray(outfd, param, array, 3)
-	}
 }
 }
-			int __cookie = 0x@("%x" format java.rand.nextInt);
+}
 			@(outfd).writeInt(__cookie);
 			@(outfd).flush();
+
 			@(caller.name)_entry.__message_loop(__msgid, @function.noReturn);
+
 @if(function.returnType != PrimitiveType("void")) {
 			@java.formatType(function.returnType) __ans =
 				@(infd).@(java.readPrimitive(function.returnType))();
@@ -35,14 +38,12 @@
 				System.err.printf("invalid cookie\n");
 				System.exit(1);
 			}
-
 @if(options.verbose) {
 			System.err.printf("invoking @function.name end\n");
 }
 @if(function.returnType != PrimitiveType("void")) {
 			return __ans;
 }
-
 		} catch (IOException __e) {
 			System.err.println(__e);
 			__e.printStackTrace();

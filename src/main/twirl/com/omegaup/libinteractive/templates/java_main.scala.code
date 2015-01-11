@@ -48,6 +48,8 @@ class @(interface.name) {
 @java_shim(java, options, function, interface, idl.main,
 		s"${idl.main.name}_entry.${java.pipeName(interface)}",
 		s"${idl.main.name}_entry.${java.pipeName(idl.main)}")
+
 }
 }
+
 }

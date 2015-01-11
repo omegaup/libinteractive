@@ -87,14 +87,14 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 				"Refusing to overwrite file. Delete it or invoke with --force to override.")
 		}
 
-		val template = templates.txt.java_template(this, options,
+		val template = templates.code.java_template(this, options,
 			moduleName, callableInterfaces, interfacesToImplement)
 
 		List(OutputFile(input, template.toString, false))
 	}
 
 	private def generate(interface: Interface) = {
-		val java = templates.txt.java(this, options, interface, idl.main)
+		val java = templates.code.java(this, options, interface, idl.main)
 
 		OutputFile(
 			Paths.get(interface.name, s"${interface.name}_entry.java"),
@@ -102,7 +102,7 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 	}
 
 	private def generateMainFile() = {
-		val java = templates.txt.java_main(this, options, idl)
+		val java = templates.code.java_main(this, options, idl)
 
 		OutputFile(
 			Paths.get(idl.main.name, s"${idl.main.name}_entry.java"),

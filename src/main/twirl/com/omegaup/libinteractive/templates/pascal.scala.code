@@ -64,6 +64,6 @@ end;
 
 @for(function <- main.functions) {
 @pascal_shim(pascal, options, function, main, interface, "__out", "__in")
-}
 
+}
 end.

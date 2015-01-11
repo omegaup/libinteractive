@@ -115,9 +115,11 @@ void __entry() {
 	},
 	c.pipeName(idl.main)
 )
+
 @for(interface <-	idl.interfaces) {
 @for(function <- interface.functions) {
 @c_shim(c, options, function, interface, idl.main,
 	c.pipeName(interface), c.pipeName(idl.main))
+
 }
 }

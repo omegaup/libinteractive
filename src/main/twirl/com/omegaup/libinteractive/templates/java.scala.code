@@ -43,5 +43,6 @@ class @(main.name) {
 @java_shim(java, options, function, main, interface,
 		s"${interface.name}_entry.__out",
 		s"${interface.name}_entry.__in")
+
 }
 }

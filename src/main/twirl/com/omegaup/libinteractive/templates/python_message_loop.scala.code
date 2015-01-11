@@ -32,11 +32,13 @@ def __message_loop(__current_function, __noreturn):
 }
 }
 			__cookie = struct.unpack('I', @(infd).read(4))[0]
+
 @if(function.returnType != PrimitiveType("void")) {
 			__result = @(calleeModule).@(function.name)(@function.params.map(function.name + "_" + _.name).mkString(", "))
 } else {
 			@(calleeModule).@(function.name)(@function.params.map(function.name + "_" + _.name).mkString(", "))
 }
+
 			@(outfd).write(struct.pack('I', __msgid))
 @if(function.returnType != PrimitiveType("void")) {
 			@(outfd).write(struct.pack(@python.structFormat(function.returnType), __result))
@@ -46,6 +48,7 @@ def __message_loop(__current_function, __noreturn):
 @if(options.verbose) {
 			print>>sys.stderr, "\\tcalling @function.name end"
 }
+
 }
 }
 		else:
