@@ -8,7 +8,7 @@
 @(c: C, options: Options, function: Function, callee: Interface, caller: Interface, outfd: String, infd: String)
 @(c.declareFunction(function)) {
 @if(options.verbose) {
-	fprintf(stderr, "invoking @function.name begin\n")
+	fprintf(stderr, "invoking @function.name begin\n");
 }
 	const int __msgid = 0x@("%x" format c.functionIds((caller.name, callee.name, function.name)));
 	const int __cookie = 0x@("%x" format c.rand.nextInt);
