@@ -18,13 +18,9 @@ CALL :getpython || EXIT /B 1
 
 REM Update all "links"
 @for(link <- resolvedLinks) {
-SET TARGET=@target.relativeToRoot(link.link).toString.replace("/", "\\")
-SET SOURCES=@target.relativeToRoot(link.target).toString.replace("/", "\\")
-call:recompile %TARGET% %SOURCES%
-IF "%RECOMPILE%" == "1" (
-COPY %SOURCES% %TARGET%
+xcopy "@target.relativeToRoot(link.target).toString.replace("/", "\\")" "@target.relativeToRoot(link.link).getParent.toString.replace("/", "\\")" /D /Y >NUL
 IF !ERRORLEVEL! NEQ 0 EXIT /B !ERRORLEVEL!
-)
+
 }
 
 REM Build all binaries (if needed)
@@ -33,10 +29,12 @@ SET TARGET=@rule.target.toString.replace("/", "\\")
 SET SOURCES=@rule.requisites.map(_.toString.replace("/", "\\")).mkString(" ")
 call:recompile %TARGET% %SOURCES%
 IF "%RECOMPILE%" == "1" (
-ECHO Compiling %TARGET%
+<NUL SET /p elidenewline=Compiling %TARGET%... 
 %@rule.compiler.toString.toUpperCase% @rule.params.replace("$@", "%TARGET%").replace("$^", "%SOURCES%")
 IF !ERRORLEVEL! NEQ 0 EXIT /B !ERRORLEVEL!
+ECHO DONE
 )
+
 }
 
 REM Run the driver
@@ -125,12 +123,12 @@ IF NOT EXIST %~1 (
 SET RECOMPILE=1
 GOTO:EOF
 )
-FOR /F %%i IN ('DIR /S /B %~1') DO SET TARGET=%%i
+SET _TARGET=%~f1
 :params
 SHIFT
 IF "%~1" == "" GOTO endparams
-FOR /F %%i IN ('DIR /S /B %~1') DO SET SOURCE=%%i
-FOR /F %%i IN ('DIR /S /B /O:D %TARGET% %SOURCE%') DO SET NEWEST=%%i
-IF "%NEWEST%" == "%SOURCE%" (SET RECOMPILE=1) ELSE (GOTO params)
+SET _SOURCE=%~f1
+FOR /F delims^=^^ %%i IN ('DIR /S /B /O:D "%_TARGET%" "%_SOURCE%"') DO SET _NEWEST=%%i
+IF "%_NEWEST%" == "%_SOURCE%" (SET RECOMPILE=1) ELSE (GOTO params)
 :endparams
 GOTO:EOF
