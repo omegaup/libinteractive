@@ -37,6 +37,11 @@ static void __interface_init(struct interface* interface, int parent, const char
 		write(2, "transactfd\n", 11);
 		exit(1);
 	}
+
+	// Make sure the child process waits until the parent issues a read() call.
+	unsigned long long message = parent;
+	write(interface->transact_fd, &message, sizeof(message));
+
 	interface->shm_fd = open(shm_name, O_RDWR);
 	if (interface->shm_fd == -1) {
 		write(2, "shm_open\n", 9);
@@ -52,15 +57,11 @@ static void __interface_init(struct interface* interface, int parent, const char
 		write(2, "mmap\n", 5);
 		exit(1);
 	}
-	unsigned long long message = 0;
 	if (parent) {
 		interface->shm->free_offset = 0;
 		interface->shm->size = size - 32;
 		interface->shm->message_list = (ptrdiff_t)-1;
-		message = 1;
 	}
-	// Make sure the child process waits until the parent issues a read() call.
-	write(interface->transact_fd, &message, sizeof(message));
 }
 
 static struct message* __message_alloc(struct interface* interface, size_t bytes) {

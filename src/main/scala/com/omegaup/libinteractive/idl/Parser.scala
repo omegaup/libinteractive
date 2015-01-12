@@ -23,9 +23,14 @@ case class IDL(main: Interface, interfaces: List[Interface])
 	def allInterfaces() = List(main) ++ interfaces
 }
 
-case class Interface(name: String, functions: List[Function])
-		extends Object with AstNode {
+case class Interface(name: String, functions: List[Function],
+		attributes: List[Attribute]) extends Object with AstNode {
 	override def children() = functions
+
+	def shmSize() = attributes.flatMap(_ match {
+		case size: ShmSizeAttribute => Some(size)
+		case _ => None
+	}).headOption.getOrElse(ShmSizeAttribute(64 * 1024)).size
 }
 
 case class Function(returnType: PrimitiveType, name: String, params: List[Parameter],
@@ -105,6 +110,8 @@ case class RangeAttribute(min: Expression, max: Expression) extends Attribute {
 		}
 	}
 }
+case class ShmSizeAttribute(size: Long) extends Attribute {}
+
 case class Parameter(paramType: Type, name: String, attributes: List[Attribute])
 		extends Object with AstNode {
 	override def children() = List(paramType) ++ attributes
@@ -223,7 +230,7 @@ class Parser extends StandardTokenParsers {
 	lexical.delimiters ++= List("(", ")", "[", "]", "{", "}", ",", ";")
 	lexical.reserved += (
 			"bool", "char", "short", "int", "long", "float", "double", "string", "void",
-			"interface", "NoReturn", "Range")
+			"interface", "NoReturn", "Range", "ShmSize")
 
 	def parse(input: String): IDL = {
 		interfaceList(new lexical.Scanner(input)) match {
@@ -253,8 +260,9 @@ class Parser extends StandardTokenParsers {
 	private def interfaceList = phrase(rep1(interface)) ^^
 			{ case interfaces => new IDL(addNoReturn(interfaces.head), interfaces.tail) }
 	private def interface =
-			"interface" ~> name ~ ("{" ~> rep(function) <~ "}") <~ ";" ^^
-			{ case name ~ functions => new Interface(name, functions) }
+			rep(interfaceAttributes) ~ ("interface" ~> name) ~
+			("{" ~> rep(function) <~ "}") <~ ";" ^^
+			{ case attributes ~ name ~ functions => new Interface(name, functions, attributes) }
 
 	private def function =
 			(rep(functionAttributes) ~ returnType ~ name ~
@@ -326,9 +334,15 @@ class Parser extends StandardTokenParsers {
 					Validator.validateParam(attributes, paramType, name, declaredParams).get
 			})
 
-	private def functionAttributes = "[" ~> noret <~ "]"
+	private def interfaceAttributes = "[" ~> interfaceAttribute <~ "]"
+	private def interfaceAttribute = shmSize
+	private def shmSize = "ShmSize" ~> "(" ~> numericLit <~ ")" ^^
+			{ case size => new ShmSizeAttribute(size.toLong) }
+	private def functionAttributes = "[" ~> functionAttribute <~ "]"
+	private def functionAttribute = noret
 	private def noret = "NoReturn" ^^	{ case _ => NoReturnAttribute }
-	private def paramAttributes = "[" ~> range <~ "]"
+	private def paramAttributes = "[" ~> paramAttribute <~ "]"
+	private def paramAttribute = range
 	private def range =
 			"Range" ~> "(" ~> expression ~ ("," ~> expression) <~ ")" ^^
 			{ case minExpr ~ maxExpr => new RangeAttribute(minExpr, maxExpr) }

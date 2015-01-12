@@ -77,7 +77,7 @@ static void __NOINLINE __libinteractive_init() {
 
 @for(interface <- idl.interfaces) {
 	__interface_init(&@c.transactName(interface), 1, "@interface.name",
-		"@c.transactFilename(interface)", "@c.shmFilename(interface)", 65536);
+		"@c.transactFilename(interface)", "@c.shmFilename(interface)", @interface.shmSize);
 }
 } else {
 @for(interface <- idl.interfaces) {

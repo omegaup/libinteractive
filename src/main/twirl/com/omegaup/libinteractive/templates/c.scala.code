@@ -75,7 +75,7 @@ int main(int argc, char* argv[]) {
 
 	__interface_init(&@c.transactName(interface), 0, "@interface.name",
 		"@c.transactFilename(interface)",
-		"@c.shmFilename(interface)", 65536);
+		"@c.shmFilename(interface)", @interface.shmSize);
 
 	struct message* message = @(c.transactName(interface)).shm->root +
 			@(c.transactName(interface)).shm->msg_offset;

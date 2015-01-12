@@ -12,7 +12,7 @@ all: @allExecutables
 }
 .PHONY: clean
 clean:
-	@@rm $allExecutables
+	@@rm @allExecutables
 
 .PHONY: run
 run: @allExecutables
