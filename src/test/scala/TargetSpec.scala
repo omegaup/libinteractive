@@ -119,7 +119,7 @@ class TargetSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
 		val directory = Paths.get("templates")
 		val output = Source.fromFile(deploy(directory.resolve("output")).toFile).mkString.trim
 		for (lang <- List("c", "cpp", "java", "py", "pas")) {
-			run("c", lang, directory, output, Options(generateTemplate = true))
+			run("c", lang, directory, output, Options(generateTemplate = true, verbose = true))
 		}
 	}
 }

@@ -5,10 +5,10 @@
  */
 class LEDataInputStream extends FilterInputStream {
 	public LEDataInputStream(String path) throws FileNotFoundException {
-@if(verbose) {
-		System.err.printf("opening `%s'\n", path);
-}
 		super(new BufferedInputStream(new FileInputStream(path)));
+@if(verbose) {
+		System.err.printf("opened `%s'\n", path);
+}
 	}
 
 	public boolean readBool() throws IOException {
@@ -66,10 +66,10 @@ class LEDataInputStream extends FilterInputStream {
 
 class LEDataOutputStream extends FilterOutputStream {
 	public LEDataOutputStream(String path) throws FileNotFoundException {
-@if(verbose) {
-		System.err.printf("opening `%s'\n", path);
-}
 		super(new BufferedOutputStream(new FileOutputStream(path)));
+@if(verbose) {
+		System.err.printf("opened `%s'\n", path);
+}
 	}
 
 	public void writeShort(short x) throws IOException {

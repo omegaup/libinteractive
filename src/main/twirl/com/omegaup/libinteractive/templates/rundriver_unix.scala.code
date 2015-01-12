@@ -17,13 +17,17 @@
 #include <unistd.h>
 
 #define NUM_PROCESSES @numProcesses
+#define NUM_PIPES @((numProcesses - 1) * 2)
 #define LABEL_FORMAT "[%@(maxNameLength)s] "
 
 const char* interfaces[] = {
 	@idl.allInterfaces.map('"' + _.name + '"').mkString(", ")
 };
 const char* pipeNames[] = {
-	@idl.allInterfaces.map(interface => '"' + target.pipeFilename(interface, interface) + '"').mkString(", ")
+	@idl.interfaces.flatMap(interface => List(
+		'"' + target.pipeFilename(interface, interface, true) + '"',
+		'"' + target.pipeFilename(interface, interface, false) + '"'
+	)).mkString(", ")
 };
 char* const commands[][@maxCommandLength] = {
 @for(command <- commands) {
@@ -103,7 +107,7 @@ int main(int argc, char* argv[]) {
 
 	int retval = 0;
 	struct stat st;
-	for (int i = 0; i < NUM_PROCESSES; i++) {
+	for (int i = 0; i < NUM_PIPES; i++) {
 		if (stat(pipeNames[i], &st) != -1) {
 			if (S_ISFIFO(st.st_mode)) {
 				// Pipe already exists.
@@ -221,7 +225,7 @@ int main(int argc, char* argv[]) {
 	}
 
 cleanup:
-	for (int i = 0; i < NUM_PROCESSES; i++) {
+	for (int i = 0; i < NUM_PIPES; i++) {
 		if (unlink(pipeNames[i]) == -1) {
 			perror("unlink");
 		}

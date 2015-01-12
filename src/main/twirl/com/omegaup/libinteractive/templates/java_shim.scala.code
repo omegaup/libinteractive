@@ -27,7 +27,7 @@ case array: ArrayType => {
 			@(outfd).writeInt(__cookie);
 			@(outfd).flush();
 
-			@(caller.name)_entry.__message_loop(__msgid, @function.noReturn);
+			@(caller.name)_entry.__message_loop_@(callee.name)(__msgid, @function.noReturn);
 
 @if(function.returnType != PrimitiveType("void")) {
 			@java.formatType(function.returnType) __ans =

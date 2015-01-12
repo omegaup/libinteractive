@@ -321,30 +321,25 @@ abstract class Target(idl: IDL, options: Options) {
 		}
 	}
 
-	def pipeFilename(interface: Interface, caller: Interface) = {
-		if (options.pipeDirectories) {
-			s"${interface.name}_pipes/pipe"
+	def pipeFilename(interface: Interface, caller: Interface, input: Boolean) = {
+		(if (options.pipeDirectories) {
+			s"${interface.name}_pipes/"
 		} else {
-			options.os match {
-				case OS.Unix => interface.name match {
-					case "Main" => "out"
-					case name: String => s"${name}_in"
-				}
-				case OS.Windows => s"\\\\\\\\.\\\\pipe\\\\${caller.name}_" + (
-					interface.name match {
-						case "Main" => "out"
-						case name: String => s"${name}_in"
-					}
-				)
-			}
-		}
+			(options.os match {
+				case OS.Unix => ""
+				case OS.Windows => s"\\\\\\\\.\\\\pipe\\\\libinteractive_${caller.name}_"
+			}) + s"${interface.name}_"
+		}) + (input match {
+			case true => "in"
+			case false => "out"
+		})
 	}
 
-	def pipeName(interface: Interface) = {
-		interface.name match {
-			case "Main" => "__out"
-			case name: String => s"__${name}_in"
-		}
+	def pipeName(interface: Interface, input: Boolean) = {
+		s"__${interface.name}_" + (input match {
+			case true => "in"
+			case false => "out"
+		})
 	}
 
 	def relativeToRoot(path: Path) = {

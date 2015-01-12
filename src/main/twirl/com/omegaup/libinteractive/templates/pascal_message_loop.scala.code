@@ -4,20 +4,18 @@
 @import com.omegaup.libinteractive.idl.PrimitiveType
 @import com.omegaup.libinteractive.target.Options
 @import com.omegaup.libinteractive.target.Pascal
-@(pascal: Pascal, options: Options, interfaces: Iterable[(Interface, Interface, String)], calleeModule: String, infd: String)
-procedure __message_loop(__current_function: LongWord; __noreturn: Boolean);
+@(pascal: Pascal, options: Options, caller: Interface, callee: Interface, outfd: String, infd: String, calleeModule: String)
+procedure __message_loop_@(caller.name)(__current_function: LongWord; __noreturn: Boolean);
 var
 	__bytesRead: LongInt;
 	__msgid: LongWord;
 	__cookie: LongWord;
-@for((caller, callee, outfd) <- interfaces) {
 @for(function <- callee.functions) {
 @if(function.returnType != PrimitiveType("void")) {
 	@(function.name)___result: @pascal.formatType(function.returnType);
 }
 @for(param <- function.params) {
 	@(function.name)_@(param.name): @pascal.formatType(param.paramType);
-}
 }
 }
 begin
@@ -29,7 +27,6 @@ begin
 		if (__msgid = __current_function) then
 			exit;
 		case __msgid of
-@for((caller, callee, outfd) <- interfaces) {
 @for(function <- callee.functions) {
 			$@("%x" format pascal.functionIds((caller.name, callee.name, function.name))):
 			begin
@@ -67,7 +64,6 @@ begin
 }
 			end;
 
-}
 }
 			else begin
 				Writeln(ErrOutput, 'Unknown message id 0x', IntToHex(__msgid, 8));

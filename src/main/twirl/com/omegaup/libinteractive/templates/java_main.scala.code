@@ -22,22 +22,21 @@ import java.io.OutputStream;
 
 public class @(idl.main.name)_entry {
 	static long __elapsed_time = 0;
-	static LEDataInputStream @java.pipeName(idl.main) = null;
-	static LEDataOutputStream @idl.interfaces.map(java.pipeName).mkString(", ");
+	static LEDataInputStream @idl.interfaces.map(java.pipeName(_, false)).mkString(", ");
+	static LEDataOutputStream @idl.interfaces.map(java.pipeName(_, true)).mkString(", ");
 
-@java_message_loop(java, options, idl.interfaces.map {
-	interface => (interface, idl.main, java.pipeName(interface))
-	},
-	java.pipeName(idl.main)
-)
+@for(interface <- idl.interfaces) {
+@java_message_loop(java, options, interface, idl.main,
+		java.pipeName(interface, true), java.pipeName(interface, false))
 
+}
 	public static void main(String[] args) throws IOException {
 @for(interface <- idl.interfaces) {
-		@java.pipeName(interface) =
-				new LEDataOutputStream("@java.pipeFilename(interface, idl.main)");
+		@java.pipeName(interface, true) =
+				new LEDataOutputStream("@java.pipeFilename(interface, idl.main, true)");
+		@java.pipeName(interface, false) =
+				new LEDataInputStream("@java.pipeFilename(interface, idl.main, false)");
 }
-		@java.pipeName(idl.main) =
-				new LEDataInputStream("@java.pipeFilename(idl.main, idl.main)");
 		@(idl.main.name).main(args);
 	}
 }
@@ -46,8 +45,8 @@ public class @(idl.main.name)_entry {
 class @(interface.name) {
 @for(function <- interface.functions) {
 @java_shim(java, options, function, interface, idl.main,
-		s"${idl.main.name}_entry.${java.pipeName(interface)}",
-		s"${idl.main.name}_entry.${java.pipeName(idl.main)}")
+		s"${idl.main.name}_entry.${java.pipeName(interface, true)}",
+		s"${idl.main.name}_entry.${java.pipeName(interface, false)}")
 
 }
 }

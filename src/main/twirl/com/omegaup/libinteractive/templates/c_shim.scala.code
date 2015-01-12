@@ -27,7 +27,7 @@ case _: ArrayType => {
 	writefull(&@outfd, &__cookie, sizeof(__cookie));
 	writeflush(&@outfd);
 
-	__message_loop(__msgid, @if(function.noReturn) { 1 } else { 0 });
+	__message_loop_@(callee.name)(__msgid, @if(function.noReturn) { 1 } else { 0 });
 @if(function.returnType != PrimitiveType("void")) {
 	@c.formatType(function.returnType) __ans = @c.defaultValue(function.returnType);
 	readfull(&@infd, &__ans, sizeof(__ans), 1);

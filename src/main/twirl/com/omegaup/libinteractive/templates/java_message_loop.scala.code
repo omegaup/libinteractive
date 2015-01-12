@@ -3,8 +3,8 @@
 @import com.omegaup.libinteractive.idl.PrimitiveType
 @import com.omegaup.libinteractive.target.Java
 @import com.omegaup.libinteractive.target.Options
-@(java: Java, options: Options, interfaces: Iterable[(Interface, Interface, String)], infd: String)
-	static void __message_loop(int __current_function, boolean __noreturn) throws IOException {
+@(java: Java, options: Options, caller: Interface, callee: Interface, outfd: String, infd: String)
+	static void __message_loop_@(caller.name)(int __current_function, boolean __noreturn) throws IOException {
 		int __msgid;
 		while (true) {
 			try {
@@ -14,7 +14,6 @@
 			}
 			if (__msgid == __current_function) return;
 			switch (__msgid) {
-@for((caller, callee, outfd) <- interfaces) {
 @for(function <- callee.functions) {
 				case 0x@("%x" format java.functionIds((caller.name, callee.name, function.name))): {
 					// @(caller.name) -> @(callee.name).@function.name
@@ -49,7 +48,6 @@
 					break;
 				}
 
-}
 }
 				default: {
 					System.err.printf("Unknown message id 0x%x\n", __msgid);

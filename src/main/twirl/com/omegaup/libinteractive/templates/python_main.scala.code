@@ -16,29 +16,25 @@ def __readarray(infd, format, l):
 	arr.fromstring(infd.read(l))
 	return arr
 
-@python_message_loop(python, options,
-	idl.interfaces.map{
-		interface => (interface, idl.main, python.pipeName(interface))
-	},
-	idl.main.name,
-	python.pipeName(idl.main)
-)
-
 @for(interface <- idl.interfaces) {
+@python_message_loop(python, options, interface, idl.main,
+		python.pipeName(interface, true), python.pipeName(interface, false),
+		idl.main.name)
+
 @for(function <- interface.functions) {
 @python_shim(python, options, function, interface, idl.main,
-		python.pipeName(interface), python.pipeName(idl.main))
+		python.pipeName(interface, true), python.pipeName(interface, false))
 }
 }
 
 @for(interface <- idl.interfaces) {
 @if(options.verbose) {
-print>>sys.stderr, "\topening `@python.pipeFilename(interface, idl.main)'"
+print>>sys.stderr, "\topening `@python.pipeFilename(interface, idl.main, true)'"
 }
-@python.pipeName(interface) = open("@python.pipeFilename(interface, idl.main)", 'wb')
-}
+@python.pipeName(interface, true) = open("@python.pipeFilename(interface, idl.main, true)", 'wb')
 @if(options.verbose) {
-print>>sys.stderr, "\topening `@python.pipeFilename(idl.main, idl.main)'"
+print>>sys.stderr, "\topening `@python.pipeFilename(interface, idl.main, false)'"
 }
-@python.pipeName(idl.main) = open("@python.pipeFilename(idl.main, idl.main)", 'rb')
+@python.pipeName(interface, false) = open("@python.pipeFilename(interface, idl.main, false)", 'rb')
+}
 import @idl.main.name

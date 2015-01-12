@@ -42,7 +42,9 @@ void __entry();
 
 @c_stream_functions(options.verbose)
 
-static struct __stream @idl.allInterfaces.map(c.pipeName).mkString(", ");
+static struct __stream @idl.interfaces.flatMap(interface =>
+		List(c.pipeName(interface, true), c.pipeName(interface, false))
+).mkString(", ");
 
 #ifdef __cplusplus
 }
@@ -50,9 +52,9 @@ static struct __stream @idl.allInterfaces.map(c.pipeName).mkString(", ");
 
 static void __libinteractive_init() {
 @for(interface <- idl.interfaces) {
-	openstream(&@c.pipeName(interface), "@c.pipeFilename(interface, idl.main)", O_WRONLY);
+	openstream(&@c.pipeName(interface, true), "@c.pipeFilename(interface, idl.main, true)", O_WRONLY);
+	openstream(&@c.pipeName(interface, false), "@c.pipeFilename(interface, idl.main, false)", O_RDONLY);
 }
-	openstream(&@c.pipeName(idl.main), "@c.pipeFilename(idl.main, idl.main)", O_RDONLY);
 }
 
 void __entry() {
@@ -109,17 +111,13 @@ void __entry() {
 	#endif // _WIN32
 }
 
-@c_message_loop(c, options,
-	idl.interfaces.map {
-		interface => (interface, idl.main, c.pipeName(interface))
-	},
-	c.pipeName(idl.main)
-)
+@for(interface <- idl.interfaces) {
+@c_message_loop(c, options, interface, idl.main,
+		c.pipeName(interface, true), c.pipeName(interface, false))
 
-@for(interface <-	idl.interfaces) {
 @for(function <- interface.functions) {
 @c_shim(c, options, function, interface, idl.main,
-	c.pipeName(interface), c.pipeName(idl.main))
+	c.pipeName(interface, true), c.pipeName(interface, false))
 
 }
 }

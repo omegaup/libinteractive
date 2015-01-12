@@ -25,7 +25,6 @@ static void openstream(struct __stream* stream, const char* path, int flags) {
 
 static void closestream(struct __stream* stream) {
 @if(verbose) {
-	stream->path = path;
 	fprintf(stderr, "Closing `%s'\n", stream->path);
 }
 	if (close(stream->fd) == -1) {

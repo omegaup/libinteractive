@@ -37,23 +37,23 @@ static struct __stream __in, __out;
 }
 #endif
 
-@c_message_loop(c, options, List((idl.main, interface, "__out")), "__in")
+@c_message_loop(c, options, idl.main, interface, "__out", "__in")
+
+@for(function <- idl.main.functions) {
+@c_shim(c, options, function, idl.main, interface, "__out", "__in")
+
+}
 
 int main(int argc, char* argv[]) {
 	int retval = 0;
 
-	openstream(&__in, "@c.pipeFilename(interface, interface)", O_RDONLY);
-	openstream(&__out, "@c.pipeFilename(idl.main, interface)", O_WRONLY);
+	openstream(&__in, "@c.pipeFilename(interface, interface, true)", O_RDONLY);
+	openstream(&__out, "@c.pipeFilename(interface, interface, false)", O_WRONLY);
 
-	__message_loop(-1, 1);
+	__message_loop_@(idl.main.name)(-1, 1);
 
 	closestream(&__in);
 	closestream(&__out);
 
 	return retval;
-}
-
-@for(function <- idl.main.functions) {
-@c_shim(c, options, function, idl.main, interface, "__out", "__in")
-
 }

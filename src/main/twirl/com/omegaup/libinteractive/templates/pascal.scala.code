@@ -42,24 +42,22 @@ begin
 	end;
 end;
 
-@pascal_message_loop(pascal, options,
-	List((main, interface, "__out")),
-	options.moduleName,
-	"__in")
+@pascal_message_loop(pascal, options, main, interface,
+		"__out", "__in", options.moduleName)
 
 procedure __entry();
 begin
 @if(options.verbose) {
-	Writeln(ErrOutput, #9'opening `@pascal.pipeFilename(interface, interface).replace("\\\\", "\\")''');
+	Writeln(ErrOutput, #9'opening `@pascal.pipeFilename(interface, interface, true).replace("\\\\", "\\")''');
 }
-	__in := TFileStream.Create('@pascal.pipeFilename(interface, interface).replace("\\\\", "\\")',
+	__in := TFileStream.Create('@pascal.pipeFilename(interface, interface, true).replace("\\\\", "\\")',
 			fmOpenRead or fmShareDenyNone);
 @if(options.verbose) {
-	Writeln(ErrOutput, #9'opening `@pascal.pipeFilename(main, interface).replace("\\\\", "\\")''');
+	Writeln(ErrOutput, #9'opening `@pascal.pipeFilename(interface, interface, false).replace("\\\\", "\\")''');
 }
-	__out := TFileStream.Create('@pascal.pipeFilename(main, interface).replace("\\\\", "\\")',
+	__out := TFileStream.Create('@pascal.pipeFilename(interface, interface, false).replace("\\\\", "\\")',
 			fmOpenWrite or fmShareDenyNone);
-	__message_loop($FFFFFFFF, true);
+	__message_loop_@(main.name)($FFFFFFFF, true);
 end;
 
 @for(function <- main.functions) {

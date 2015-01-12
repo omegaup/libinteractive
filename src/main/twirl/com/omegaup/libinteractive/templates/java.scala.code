@@ -23,16 +23,16 @@ public class @(interface.name)_entry {
 	static LEDataInputStream __in = null;
 	static LEDataOutputStream __out = null;
 
-@java_message_loop(java, options, List((main, interface, "__out")), "__in")
+@java_message_loop(java, options, main, interface, "__out", "__in")
 
 	public static void main(String[] args) throws IOException {
 		try (LEDataInputStream fin =
-				new LEDataInputStream("@java.pipeFilename(interface, interface)")) {
+				new LEDataInputStream("@java.pipeFilename(interface, interface, true)")) {
 			try (LEDataOutputStream fout =
-					new LEDataOutputStream("@java.pipeFilename(main, interface)")) {
+					new LEDataOutputStream("@java.pipeFilename(interface, interface, false)")) {
 				__in = fin;
 				__out = fout;
-				__message_loop(-1, true);
+				__message_loop_@(main.name)(-1, true);
 			}
 		}
 	}

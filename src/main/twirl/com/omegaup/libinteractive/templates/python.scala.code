@@ -14,10 +14,8 @@ def __readarray(infd, format, l):
 	arr.fromstring(infd.read(l))
 	return arr
 
-@python_message_loop(python, options,
-	List((main, interface, "__fout")),
-	options.moduleName,
-	"__fin")
+@python_message_loop(python, options, main, interface,
+		"__fout", "__fin", options.moduleName)
 
 @for(function <- main.functions) {
 @python_shim(python, options, function, main, interface,
@@ -25,12 +23,12 @@ def __readarray(infd, format, l):
 }
 
 @if(options.verbose) {
-print>>sys.stderr, "\topening `@python.pipeFilename(interface, interface)'"
+print>>sys.stderr, "\topening `@python.pipeFilename(interface, interface, true)'"
 }
-with open("@python.pipeFilename(interface, interface)", 'rb') as __fin:
+with open("@python.pipeFilename(interface, interface, true)", 'rb') as __fin:
 @if(options.verbose) {
-	print>>sys.stderr, "\topening `@python.pipeFilename(main, interface)'"
+	print>>sys.stderr, "\topening `@python.pipeFilename(interface, interface, false)'"
 }
-	with open("@python.pipeFilename(main, interface)", 'wb') as __fout:
+	with open("@python.pipeFilename(interface, interface, false)", 'wb') as __fout:
 		import @options.moduleName
-		__message_loop(-1, True)
+		__message_loop_@(main.name)(-1, True)

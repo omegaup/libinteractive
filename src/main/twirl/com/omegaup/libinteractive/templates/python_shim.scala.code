@@ -25,7 +25,7 @@ case array: ArrayType => {
 	@(outfd).write(struct.pack('I', __cookie))
 	@(outfd).flush()
 
-	__message_loop(__msgid, @if(function.noReturn) { True } else { False })
+	__message_loop_@(callee.name)(__msgid, @if(function.noReturn) { True } else { False })
 
 @if(function.returnType != PrimitiveType("void")) {
 	__ans = struct.unpack(@python.structFormat(function.returnType), @{infd}.read(@python.fieldLength(function.returnType)))[0]

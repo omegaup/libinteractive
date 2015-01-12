@@ -3,13 +3,12 @@
 @import com.omegaup.libinteractive.idl.PrimitiveType
 @import com.omegaup.libinteractive.target.C
 @import com.omegaup.libinteractive.target.Options
-@(c: C, options: Options, interfaces: Iterable[(Interface, Interface, String)], infd: String)
-static void __message_loop(int __current_function, int __noreturn) {
+@(c: C, options: Options, caller: Interface, callee: Interface, outfd: String, infd: String)
+static void __message_loop_@(caller.name)(int __current_function, int __noreturn) {
 	int __msgid;
 	while (readfull(&@infd, &__msgid, sizeof(int), 0)) {
 		if (__msgid == __current_function) return;
 		switch (__msgid) {
-@for((caller, callee, outfd) <- interfaces) {
 @for(function <- callee.functions) {
 			case 0x@("%x" format c.functionIds((caller.name, callee.name, function.name))): {
 				// @caller.name -> @(callee.name).@(function.name)
@@ -52,7 +51,6 @@ static void __message_loop(int __current_function, int __noreturn) {
 				break;
 			}
 
-}
 }
 			default: {
 				fprintf(stderr, "Unknown message id 0x%x\n", __msgid);
