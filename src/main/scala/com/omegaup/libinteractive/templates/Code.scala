@@ -16,7 +16,7 @@ class StringAppender {
   private val builder = new StringBuilder
   var chopNext = false
   def append(string: String): Unit = {
-    if (string.length == 0) return
+    if (string == null || string.length == 0) return
 
     if (chopNext && string.charAt(0) == '\n') {
       builder.append(string.substring(1))

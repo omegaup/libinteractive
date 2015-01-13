@@ -1,21 +1,24 @@
 name := "libinteractive"
 
-version := "1.5.0"
+version := "1.5.1"
 
-organization := "omegaup"
+organization := "com.omegaup"
 
 scalaVersion := "2.10.4"
 
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
 
-lazy val root = (project in file(".")).enablePlugins(SbtTwirl)
+lazy val root = (project in file("."))
+	.enablePlugins(SbtTwirl)
+
+publishArtifact in (Proguard) := true
 
 TwirlKeys.templateFormats += ("code" -> "com.omegaup.libinteractive.templates.CodeFormat")
 
 exportJars := true
 
 packageOptions in (Compile, packageBin) +=
-    Package.ManifestAttributes( java.util.jar.Attributes.Name.MAIN_CLASS -> "com.omegaup.libinteractive.Main" )
+	Package.ManifestAttributes( java.util.jar.Attributes.Name.MAIN_CLASS -> "com.omegaup.libinteractive.Main" )
 
 mappings in (Compile, packageBin) ++= Seq(
 	(baseDirectory.value / "LICENSE") -> "LICENSE",
