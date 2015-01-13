@@ -44,7 +44,7 @@ GOTO:EOF
 
 :getgcc
 FOR %%A IN (gcc.exe) DO (SET GCC="%%~$PATH:A")
-IF DEFINED GCC GOTO:EOF
+IF %GCC% NEQ "" GOTO:EOF
 REG QUERY HKCU\Software\CodeBlocks /v Path 2>NUL >NUL
 IF "%ERRORLEVEL%" NEQ "0" (
 ECHO Please install the latest version of CodeBlocks and launch it once
@@ -59,7 +59,7 @@ GOTO:EOF
 
 :getg++
 FOR %%A IN (g++.exe) DO (SET G++="%%~$PATH:A")
-IF DEFINED G++ GOTO:EOF
+IF %G++% NEQ "" GOTO:EOF
 REG QUERY HKCU\Software\CodeBlocks /v Path 2>NUL >NUL
 IF "%ERRORLEVEL%" NEQ "0" (
 ECHO Please install the latest version of CodeBlocks and launch it once
@@ -74,7 +74,7 @@ GOTO:EOF
 
 :getjavac
 FOR %%A IN (javac.exe) DO (SET JAVAC="%%~$PATH:A")
-IF DEFINED JAVAC GOTO:EOF
+IF %JAVAC% NEQ "" GOTO:EOF
 REG QUERY "HKLM\Software\JavaSoft\Java Development Kit" /v CurrentVersion 2>NUL >NUL
 IF "%ERRORLEVEL%" NEQ "0" (
 ECHO Please install the latest version of the Java Development Kit
@@ -90,7 +90,7 @@ GOTO:EOF
 
 :getpython
 FOR %%A IN (python.exe) DO (SET PYTHON="%%~$PATH:A")
-IF DEFINED PYTHON GOTO:EOF
+IF %PYTHON% NEQ "" GOTO:EOF
 REG QUERY HKLM\Software\Python\PythonCore\2.7\InstallPath /ve 2>NUL >NUL
 IF "%ERRORLEVEL%" NEQ "0" (
 ECHO Please install the latest version of Python 2.7
@@ -105,7 +105,7 @@ GOTO:EOF
 
 :getfpc
 FOR %%A IN (fpc.exe) DO (SET FPC="%%~$PATH:A")
-IF DEFINED FPC GOTO:EOF
+IF %FPC% NEQ "" GOTO:EOF
 IF NOT EXIST "%LOCALAPPDATA%\lazarus\environmentoptions.xml" (
 ECHO Please install the latest version of Lazarus and run it once
 ECHO http://www.lazarus.freepascal.org/index.php?page=downloads
