@@ -6,6 +6,8 @@ package com.omegaup.libinteractive.target
 
 import java.io.Closeable
 import java.io.File
+import java.io.ByteArrayOutputStream
+import java.io.OutputStreamWriter
 import java.io.FileOutputStream
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
@@ -224,11 +226,22 @@ class ZipVisitor(installPath: Path, zipFilename: Path)
 			} else {
 				file.path
 			}).toString)
-			val bytes = file.contents.getBytes(StandardCharsets.UTF_8)
-			entry.setSize(bytes.length)
+			val bytes = new ByteArrayOutputStream
+			val writer = new OutputStreamWriter(bytes, StandardCharsets.UTF_8)
+			var lastChar = '\0'
+			for (c <- file.contents) {
+				if (c == '\n' && lastChar != '\r') {
+					writer.write('\r')
+				}
+				lastChar = c
+				writer.write(c)
+			}
+			writer.close
+			val rawBytes = bytes.toByteArray
+			entry.setSize(rawBytes.length)
 			entry.setTime(System.currentTimeMillis)
 			zip.putNextEntry(entry)
-			zip.write(bytes, 0, bytes.length)
+			zip.write(rawBytes, 0, rawBytes.length)
 			zip.closeEntry
 		}
 	}
@@ -269,17 +282,6 @@ class WindowsLinkFilter(root: Path) extends LinkFilter {
 					resolvedLink, link.target)
 				None
 			}
-			case path: OutputPath => Some(path)
-		}
-	}
-}
-
-object WindowsLineEndingFilter extends OutputPathFilter {
-	override def apply(input: OutputPath) = {
-		input match {
-			case file: OutputFile =>
-				Some(OutputFile(file.path, file.contents.replace("\n", "\r\n"),
-					file.relative))
 			case path: OutputPath => Some(path)
 		}
 	}
@@ -371,7 +373,7 @@ object Generator {
 
 		val originalTargets = List(parent, child)
 		val originalOutputs = originalTargets.flatMap(_.generate)
-		val outputs = if (options.makefile) {
+		if (options.makefile) {
 			val filter = options.os match {
 				case OS.Unix => NoOpLinkFilter
 				case OS.Windows => new WindowsLinkFilter(options.outputDirectory)
@@ -384,13 +386,6 @@ object Generator {
 		} else {
 			originalOutputs
 		}
-
-		val filter = options.os match {
-			case OS.Unix => NoOpFilter
-			case OS.Windows => WindowsLineEndingFilter
-		}
-
-		outputs.flatMap(filter.apply)
 	}
 
 	def target(lang: String, idl: IDL, options: Options, input: Path,
