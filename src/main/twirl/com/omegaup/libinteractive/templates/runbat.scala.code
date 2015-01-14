@@ -9,8 +9,8 @@ REM @message
 SETLOCAL EnableDelayedExpansion
 
 REM Get all compilers/paths needed
-@for(rule: MakefileRule <- allRules.toSet) {
-CALL :get@rule.compiler || EXIT /B 1
+@for(compiler: String <- allRules.map(_.compiler.toString).toSet) {
+CALL :get@compiler || EXIT /B 1
 }
 @if(options.parentLang == "py" || options.childLang == "py") {
 CALL :getpython || EXIT /B 1
@@ -18,8 +18,13 @@ CALL :getpython || EXIT /B 1
 
 REM Update all "links"
 @for(link <- resolvedLinks) {
-xcopy "@target.relativeToRoot(link.target).toString.replace("/", "\\")" "@target.relativeToRoot(link.link).getParent.toString.replace("/", "\\")" /D /Y >NUL
+SET TARGET=@target.relativeToRoot(link.link).toString.replace("/", "\\")
+SET SOURCES=@target.relativeToRoot(link.target).toString.replace("/", "\\")
+call:recompile %TARGET% %SOURCES%
+IF "%RECOMPILE%" == "1" (
+copy %SOURCES% %TARGET%
 IF !ERRORLEVEL! NEQ 0 EXIT /B !ERRORLEVEL!
+)
 
 }
 
@@ -117,18 +122,34 @@ SET PATH=%PATH%;%FPC\..
 SET FPC="%FPC%"
 GOTO:EOF
 
+:getModificationTime
+set _FILE=%~f1
+set _FILE=%_FILE:\=\\%
+IF NOT EXIST %~1 (
+	SET MODIFICATIONTIME=0
+	GOTO:EOF
+)
+FOR /F "skip=1 tokens=1 usebackq" %%A IN (`wmic datafile where name^="%_FILE%" GET LastModified`) DO (
+	SET MODIFICATIONTIME=%%A
+	GOTO:EOF
+)
+GOTO:EOF
+
 :recompile
 SET RECOMPILE=0
 IF NOT EXIST %~1 (
-SET RECOMPILE=1
-GOTO:EOF
+	SET RECOMPILE=1
+	GOTO:EOF
 )
 SET _TARGET=%~f1
+call:getModificationTime %_TARGET%
+SET _TARGETTIME=%MODIFICATIONTIME%
 :params
 SHIFT
 IF "%~1" == "" GOTO endparams
 SET _SOURCE=%~f1
-FOR /F delims^=^^ %%i IN ('DIR /S /B /O:D "%_TARGET%" "%_SOURCE%"') DO SET _NEWEST=%%i
-IF "%_NEWEST%" == "%_SOURCE%" (SET RECOMPILE=1) ELSE (GOTO params)
+call:getModificationTime %_SOURCE%
+SET _SOURCETIME=%MODIFICATIONTIME%
+IF %_SOURCETIME% GTR %_TARGETTIME% (SET RECOMPILE=1) ELSE (GOTO params)
 :endparams
 GOTO:EOF
