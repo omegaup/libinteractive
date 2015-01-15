@@ -30,7 +30,7 @@ case _: ArrayType => {
 	*(int*)__writebuf = __cookie;
 	__writebuf += sizeof(int);
 
-	struct message* __response = __message_call(&@transactName, __request, @if(function.noReturn) { 1 } else { 0 });
+	struct message* __response = __message_call(&@transactName, __request, @if(function.noReturn) { 1 } else { 0 }, 0);
 	__response = __message_loop_@(callee.name)(__response, __request->msgid, @if(function.noReturn) { 1 } else { 0 });
 
 	char* __readbuf = __response->data;

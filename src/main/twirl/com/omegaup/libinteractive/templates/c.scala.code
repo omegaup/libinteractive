@@ -77,8 +77,7 @@ int main(int argc, char* argv[]) {
 		"@c.transactFilename(interface)",
 		"@c.shmFilename(interface)", @interface.shmSize);
 
-	struct message* message = @(c.transactName(interface)).shm->root +
-			@(c.transactName(interface)).shm->msg_offset;
+	struct message* message = __message_get(&@(c.transactName(interface)));
 	__message_loop_@(idl.main.name)(message, -1, 1);
 } else {
 	openstream(&__in, "@c.pipeFilename(interface, interface, true)", O_RDONLY);

@@ -44,7 +44,7 @@ static struct message* __message_loop_@(caller.name)(struct message* __message, 
 }
 				*(int*)__writebuf = __cookie;
 				__writebuf += sizeof(int);
-				__message = __message_call(&@transactName, __message, 1);
+				__message = __message_call(&@transactName, __message, 1, 0);
 @if(options.verbose) {
 				fprintf(stderr, "calling @function.name end\n");
 }

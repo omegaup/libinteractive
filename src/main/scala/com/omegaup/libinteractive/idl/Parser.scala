@@ -250,7 +250,7 @@ class Parser extends StandardTokenParsers {
 		new Interface(main.name, main.functions.map( function => {
 				new Function(function.returnType, function.name, function.params,
 					function.attributes ++ List(NoReturnAttribute))
-		}))
+		}), main.attributes)
 	}
 
 	private def name = ident ^?
