@@ -18,18 +18,35 @@
 #include <unistd.h>
 
 #define NUM_PROCESSES @numProcesses
+@if(options.transact) {
+#define NUM_TRANSACT @(numProcesses - 1)
+} else {
 #define NUM_PIPES @((numProcesses - 1) * 2)
+}
 #define LABEL_FORMAT "[%@(maxNameLength)s] "
 
 const char* interfaces[] = {
 	@idl.allInterfaces.map('"' + _.name + '"').mkString(", ")
 };
+@if(options.transact) {
+const char* shmNames[] = {
+	@idl.interfaces.map(interface =>
+		'"' + target.shmFilename(interface) + '"'
+	).mkString(", ")
+};
+const char* transactNames[] = {
+	@idl.interfaces.map(interface =>
+		'"' + target.transactFilename(interface) + '"'
+	).mkString(", ")
+};
+} else {
 const char* pipeNames[] = {
 	@idl.interfaces.flatMap(interface => List(
 		'"' + target.pipeFilename(interface, interface, true) + '"',
 		'"' + target.pipeFilename(interface, interface, false) + '"'
 	)).mkString(", ")
 };
+}
 char* const commands[][@maxCommandLength] = {
 @for(command <- commands) {
 	{ @command.args.map('"' + _ + '"').padTo(maxCommandLength, "NULL").mkString(", ") },
@@ -127,7 +144,59 @@ int run(int input, int debug) {
 	long long utime = 0;
 
 	int retval = 0;
-@if(!options.transact) {
+@if(options.transact) {
+	struct stat st;
+	for (int i = 0; i < NUM_TRANSACT; i++) {
+		if (stat(shmNames[i], &st) != -1) {
+			if (S_ISREG(st.st_mode)) {
+				// Shm already exists.
+				continue;
+			} else {
+				if (unlink(shmNames[i]) == -1) {
+					perror("unlink");
+					retval = 1;
+					goto cleanup;
+				}
+			}
+		} else if (errno != ENOENT) {
+			perror("stat");
+			retval = 1;
+			goto cleanup;
+		}
+		int fd = creat(shmNames[i], 0664);
+		if (fd == -1) {
+			perror("creat");
+			retval = 1;
+			goto cleanup;
+		}
+		close(fd);
+		int childpid = fork();
+		if (!childpid) {
+			const char* argv[] = {
+				"/usr/bin/sudo",
+				"mktransact",
+				transactNames[i],
+				NULL
+			};
+			char* env[] = { NULL };
+			if (execve("/usr/bin/sudo", (char* const*)argv, env) == -1) {
+				perror("execve");
+				exit(-1);
+			}
+		} else {
+			int status;
+			if (wait(&status) == -1) {
+				perror("wait");
+				retval = 1;
+				goto cleanup;
+			}
+			if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+				retval = 1;
+				goto cleanup;
+			}
+		}
+	}
+} else {
 	struct stat st;
 	for (int i = 0; i < NUM_PIPES; i++) {
 		if (stat(pipeNames[i], &st) != -1) {
@@ -135,7 +204,7 @@ int run(int input, int debug) {
 				// Pipe already exists.
 				continue;
 			} else {
-				if  (unlink(pipeNames[i]) == -1) {
+				if (unlink(pipeNames[i]) == -1) {
 					perror("unlink");
 					retval = 1;
 					goto cleanup;
@@ -247,15 +316,24 @@ int run(int input, int debug) {
 		}
 	}
 
-@if(!options.transact) {
 cleanup:
+@if(options.transact) {
+	for (int i = 0; i < NUM_TRANSACT; i++) {
+		if (unlink(shmNames[i]) == -1) {
+			perror("unlink");
+		}
+		if (unlink(transactNames[i]) == -1) {
+			perror("unlink");
+		}
+	}
+} else {
 	for (int i = 0; i < NUM_PIPES; i++) {
 		if (unlink(pipeNames[i]) == -1) {
 			perror("unlink");
 		}
 	}
-
 }
+
 	fprintf(stderr, "\nMemory: %7.3f MB\n", maxrss / 1024.0f);
 	fprintf(stderr, "Time:   %7.3f s\n", utime / 1e6);
 
