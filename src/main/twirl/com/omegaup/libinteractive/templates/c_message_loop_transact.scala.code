@@ -35,7 +35,7 @@ static struct message* __message_loop_@(caller.name)(struct message* __message, 
 }
 				@(function.name)(@function.params.map(function.name + "_" + _.name).mkString(", "));
 
-				__message = __message_alloc(&@transactName, @(8 + function.returnType.byteSize));
+				__message = __message_alloc(&@transactName, @(4 + function.returnType.byteSize));
 				__message->msgid = __msgid;
 				char* __writebuf = __message->data;
 @if(function.returnType != PrimitiveType("void")) {
