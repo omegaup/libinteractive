@@ -5,6 +5,9 @@
 @(c: C, options: Options, idl: IDL)
 /* @c.message */
 #define _XOPEN_SOURCE 600
+#if !defined(_WIN32) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif
 #include <fcntl.h>
 #include <stddef.h>
 #include <stdio.h>

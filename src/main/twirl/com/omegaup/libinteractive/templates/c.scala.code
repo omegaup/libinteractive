@@ -6,6 +6,9 @@
 /* @c.message */
 #include "@(options.moduleName).h"
 #define _XOPEN_SOURCE 600
+#if !defined(_WIN32) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
