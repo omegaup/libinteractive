@@ -16,6 +16,25 @@ def __readarray(infd, format, l):
 	arr.fromstring(infd.read(l))
 	return arr
 
+@if(options.transact) {
+import transact
+
+@for(interface <- idl.interfaces) {
+@python_message_loop_transact(python, options, interface, idl.main,
+		python.transactName(interface), idl.main.name)
+
+@for(function <- interface.functions) {
+@python_shim_transact(python, options, function, interface, idl.main,
+		python.transactName(interface))
+}
+}
+
+@for(interface <- idl.interfaces) {
+@python.transactName(interface) = transact.Interface(True, "@interface.name",
+		"@python.transactFilename(interface)", "@python.shmFilename(interface)",
+		@interface.shmSize)
+}
+} else {
 @for(interface <- idl.interfaces) {
 @python_message_loop(python, options, interface, idl.main,
 		python.pipeName(interface, true), python.pipeName(interface, false),
@@ -36,5 +55,6 @@ print>>sys.stderr, "\topening `@python.pipeFilename(interface, idl.main, true)'"
 print>>sys.stderr, "\topening `@python.pipeFilename(interface, idl.main, false)'"
 }
 @python.pipeName(interface, false) = open("@python.pipeFilename(interface, idl.main, false)", 'rb')
+}
 }
 import @idl.main.name

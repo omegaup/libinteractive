@@ -4,33 +4,35 @@
 @import com.omegaup.libinteractive.idl.PrimitiveType
 @import com.omegaup.libinteractive.target.Options
 @import com.omegaup.libinteractive.target.Python
-@(python: Python, options: Options, function: Function, callee: Interface, caller: Interface, outfd: String, infd: String)
+@(python: Python, options: Options, function: Function, callee: Interface, caller: Interface, transactName: String)
 @python.declareFunction(function):
 @if(options.verbose) {
 	print>>sys.stderr, "\tinvoking @function.name begin"
 }
+	global @transactName
 	__msgid = 0x@("%x" format python.functionIds((caller.name, callee.name, function.name)))
 	__cookie = 0x@("%x" format python.rand.nextInt)
-	@(outfd).write(struct.pack('I', __msgid))
+	__message = transact.Message()
+	@(transactName).allocate(__message, __msgid, @function.params.foldLeft(4L)(_+_.paramType.byteSize))
 @for(param <- function.params) {
 @param.paramType match {
 case primitive: PrimitiveType => {
-	@(outfd).write(struct.pack(@python.structFormat(param.paramType), @param.name))
+	__message.write(struct.pack(@python.structFormat(param.paramType), @param.name))
 }
 case array: ArrayType => {
-@python.writeArray(outfd, param.name, array.primitive, array.lengths)
+@python.writeArray("__message", param.name, array.primitive, array.lengths)
 }
 }
 }
-	@(outfd).write(struct.pack('I', __cookie))
-	@(outfd).flush()
+	__message.write(struct.pack('I', __cookie))
 
-	__message_loop_@(callee.name)(__msgid, @if(function.noReturn) { True } else { False })
+	@(transactName).call(__message, @if(function.noReturn) { True } else { False }, False)
+	__message_loop_@(callee.name)(__message, __msgid, @if(function.noReturn) { True } else { False })
 
 @if(function.returnType != PrimitiveType("void")) {
-	__ans = struct.unpack(@python.structFormat(function.returnType), @{infd}.read(@python.fieldLength(function.returnType)))[0]
+	__ans = struct.unpack(@python.structFormat(function.returnType), __message.read(@python.fieldLength(function.returnType)))[0]
 }
-	__cookie_result = struct.unpack('I', @(infd).read(4))[0]
+	__cookie_result = struct.unpack('I', __message.read(4))[0]
 	if __cookie != __cookie_result:
 		print>>sys.stderr, "invalid cookie"
 		sys.exit(1)
