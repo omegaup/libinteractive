@@ -13,6 +13,12 @@
 #include <unistd.h>
 #include "@(options.moduleName).h"
 
+#if defined(__GNUC__)
+#define __NOINLINE __attribute__((noinline))
+#else
+#define __NOINLINE
+#endif
+
 #if defined(_WIN32)
 #if !defined(PRIuS)
 #define PRIuS "Iu"
@@ -50,7 +56,7 @@ static struct __stream @idl.interfaces.flatMap(interface =>
 }
 #endif
 
-static void __libinteractive_init() {
+static void __NOINLINE __libinteractive_init() {
 @for(interface <- idl.interfaces) {
 	openstream(&@c.pipeName(interface, true), "@c.pipeFilename(interface, idl.main, true)", O_WRONLY);
 	openstream(&@c.pipeName(interface, false), "@c.pipeFilename(interface, idl.main, false)", O_RDONLY);
