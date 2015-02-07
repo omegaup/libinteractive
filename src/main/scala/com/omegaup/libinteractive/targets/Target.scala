@@ -228,7 +228,7 @@ class ZipVisitor(installPath: Path, zipFilename: Path)
 			}).toString)
 			val bytes = new ByteArrayOutputStream
 			val writer = new OutputStreamWriter(bytes, StandardCharsets.UTF_8)
-			var lastChar = '\0'
+			var lastChar = '\u0000'
 			for (c <- file.contents) {
 				if (c == '\n' && lastChar != '\r') {
 					writer.write('\r')

@@ -4,7 +4,7 @@ version := "1.5.2"
 
 organization := "com.omegaup"
 
-scalaVersion := "2.10.4"
+scalaVersion := "2.11.5"
 
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
 
@@ -28,7 +28,8 @@ mappings in (Compile, packageBin) ++= Seq(
 libraryDependencies ++= Seq(
 	"com.github.scopt" %% "scopt" % "3.2.0",
 	"org.apache.commons" % "commons-compress" % "1.8.1",
-	"org.scalatest" %% "scalatest" % "2.2.1" % "test"
+	"org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.3",
+	"org.scalatest" %% "scalatest" % "2.2.4" % "test"
 )
 
 resolvers += Resolver.sonatypeRepo("public")
@@ -55,5 +56,7 @@ ProguardKeys.inputFilter in Proguard := { file =>
     case _ => Some("!META-INF/MANIFEST.MF,!META-INF/LICENSE.txt,!META-INF/NOTICE.txt,!rootdoc.txt")
   }
 }
+
+ProguardKeys.proguardVersion in Proguard := "5.0"
 
 javaOptions in (Proguard, ProguardKeys.proguard) := Seq("-Xmx2G")
