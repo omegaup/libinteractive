@@ -46,6 +46,8 @@ object Main {
 						("also generate a Makefile"),
 				opt[Unit]("pipe-dirs") action { (_, c) => c.copy(pipeDirectories = true) } text
 						("use separate directories for each pipe"),
+				opt[String]("sample-file") action { (x, c) => c.copy(sampleFiles = (c.sampleFiles ++ List(x))) } text
+						("one of the automated test cases provided with the task"),
 				opt[Unit]("sequential-ids") action
 						{ (_, c) => c.copy(sequentialIds = true) } text
 						("use sequential (instead of random) IDs for functions"),

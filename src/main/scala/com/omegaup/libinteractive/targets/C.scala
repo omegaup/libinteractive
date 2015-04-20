@@ -56,21 +56,47 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 					List(
 						Paths.get(interface.name, s"${options.moduleName}.$extension"),
 						Paths.get(interface.name, s"${interface.name}_entry.$extension")),
-					compiler, s"$cflags -o $$@ $$^ -lm -O2 -g $ldflags -Wno-unused-result"))
+					compiler, s"$cflags -o $$@ $$^ -lm -O2 -g $ldflags -Wno-unused-result")) ++
+			idl.interfaces.map(interface =>
+				MakefileRule(Paths.get(interface.name, interface.name + "_debug" + executableExtension),
+					List(
+						Paths.get(interface.name, s"${options.moduleName}.$extension"),
+						Paths.get(interface.name, s"${interface.name}_entry.$extension")),
+					compiler, s"$cflags -o $$@ $$^ -lm -g $ldflags -Wno-unused-result",
+					debug = true))
 		}
 	}
 
+	private def gdbserverPath = {
+		options.os match {
+			case OS.Unix => "/usr/bin/gdbserver"
+			case OS.Windows => "gdbserver.exe"
+		}
+	}
+
+	private def runCommand(interface: Interface, suffix: String = "") = {
+		relativeToRoot(
+			options.outputDirectory.resolve(
+				Paths.get(interface.name, interface.name + suffix + executableExtension)
+			)
+		).toString
+	}
+
 	override def generateRunCommands() = {
-		(if (parent) {
-			List(idl.main)
+		if (parent) {
+			List(ExecDescription(Array(runCommand(idl.main))))
 		} else {
-			idl.interfaces
-		}).map(interface =>
-			ExecDescription(Array(relativeToRoot(
-				options.outputDirectory
-					.resolve(Paths.get(interface.name, interface.name + executableExtension)))
-				.toString))
-		)
+			List(idl.interfaces.head).map(
+				interface => ExecDescription(
+					args = Array(runCommand(interface)),
+					debug_args = Some(
+						Array(gdbserverPath, "127.0.0.1:8042", runCommand(interface, "_debug")))
+				)
+			) ++
+			idl.interfaces.tail.map(
+				interface => ExecDescription(Array(runCommand(interface)))
+			)
+		}
 	}
 
 	override def generateTemplates(moduleName: String,

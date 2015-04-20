@@ -1,6 +1,6 @@
 @import _root_.java.nio.file.Path
 @import com.omegaup.libinteractive.target.MakefileRule
-@(message: String, runPath: Path, allExecutables: String, allRules: Iterable[MakefileRule])
+@(message: String, runPath: Path, allExecutables: String, allRules: Iterable[MakefileRule], sampleFiles: Iterable[String])
 # @message
 
 all: @allExecutables
@@ -16,4 +16,4 @@ run: @allExecutables
 
 .PHONY: test
 test: @allExecutables
-	@@@runPath < examples/sample.in
+	@@@runPath @sampleFiles.map("'" + _ + "'").mkString(" ")

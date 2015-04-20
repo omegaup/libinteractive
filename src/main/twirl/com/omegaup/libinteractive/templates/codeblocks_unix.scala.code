@@ -1,0 +1,59 @@
+@import _root_.java.nio.file.Path
+@import com.omegaup.libinteractive.target.Target
+@import com.omegaup.libinteractive.target.ResolvedOutputLink
+@(message: String, target: Target, runPath: Path, resolvedLinks: Iterable[ResolvedOutputLink], debugExecutable: Path, sampleFiles: Iterable[String], moduleName: String, extension: String)
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="@moduleName" />
+		<Option makefile_is_custom="1" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="all">
+				<Option output="@runPath" prefix_auto="1" extension_auto="1" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<MakeCommands>
+					<Build command="$make -f $makefile all" />
+					<CompileFile command="$make -f $makefile $file" />
+					<Clean command="$make -f $makefile clean" />
+					<DistClean command="$make -f $makefile clean" />
+					<AskRebuildNeeded command="$make -q -f $makefile all" />
+					<SilentBuild command="$make -f $makefile all &gt; $(CMD_NULL)" />
+				</MakeCommands>
+			</Target>
+			<Target title="test">
+				<Option output="@runPath" prefix_auto="1" extension_auto="1" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Option parameters="@sampleFiles.map("'" + _ + "'").mkString(" ")" />
+				<MakeCommands>
+					<Build command="$make -f $makefile all" />
+					<CompileFile command="$make -f $makefile $file" />
+					<Clean command="$make -f $makefile clean" />
+					<DistClean command="$make -f $makefile clean" />
+					<AskRebuildNeeded command="$make -q -f $makefile all" />
+					<SilentBuild command="$make -f $makefile all &gt; $(CMD_NULL)" />
+				</MakeCommands>
+			</Target>
+		</Build>
+@for(sample <- sampleFiles) {
+		<Unit filename="@sample">
+			<Option target="test" />
+		</Unit>
+}
+		<Unit filename="@moduleName.@extension">
+			<Option target="all" />
+			<Option target="test" />
+		</Unit>
+		<Extensions>
+			<code_completion />
+			<debugger>
+				<remote_debugging target="test">
+					<options conn_type="0" serial_baud="115200" ip_address="127.0.0.1" ip_port="8042" additional_cmds_before="shell @runPath --debug @sampleFiles.map("'" + _ + "'").mkString(" ") &amp;&#x0A;symbol-file @debugExecutable&#x0A;set substitute-path @debugExecutable.getParent ." />
+				</remote_debugging>
+			</debugger>
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>

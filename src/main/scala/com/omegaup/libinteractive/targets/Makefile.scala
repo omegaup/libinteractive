@@ -16,9 +16,37 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 		options: Options) extends Target(idl, options) {
 	override def generate() = {
 		options.os match {
-			case OS.Unix => List(generateMakefileContents, generateRunDriver)
-			case OS.Windows => generateBatchFileContents ++ List(generateRunDriverWindows)
+			case OS.Unix => generateUnixIdeProject ++
+					List(generateMakefileContents, generateRunDriver)
+			case OS.Windows => generateWindowsIdeProject ++
+					generateBatchFileContents ++ List(generateRunDriverWindows)
 		}
+	}
+
+	private def generateCodeBlocksUnixProject(extension: String): OutputFile = {
+		OutputFile(
+			path = options.root.resolve(s"${options.moduleName}.cbp"),
+			contents = templates.code.codeblocks_unix(message, this,
+				runPath = relativeToRoot(options.outputDirectory.resolve(Paths.get("run"))),
+				debugExecutable = rules.find(_.debug).map(rule =>
+					relativeToRoot(options.outputDirectory.resolve(rule.target))).get,
+				resolvedLinks = resolvedLinks,
+				sampleFiles = options.sampleFiles,
+				moduleName = options.moduleName,
+				extension = extension).toString,
+			relative = false)
+	}
+
+	private def generateUnixIdeProject(): Iterable[OutputFile] = {
+		options.childLang match {
+			case "c" => List(generateCodeBlocksUnixProject("c"))
+			case "cpp" => List(generateCodeBlocksUnixProject("cpp"))
+			case _ => List()
+		}
+	}
+
+	private def generateWindowsIdeProject(): Iterable[OutputFile] = {
+		List()
 	}
 
 	private def generateMakefileContents() = {
@@ -31,7 +59,8 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 		val makefile = templates.code.makefile(message,
 			allRules = allRules,
 			allExecutables = allRules.map(_.target).mkString(" "),
-			runPath = relativeToRoot(options.outputDirectory.resolve(Paths.get("run"))))
+			runPath = relativeToRoot(options.outputDirectory.resolve(Paths.get("run"))),
+			sampleFiles = options.sampleFiles)
 
 		OutputFile(options.root.resolve("Makefile"), makefile.toString, false)
 	}
@@ -65,6 +94,8 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 			numProcesses = commands.foldLeft(0)((length, _) => length + 1),
 			maxCommandLength = commands.foldLeft(0)((length, exec) =>
 				Math.max(length, exec.args.length)) + 1,
+			maxDebugCommandLength = commands.foldLeft(0)((length, exec) =>
+				Math.max(length, exec.debug_args.getOrElse(exec.args).length)) + 1,
 			maxEnvLength = commands.foldLeft(0)((length, exec) =>
 				Math.max(length, exec.env.size)) + 1,
 			maxNameLength = idl.allInterfaces.foldLeft(0)((length, interface) =>
