@@ -53,9 +53,10 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 			idl.interfaces.map(interface =>
 				MakefileRule(Paths.get(interface.name, interface.name + executableExtension),
 					List(
-						Paths.get(interface.name, s"${options.moduleName}.pas"),
-						Paths.get(interface.name, s"${idl.main.name}.pas"),
-						Paths.get(interface.name, s"${interface.name}_entry.pas")),
+						outputResolve(Paths.get(interface.name, s"${options.moduleName}.pas")),
+						outputResolve(Paths.get(interface.name, s"${idl.main.name}.pas")),
+						outputResolve(Paths.get(interface.name, s"${interface.name}_entry.pas"))
+					),
 					Compiler.Fpc, ldflags + " -O2 -Mobjfpc -Sc -Sh -o$@ $^" + (
 						if (options.quiet) " > /dev/null" else ""
 					)))

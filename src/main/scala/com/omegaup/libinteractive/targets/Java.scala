@@ -41,16 +41,18 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 		if (parent) {
 			List(MakefileRule(Paths.get(idl.main.name, s"${idl.main.name}.class"),
 				List(
-					Paths.get(idl.main.name, s"${idl.main.name}.java"),
-					Paths.get(idl.main.name, s"${idl.main.name}_entry.java")),
+					outputResolve(Paths.get(idl.main.name, s"${idl.main.name}.java")),
+					outputResolve(Paths.get(idl.main.name, s"${idl.main.name}_entry.java"))
+				),
 				Compiler.Javac, "$^"))
 		} else {
 			idl.interfaces.flatMap(interface =>
 				List(
 					MakefileRule(Paths.get(interface.name, s"${interface.name}_entry.class"),
 						List(
-							Paths.get(interface.name, s"${options.moduleName}.java"),
-							Paths.get(interface.name, s"${interface.name}_entry.java")),
+							outputResolve(Paths.get(interface.name, s"${options.moduleName}.java")),
+							outputResolve(Paths.get(interface.name, s"${interface.name}_entry.java"))
+						),
 						Compiler.Javac, "$^")
 				)
 			)

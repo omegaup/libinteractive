@@ -346,6 +346,14 @@ abstract class Target(idl: IDL, options: Options) {
 		})
 	}
 
+	def outputResolve(path: Path): Path = {
+		options.outputDirectory.resolve(path)
+	}
+
+	def outputResolve(filename: String): Path = {
+		outputResolve(Paths.get(filename))
+	}
+
 	def relativeToRoot(path: Path) = {
 		(if (options.root.toString.length == 0) {
 			path

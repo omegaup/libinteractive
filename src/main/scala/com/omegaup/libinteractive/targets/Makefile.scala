@@ -89,7 +89,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 		val allRules = (rules ++ List(
 			MakefileRule(
 				Paths.get("run"),
-				List(Paths.get("run.c")),
+				List(outputResolve("run.c")),
 				Compiler.Gcc, "-std=c11 -o $@ -lrt $^ -O2 -D_XOPEN_SOURCE=600 " +
 				"-D_BSD_SOURCE -Wall"))).map(resolve)
 		val makefile = templates.code.makefile_unix(message,
@@ -105,7 +105,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 		val allRules = (rules ++ List(
 			MakefileRule(
 				Paths.get("run.exe"),
-				List(Paths.get("run.c")),
+				List(outputResolve("run.c")),
 				Compiler.Gcc, "-std=c11 -o $@ $^ -O2 -lpsapi -Wall"))
 		).map(resolve)
 		val makefile = templates.code.makefile_windows(message,
@@ -122,7 +122,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 		val allRules = (rules ++ List(
 				MakefileRule(
 					Paths.get("run.exe"),
-					List(Paths.get("run.c")),
+					List(outputResolve("run.c")),
 					Compiler.Gcc, "-std=c99 -o $@ $^ -O2 -lpsapi -Wall"))).map(resolve)
 
 		val runbat = templates.code.runbat(this, message, allRules, resolvedLinks, options)
@@ -137,8 +137,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 	private def resolve(rule: MakefileRule) = {
 		new MakefileRule(
 			relativeToRoot(options.outputDirectory.resolve(rule.target)),
-			rule.requisites.map(path => relativeToRoot(
-					options.outputDirectory.resolve(path))),
+			rule.requisites.map(relativeToRoot),
 			rule.compiler, rule.params)
 	}
 

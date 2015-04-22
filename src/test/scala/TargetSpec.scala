@@ -84,6 +84,9 @@ class TargetSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
 		Generator.generate(idl, options, problemsetter, contestant).foreach(
 			installer.apply)
 
+		Files.copy(problemsetter, root.resolve(problemsetter.getFileName))
+		Files.copy(contestant, root.resolve(contestant.getFileName))
+
 		val process = Runtime.getRuntime.exec(Array(
 			"/usr/bin/make", "-s", "run", "-C", root.toString
 		))

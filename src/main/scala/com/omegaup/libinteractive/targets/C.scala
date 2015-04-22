@@ -47,24 +47,25 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 		if (parent) {
 			List(MakefileRule(Paths.get(idl.main.name, idl.main.name + executableExtension),
 				List(
-					Paths.get(idl.main.name, s"${idl.main.name}.$extension"),
-					Paths.get(idl.main.name, s"${idl.main.name}_entry.$extension")),
+					outputResolve(Paths.get(idl.main.name, s"${idl.main.name}.$extension")),
+					outputResolve(Paths.get(idl.main.name, s"${idl.main.name}_entry.$extension"))
+				),
 				compiler, s"$cflags -o $$@ $$^ -lm -O2 -g $ldflags -Wno-unused-result"))
 		} else {
 			idl.interfaces.map(interface =>
 				MakefileRule(Paths.get(interface.name, interface.name + executableExtension),
 					List(
-						// Make this path not be relative to the output directory.
-						options.outputDirectory.relativize(options.root).resolve(input),
-						Paths.get(interface.name, s"${interface.name}_entry.$extension")),
-					compiler, s"$cflags -o $$@ $$^ -lm -O2 -g $ldflags -Wno-unused-result -I" + options.outputDirectory.resolve(interface.name))) ++
+						input,
+						outputResolve(Paths.get(interface.name, s"${interface.name}_entry.$extension"))
+					),
+					compiler, s"$cflags -o $$@ $$^ -lm -O2 -g $ldflags -Wno-unused-result -I" + relativeToRoot(outputResolve(interface.name)))) ++
 			idl.interfaces.map(interface =>
 				MakefileRule(Paths.get(interface.name, interface.name + "_debug" + executableExtension),
 					List(
-						// Make this path not be relative to the output directory.
-						options.outputDirectory.relativize(options.root).resolve(input),
-						Paths.get(interface.name, s"${interface.name}_entry.$extension")),
-					compiler, s"$cflags -o $$@ $$^ -lm -g $ldflags -Wno-unused-result -I" + options.outputDirectory.resolve(interface.name),
+						input,
+						outputResolve(Paths.get(interface.name, s"${interface.name}_entry.$extension"))
+					),
+					compiler, s"$cflags -o $$@ $$^ -lm -g $ldflags -Wno-unused-result -I" + relativeToRoot(outputResolve(interface.name)),
 					debug = true))
 		}
 	}
