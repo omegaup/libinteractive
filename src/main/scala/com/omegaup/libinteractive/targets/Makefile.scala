@@ -55,6 +55,19 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 			relative = false)
 	}
 
+	private def generateLazarusUnixProject(extension: String): OutputFile = {
+		OutputFile(
+			path = options.root.resolve(s"${options.moduleName}.lpi"),
+			contents = templates.code.lazarus_unix(message, this,
+				runPath = relativeToRoot(options.outputDirectory.resolve(Paths.get("run"))),
+				makefilePath = relativeToRoot(Paths.get("Makefile")),
+				sampleFiles = options.sampleFiles,
+				parentFile = relativeToRoot(Paths.get(s"${idl.main.name}.${options.parentLang}")),
+				moduleName = options.moduleName,
+				extension = extension).toString,
+			relative = false)
+	}
+
 	private def generateLazarusWindowsProject(extension: String): OutputFile = {
 		OutputFile(
 			path = options.root.resolve(s"${options.moduleName}.lpi"),
@@ -72,6 +85,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 		options.childLang match {
 			case "c" => List(generateCodeBlocksUnixProject("c"))
 			case "cpp" => List(generateCodeBlocksUnixProject("cpp"))
+			case "pas" => List(generateLazarusUnixProject("pas"))
 			case _ => List()
 		}
 	}

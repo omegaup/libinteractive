@@ -59,7 +59,21 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 					),
 					Compiler.Fpc, ldflags + " -O2 -Mobjfpc -Sc -Sh -o$@ $^" + (
 						if (options.quiet) " > /dev/null" else ""
-					)))
+					)
+				)
+			) ++
+			idl.interfaces.map(interface =>
+				MakefileRule(Paths.get(interface.name, interface.name + "_debug" + executableExtension),
+					List(
+						outputResolve(Paths.get(interface.name, s"${options.moduleName}.pas")),
+						outputResolve(Paths.get(interface.name, s"${idl.main.name}.pas")),
+						outputResolve(Paths.get(interface.name, s"${interface.name}_entry.pas"))
+					),
+					Compiler.Fpc, ldflags + " -g -Mobjfpc -Sc -Sh -o$@ $^" + (
+						if (options.quiet) " > /dev/null" else ""
+					)
+				)
+			)
 		}
 	}
 
@@ -79,17 +93,37 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 		List(OutputFile(input, template.toString, false))
 	}
 
+	private def gdbserverPath = {
+		options.os match {
+			case OS.Unix => "/usr/bin/gdbserver"
+			case OS.Windows => "gdbserver.exe"
+		}
+	}
+
+	private def runCommand(interface: Interface, suffix: String = "") = {
+		relativeToRoot(
+			options.outputDirectory.resolve(
+				Paths.get(interface.name, interface.name + suffix + executableExtension)
+			)
+		).toString
+	}
+
 	override def generateRunCommands() = {
-		(if (parent) {
+		if (parent) {
 			throw new UnsupportedOperationException;
 		} else {
-			idl.interfaces
-		}).map(interface =>
-			ExecDescription(Array(relativeToRoot(
-				options.outputDirectory
-					.resolve(Paths.get(interface.name, interface.name + executableExtension)))
-				.toString))
-		)
+			List(idl.interfaces.head).map(
+				interface => ExecDescription(
+					args = Array(runCommand(interface)),
+					debug_args = Some(
+						Array(gdbserverPath, "127.0.0.1:8042", runCommand(interface, "_debug"))
+					)
+				)
+			) ++
+			idl.interfaces.tail.map(
+				interface => ExecDescription(Array(runCommand(interface)))
+			)
+		}
 	}
 
 	private def generateEntry(interface: Interface) = {
