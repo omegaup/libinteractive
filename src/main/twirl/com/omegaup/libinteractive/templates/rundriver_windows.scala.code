@@ -167,12 +167,12 @@ static void process_buffer(buffer* buf) {
 }
 
 // A wrapper for CreateProcess. Also redirects stdio.
-void execute(int i, int debug) {
+void execute(int i, HANDLE input, int debug) {
 	STARTUPINFOA si;
 
 	ZeroMemory(&si, sizeof(si));
 	si.cb = sizeof(si);
-	si.hStdInput = has_stdin[i] ? GetStdHandle(STD_INPUT_HANDLE) : INVALID_HANDLE_VALUE;
+	si.hStdInput = has_stdin[i] ? input : INVALID_HANDLE_VALUE;
 	si.hStdOutput = processes[i].out;
 	si.hStdError = processes[i].err;
 	si.dwFlags = STARTF_USESTDHANDLES;
@@ -260,7 +260,7 @@ static void create_pipe_pair(HANDLE* read, HANDLE* write) {
 	}
 }
 
-int run(int debug) {
+int run(HANDLE input, int debug) {
 	long maxrss = 0;
 	long long utime = 0;
 
@@ -366,7 +366,7 @@ int run(int debug) {
 
 	// Execute the children.
 	for (int i = 0; i < NUM_PROCESSES; i++) {
-		execute(i, debug);
+		execute(i, input, debug);
 	}
 
 	// Wait for the children to connect their ends of the pipes.
@@ -509,26 +509,49 @@ int run(int debug) {
 int main(int argc, char* argv[]) {
 	int retval = 0;
 	int debug = 0;
-	// No parameters, use stdin.
-	if (argc == 1) {
-		return run(debug);
-	}
+	int pause = 0;
+	int from_stdin = 1;
 	// Try to use the parameters as input filenames.
 	for (int i = 1; i < argc; i++) {
+		if (strcmp(argv[i], "--pause") == 0) {
+			pause = 1;
+			continue;
+		}
 		if (strcmp(argv[i], "--debug") == 0) {
 			debug = 1;
 			continue;
 		}
-		if (freopen(argv[i], "r", stdin) == NULL) {
-			perror("freopen");
+		from_stdin = 0;
+		SECURITY_ATTRIBUTES sa;
+		ZeroMemory(&sa, sizeof(sa));
+		sa.nLength = sizeof(sa);
+		sa.bInheritHandle = TRUE;
+		HANDLE input = CreateFile(
+				argv[i],
+				GENERIC_READ,
+				FILE_SHARE_READ,
+				&sa,
+				OPEN_ALWAYS,
+				FILE_ATTRIBUTE_NORMAL,
+				NULL);
+		if (input == INVALID_HANDLE_VALUE) {
+			print_error("CreateFile", GetLastError());
 			continue;
 		}
 		fprintf(stderr, "%s:\n", argv[i]);
 		fflush(stderr);
-		if (run(debug) != 0) {
+		if (run(input, debug) != 0) {
 			retval = 1;
 		}
+		CloseHandle(input);
 		fprintf(stderr, "\n");
+	}
+	// No parameters, use stdin.
+	if (from_stdin) {
+		retval = run(GetStdHandle(STD_INPUT_HANDLE), debug);
+	}
+	if (pause) {
+		fgetc(stdin);
 	}
 	return retval;
 }

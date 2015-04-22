@@ -55,7 +55,7 @@ typedef struct {
 buffer buffers[2 * NUM_PROCESSES];
 int pids[NUM_PROCESSES] = {0};
 
-void execute(int i, int debug) {
+void execute(int i, int input, int debug) {
 	int localpipes[4];
 	if (pipe(localpipes) == -1) {
 		perror("pipe");
@@ -94,8 +94,16 @@ void execute(int i, int debug) {
 		close(localpipes[1]);
 		close(localpipes[3]);
 
-		if (i != 0) {
-			// Close stdin
+		// Close stdin except for the first program.
+		if (input != 0) {
+			close(0);
+			if (i != 0) {
+				if (dup2(input, 0) == -1) {
+					perror("dup2");
+				}
+			}
+			close(input);
+		} else if (i != 0) {
 			close(0);
 		}
 
@@ -113,7 +121,7 @@ void execute(int i, int debug) {
 	}
 }
 
-int run(int debug) {
+int run(int input, int debug) {
 	long maxrss = 0;
 	long long utime = 0;
 
@@ -147,7 +155,7 @@ int run(int debug) {
 
 	// Execute the children
 	for (int i = 0; i < NUM_PROCESSES; i++) {
-		execute(i, debug);
+		execute(i, input, debug);
 	}
 
 	// Redirect children's outputs to screen
@@ -252,26 +260,38 @@ cleanup:
 int main(int argc, char* argv[]) {
 	int retval = 0;
 	int debug = 0;
-	// No parameters, use stdin.
-	if (argc == 1) {
-		return run(debug);
-	}
+	int pause = 0;
+	int from_stdin = 1;
 	// Try to use the parameters as input filenames.
 	for (int i = 1; i < argc; i++) {
+		if (strcmp(argv[i], "--pause") == 0) {
+			pause = 1;
+			continue;
+		}
 		if (strcmp(argv[i], "--debug") == 0) {
 			debug = 1;
 			continue;
 		}
-		if (freopen(argv[i], "r", stdin) == NULL) {
-			perror("freopen");
+		from_stdin = 0;
+		int input = open(argv[i], O_RDONLY);
+		if (input == -1) {
+			perror("open");
 			continue;
 		}
 		fprintf(stderr, "%s:\n", argv[i]);
 		fflush(stderr);
-		if (run(debug) != 0) {
+		if (run(input, debug) != 0) {
 			retval = 1;
 		}
+		close(input);
 		fprintf(stderr, "\n");
+	}
+	// No parameters, use stdin.
+	if (from_stdin) {
+		retval = run(0, debug);
+	}
+	if (pause) {
+		fgetc(stdin);
 	}
 	return retval;
 }
