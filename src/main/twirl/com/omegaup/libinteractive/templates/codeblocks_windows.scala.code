@@ -1,7 +1,7 @@
 @import _root_.java.nio.file.Path
 @import com.omegaup.libinteractive.target.Target
 @import com.omegaup.libinteractive.target.ResolvedOutputLink
-@(message: String, target: Target, runPath: Path, makefilePath: Path, resolvedLinks: Iterable[ResolvedOutputLink], debugExecutable: Path, sampleFiles: Iterable[String], moduleName: String, extension: String)
+@(message: String, target: Target, runPath: Path, makefilePath: Path, resolvedLinks: Iterable[ResolvedOutputLink], debugExecutable: Path, sampleFiles: Iterable[String], parentFile: Path, moduleName: String, extension: String)
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <CodeBlocks_project_file>
 	<FileVersion major="1" minor="6" />
@@ -46,6 +46,10 @@
 		</Unit>
 }
 		<Unit filename="@moduleName.@extension">
+			<Option target="all" />
+			<Option target="test" />
+		</Unit>
+		<Unit filename="@parentFile">
 			<Option target="all" />
 			<Option target="test" />
 		</Unit>
