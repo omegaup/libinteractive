@@ -54,15 +54,17 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 			idl.interfaces.map(interface =>
 				MakefileRule(Paths.get(interface.name, interface.name + executableExtension),
 					List(
-						Paths.get(interface.name, s"${options.moduleName}.$extension"),
+						// Make this path not be relative to the output directory.
+						options.outputDirectory.relativize(options.root).resolve(input),
 						Paths.get(interface.name, s"${interface.name}_entry.$extension")),
-					compiler, s"$cflags -o $$@ $$^ -lm -O2 -g $ldflags -Wno-unused-result")) ++
+					compiler, s"$cflags -o $$@ $$^ -lm -O2 -g $ldflags -Wno-unused-result -I" + options.outputDirectory.resolve(interface.name))) ++
 			idl.interfaces.map(interface =>
 				MakefileRule(Paths.get(interface.name, interface.name + "_debug" + executableExtension),
 					List(
-						Paths.get(interface.name, s"${options.moduleName}.$extension"),
+						// Make this path not be relative to the output directory.
+						options.outputDirectory.relativize(options.root).resolve(input),
 						Paths.get(interface.name, s"${interface.name}_entry.$extension")),
-					compiler, s"$cflags -o $$@ $$^ -lm -g $ldflags -Wno-unused-result",
+					compiler, s"$cflags -o $$@ $$^ -lm -g $ldflags -Wno-unused-result -I" + options.outputDirectory.resolve(interface.name),
 					debug = true))
 		}
 	}

@@ -36,6 +36,11 @@ char* const commands[] = {
 	"@command.args.map("\\\"" + _.replace("/", "\\").replace("\\", "\\\\") + "\\\"").mkString(" ")",
 }
 };
+char* const debug_commands[] = {
+@for(command <- commands) {
+	"@command.debug_args.getOrElse(command.args).map("\\\"" + _.replace("/", "\\").replace("\\", "\\\\") + "\\\"").mkString(" ")",
+}
+};
 int has_stdin[NUM_PROCESSES] = {
 	1, @idl.interfaces.map(interface => "0").mkString(", ")
 };
@@ -162,7 +167,7 @@ static void process_buffer(buffer* buf) {
 }
 
 // A wrapper for CreateProcess. Also redirects stdio.
-void execute(int i) {
+void execute(int i, int debug) {
 	STARTUPINFOA si;
 
 	ZeroMemory(&si, sizeof(si));
@@ -174,7 +179,7 @@ void execute(int i) {
 	
 	BOOL success = CreateProcessA(
 		NULL,
-		commands[i],
+		debug ? debug_commands[i] : commands[i],
 		NULL,
 		NULL,
 		TRUE,
@@ -255,7 +260,7 @@ static void create_pipe_pair(HANDLE* read, HANDLE* write) {
 	}
 }
 
-int main(int argc, char* argv[]) {
+int run(int debug) {
 	long maxrss = 0;
 	long long utime = 0;
 
@@ -361,7 +366,7 @@ int main(int argc, char* argv[]) {
 
 	// Execute the children.
 	for (int i = 0; i < NUM_PROCESSES; i++) {
-		execute(i);
+		execute(i, debug);
 	}
 
 	// Wait for the children to connect their ends of the pipes.
@@ -498,5 +503,32 @@ int main(int argc, char* argv[]) {
 	fclose(stdout);
 	fclose(stderr);
 
+	return retval;
+}
+
+int main(int argc, char* argv[]) {
+	int retval = 0;
+	int debug = 0;
+	// No parameters, use stdin.
+	if (argc == 1) {
+		return run(debug);
+	}
+	// Try to use the parameters as input filenames.
+	for (int i = 1; i < argc; i++) {
+		if (strcmp(argv[i], "--debug") == 0) {
+			debug = 1;
+			continue;
+		}
+		if (freopen(argv[i], "r", stdin) == NULL) {
+			perror("freopen");
+			continue;
+		}
+		fprintf(stderr, "%s:\n", argv[i]);
+		fflush(stderr);
+		if (run(debug) != 0) {
+			retval = 1;
+		}
+		fprintf(stderr, "\n");
+	}
 	return retval;
 }

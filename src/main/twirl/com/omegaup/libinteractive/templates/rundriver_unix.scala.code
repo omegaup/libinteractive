@@ -266,7 +266,7 @@ int main(int argc, char* argv[]) {
 			perror("freopen");
 			continue;
 		}
-		fprintf(stderr, "%s:\n", argv[1]);
+		fprintf(stderr, "%s:\n", argv[i]);
 		fflush(stderr);
 		if (run(debug) != 0) {
 			retval = 1;

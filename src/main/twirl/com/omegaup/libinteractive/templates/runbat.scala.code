@@ -43,7 +43,7 @@ ECHO DONE
 }
 
 REM Run the driver
-@target.relativeToRoot(options.outputDirectory.resolve(Paths.get("run.exe"))).toString.replace("/", "\\")
+@target.relativeToRoot(options.outputDirectory.resolve(Paths.get("run.exe"))).toString.replace("/", "\\") %*
 IF !ERRORLEVEL! NEQ 0 EXIT /B !ERRORLEVEL!
 GOTO:EOF
 

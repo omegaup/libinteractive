@@ -1,0 +1,25 @@
+@import _root_.java.nio.file.Path
+@import com.omegaup.libinteractive.target.MakefileRule
+@import com.omegaup.libinteractive.target.ResolvedOutputLink
+@(message: String, runPath: Path, resolvedLinks: Iterable[ResolvedOutputLink], allExecutables: String, allRules: Iterable[MakefileRule], sampleFiles: Iterable[String])
+# @message
+
+all: @allExecutables
+
+@for(link <- resolvedLinks) {
+@link.link: @link.target
+	copy $^ $@@
+
+}
+@for(rule <- allRules) {
+@rule.target: @rule.requisites.mkString(" ")
+	@rule.compiler @rule.params
+
+}
+.PHONY: run
+run: @allExecutables
+	@@@runPath
+
+.PHONY: test
+test: @allExecutables
+	@@@runPath @sampleFiles.map("\"" + _ + "\"").mkString(" ")

@@ -347,11 +347,11 @@ abstract class Target(idl: IDL, options: Options) {
 	}
 
 	def relativeToRoot(path: Path) = {
-		if (options.root.toString.length == 0) {
+		(if (options.root.toString.length == 0) {
 			path
 		} else {
 			options.root.relativize(path)
-		}
+		}).normalize
 	}
 
 	def generate(): Iterable[OutputPath]
