@@ -27,7 +27,6 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 			val mainFile = s"${idl.main.name}.$extension"
 			List(
 				new OutputDirectory(Paths.get(idl.main.name)),
-				new OutputLink(Paths.get(idl.main.name, mainFile), input),
 				generateMainHeader,
 				generateMainFile)
 		} else {
@@ -37,8 +36,7 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 				List(
 					new OutputDirectory(Paths.get(interface.name)),
 					generateHeader(interface),
-					generate(interface),
-					generateLink(interface, input))
+					generate(interface))
 			)
 		}
 	}
@@ -47,10 +45,10 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 		if (parent) {
 			List(MakefileRule(Paths.get(idl.main.name, idl.main.name + executableExtension),
 				List(
-					outputResolve(Paths.get(idl.main.name, s"${idl.main.name}.$extension")),
+					input.resolveSibling(Paths.get(s"${idl.main.name}.$extension")),
 					outputResolve(Paths.get(idl.main.name, s"${idl.main.name}_entry.$extension"))
 				),
-				compiler, s"$cflags -o $$@ $$^ -lm -O2 -g $ldflags -Wno-unused-result"))
+				compiler, s"$cflags -o $$@ $$^ -lm -O2 -g $ldflags -Wno-unused-result -I" + relativeToRoot(outputResolve(idl.main.name))))
 		} else {
 			idl.interfaces.map(interface =>
 				MakefileRule(Paths.get(interface.name, interface.name + executableExtension),

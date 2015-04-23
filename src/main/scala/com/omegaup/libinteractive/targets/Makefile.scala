@@ -104,7 +104,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 			MakefileRule(
 				Paths.get("run"),
 				List(outputResolve("run.c")),
-				Compiler.Gcc, "-std=c11 -o $@ -lrt $^ -O2 -D_XOPEN_SOURCE=600 " +
+				Compiler.Gcc, "-std=c99 -o $@ -lrt $^ -O2 -D_XOPEN_SOURCE=600 " +
 				"-D_BSD_SOURCE -Wall"))).map(resolve)
 		val makefile = templates.code.makefile_unix(message,
 			allRules = allRules,
@@ -120,7 +120,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 			MakefileRule(
 				Paths.get("run.exe"),
 				List(outputResolve("run.c")),
-				Compiler.Gcc, "-std=c11 -o $@ $^ -O2 -lpsapi -Wall"))
+				Compiler.Gcc, "-std=c99 -o $@ $^ -O2 -lpsapi -Wall"))
 		).map(resolve)
 		val makefile = templates.code.makefile_windows(message,
 			allRules = allRules,
