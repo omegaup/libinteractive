@@ -224,12 +224,21 @@ class Parser extends StandardTokenParsers {
 		}
 	}
 
+	private def addNoReturn(main: Interface) = {
+		// All functions in the Main interface should have the NoReturn attribute
+		// by default. Add it if it's not present.
+		new Interface(main.name, main.functions.map( function => {
+				new Function(function.returnType, function.name, function.params,
+					function.attributes ++ List(NoReturnAttribute))
+		}))
+	}
+
 	private def name = ident ^?
 			({ case name if Validator.validateName(name).isEmpty => name },
 			 { case name => Validator.validateName(name).get })
 
 	private def interfaceList = phrase(rep1(interface)) ^^
-			{ case interfaces => new IDL(interfaces.head, interfaces.tail) }
+			{ case interfaces => new IDL(addNoReturn(interfaces.head), interfaces.tail) }
 	private def interface =
 			"interface" ~> name ~ ("{" ~> rep(function) <~ "}") <~ ";" ^^
 			{ case name ~ functions => new Interface(name, functions) }
