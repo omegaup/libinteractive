@@ -1,5 +1,6 @@
 project/project/
 project/target/
+classes/
 target/
 .tests
 *~

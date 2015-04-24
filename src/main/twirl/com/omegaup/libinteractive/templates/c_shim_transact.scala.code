@@ -1,0 +1,55 @@
+@import com.omegaup.libinteractive.idl.ArrayType
+@import com.omegaup.libinteractive.idl.Function
+@import com.omegaup.libinteractive.idl.IDL
+@import com.omegaup.libinteractive.idl.Interface
+@import com.omegaup.libinteractive.idl.PrimitiveType
+@import com.omegaup.libinteractive.target.C
+@import com.omegaup.libinteractive.target.Options
+@(c: C, options: Options, function: Function, callee: Interface, caller: Interface, transactName: String)
+@(c.declareFunction(function)) {
+@if(options.verbose) {
+	fprintf(stderr, "invoking @function.name begin\n");
+}
+	const int __msgid = 0x@("%x" format c.functionIds((caller.name, callee.name, function.name)));
+	const int __cookie = 0x@("%x" format c.rand.nextInt);
+
+	struct message* __request = __message_alloc(&@transactName, @function.params.foldLeft(4L)(_+_.paramType.byteSize));
+	__request->msgid = __msgid;
+	char* __writebuf = __request->data;
+@for(param <- function.params) {
+@param.paramType match {
+case _: PrimitiveType => {
+	*(@c.formatType(param.paramType)*)__writebuf = @param.name;
+}
+case _: ArrayType => {
+	memcpy(__writebuf, @param.name, @c.fieldLength(param.paramType));
+}
+}
+	__writebuf += @c.fieldLength(param.paramType);
+}
+	*(int*)__writebuf = __cookie;
+	__writebuf += sizeof(int);
+
+	struct message* __response = __message_call(&@transactName, __request, @if(function.noReturn) { 1 } else { 0 }, 0);
+	__response = __message_loop_@(callee.name)(__response, __request->msgid, @if(function.noReturn) { 1 } else { 0 });
+
+	char* __readbuf = __response->data;
+@if(function.returnType != PrimitiveType("void")) {
+	@c.formatType(function.returnType) __ans = *(@c.formatType(function.returnType)*)__readbuf;
+	__readbuf += sizeof(@c.formatType(function.returnType));
+}
+	int __cookie_result = *(int*)__readbuf;
+	__readbuf += sizeof(int);
+
+	if (__cookie != __cookie_result) {
+		fprintf(stderr, "invalid __cookie\n");
+		exit(1);
+	}
+@if(options.verbose) {
+
+	fprintf(stderr, "invoking @function.name end\n");
+}
+@if(function.returnType != PrimitiveType("void")) {
+	return __ans;
+}
+}

@@ -5,27 +5,36 @@
 @(java: Java, options: Options, interface: Interface, main: Interface)
 /* @java.message */
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.EOFException;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.FilterInputStream;
-import java.io.FilterOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 
+@if(options.transact) {
+import com.omegaup.transact.Interface;
+import com.omegaup.transact.Message;
+} else {
 @java_stream_functions(options.verbose)
+}
 
 public class @(interface.name)_entry {
+@if(options.transact) {
+	static Interface @java.transactName(interface) = null;
+
+@java_message_loop_transact(java, options, main, interface, java.transactName(interface))
+} else {
 	static LEDataInputStream __in = null;
 	static LEDataOutputStream __out = null;
 
 @java_message_loop(java, options, main, interface, "__out", "__in")
+}
 
 	public static void main(String[] args) throws IOException {
+@if(options.transact) {
+		@java.transactName(interface) = new Interface(false, "@interface.name",
+				"@java.transactFilename(interface)", "@java.shmFilename(interface)", @interface.shmSize);
+		Message __message = new Message();
+		@(java.transactName(interface)).get(__message);
+		__message_loop_@(main.name)(__message, -1, true);
+} else {
 		try (LEDataInputStream fin =
 				new LEDataInputStream("@java.pipeFilename(interface, interface, true)")) {
 			try (LEDataOutputStream fout =
@@ -35,14 +44,20 @@ public class @(interface.name)_entry {
 				__message_loop_@(main.name)(-1, true);
 			}
 		}
+}
 	}
 }
 
 class @(main.name) {
 @for(function <- main.functions) {
+@if(options.transact) {
+@java_shim_transact(java, options, function, main, interface,
+		s"${interface.name}_entry.${java.transactName(interface)}")
+} else {
 @java_shim(java, options, function, main, interface,
 		s"${interface.name}_entry.__out",
 		s"${interface.name}_entry.__in")
+}
 
 }
 }

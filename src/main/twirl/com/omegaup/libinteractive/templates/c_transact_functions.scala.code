@@ -1,0 +1,165 @@
+@(verbose: Boolean = false)
+
+#define STATIC_ASSERT(cond) \
+	extern char (*STATIC_ASSERT(void)) [sizeof(char[1 - 2*!(cond)])]
+
+struct message {
+	ptrdiff_t next;
+	size_t size;
+	size_t free;
+	size_t msgid;
+	char data[32];
+};
+
+STATIC_ASSERT(sizeof(struct message) == 64);
+
+struct message_root {
+	volatile ptrdiff_t current_msg_offset;
+	volatile ptrdiff_t free_offset;
+	volatile ptrdiff_t small_message_list;
+	volatile ptrdiff_t large_message_list;
+	char padding[32];
+
+	struct message root[0];
+};
+
+STATIC_ASSERT(sizeof(struct message_root) == 64);
+
+struct interface {
+	int transact_fd;
+	int shm_fd;
+	const char* name;
+	size_t size;
+	struct message_root* shm;
+};
+
+static void __interface_init(struct interface* interface, int parent,
+		const char* name, const char* transact_name, const char* shm_name,
+		size_t size) {
+	interface->name = name;
+	interface->size = size / sizeof(struct message_root);
+@if(verbose) {
+	fprintf(stderr, "Opening `%s'\n", interface->name);
+}
+	interface->transact_fd = open(transact_name, O_RDWR);
+	if (interface->transact_fd == -1) {
+		write(2, "transactfd\n", 11);
+		exit(1);
+	}
+
+	// Make sure the child process waits until the parent issues a read() call.
+	unsigned long long message = parent;
+	write(interface->transact_fd, &message, sizeof(message));
+
+	interface->shm_fd = open(shm_name, O_RDWR);
+	if (interface->shm_fd == -1) {
+		write(2, "shm_open\n", 9);
+		exit(1);
+	}
+	if (parent && ftruncate(interface->shm_fd, size) == -1) {
+		write(2, "ftruncat\n", 9);
+		exit(1);
+	}
+	interface->shm = (struct message_root*)mmap(NULL, size, PROT_READ | PROT_WRITE,
+			MAP_SHARED, interface->shm_fd, 0);
+	if (interface->shm == (struct message_root*)-1) {
+		write(2, "mmap\n", 5);
+		exit(1);
+	}
+	if (parent) {
+		interface->shm->free_offset = 0;
+		interface->shm->small_message_list = (ptrdiff_t)-1;
+		interface->shm->large_message_list = (ptrdiff_t)-1;
+	}
+}
+
+static struct message* __message_alloc(struct interface* interface, size_t bytes) {
+	bytes += 32; // For the page header.
+	bytes += (~(bytes - 1) & 0x3F); // Align to blocks.
+	size_t blocks = bytes / sizeof(struct message);
+
+	ptrdiff_t head = blocks == 1 ?
+			interface->shm->small_message_list :
+			interface->shm->large_message_list;
+	ptrdiff_t next = head;
+	ptrdiff_t prev_next = interface->size + 1;
+
+	// Try to reuse an old allocation.
+	while (next != (ptrdiff_t)-1) {
+		// The messages form a linked list that goes backwards. If any next pointer
+		// lies outside of the legal values, or it does not appear before in the
+		// shared memory region, it is definitely invalid.
+		if (next < 0 || next >= interface->size || next >= prev_next) {
+			fprintf(stderr, "Illegal next pointer\n");
+			exit(1);
+		}
+		struct message* prev = interface->shm->root + next;
+		if (prev->free && prev->size == blocks) {
+			prev->free = 0;
+			return prev;
+		}
+		prev_next = next;
+		next = prev->next;
+	}
+
+	// Sanity check.
+	ptrdiff_t free_offset = interface->shm->free_offset;
+	if (free_offset < 0 || free_offset >= interface->size) {
+		fprintf(stderr, "Illegal free offset\n");
+		exit(1);
+	}
+
+	// Need to perform allocation.
+	if (interface->size < free_offset + blocks) {
+		// No more memory.
+		fprintf(stderr, "No more memory for arena allocation. "
+				"Need shm size to be at least %zu\n",
+				(free_offset + blocks) * sizeof(struct message) + sizeof(struct message_root));
+		exit(1);
+	}
+
+	struct message* ptr = interface->shm->root + free_offset;
+	ptr->next = head;
+	ptr->size = blocks;
+	ptr->free = 0;
+	if (blocks == 1) {
+		interface->shm->small_message_list = free_offset;
+	} else {
+		interface->shm->large_message_list = free_offset;
+	}
+	interface->shm->free_offset = free_offset + blocks;
+
+	return ptr;
+}
+
+static void __message_free(struct interface* interface, struct message* message) {
+	message->free = 1;
+}
+
+static struct message* __message_get(struct interface* interface) {
+	ptrdiff_t offset = interface->shm->current_msg_offset;
+	if (offset < 0 || offset >= interface->size) {
+		fprintf(stderr, "Illegal message offset\n");
+		exit(1);
+	}
+	return interface->shm->root + offset;
+}
+
+static struct message* __message_call(struct interface* interface,
+		struct message* request, int noret, int nofree) {
+	interface->shm->current_msg_offset = request - interface->shm->root;
+	unsigned long long response;
+	int ret = read(interface->transact_fd, &response, sizeof(response));
+	if (ret != sizeof(response)) {
+		if (noret) {
+			exit(0);
+		}
+		fprintf(stderr, "%s died unexpectedly while calling 0x%zx\n",
+				interface->name, request->msgid);
+		exit(1);
+	}
+	if (!nofree) {
+		__message_free(interface, request);
+	}
+	return __message_get(interface);
+}

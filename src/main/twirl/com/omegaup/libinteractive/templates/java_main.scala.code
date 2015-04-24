@@ -6,36 +6,46 @@
 @(java: Java, options: Options, idl: IDL)
 /* @java.message */
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.EOFException;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.FilterInputStream;
-import java.io.FilterOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 
+@if(options.transact) {
+import com.omegaup.transact.Interface;
+import com.omegaup.transact.Message;
+} else {
 @java_stream_functions(options.verbose)
+}
 
 public class @(idl.main.name)_entry {
-	static long __elapsed_time = 0;
+@if(options.transact) {
+	static Interface @idl.interfaces.map(java.transactName).mkString(", ");
+} else {
 	static LEDataInputStream @idl.interfaces.map(java.pipeName(_, false)).mkString(", ");
 	static LEDataOutputStream @idl.interfaces.map(java.pipeName(_, true)).mkString(", ");
+}
 
 @for(interface <- idl.interfaces) {
+@if(options.transact) {
+@java_message_loop_transact(java, options, interface, idl.main,
+		java.transactName(interface))
+} else {
 @java_message_loop(java, options, interface, idl.main,
 		java.pipeName(interface, true), java.pipeName(interface, false))
+}
 
 }
 	public static void main(String[] args) throws IOException {
 @for(interface <- idl.interfaces) {
+@if(options.transact) {
+		@java.transactName(interface) =
+				new Interface(true, "@interface.name",
+					"@java.transactFilename(interface)", "@java.shmFilename(interface)", @interface.shmSize);
+} else {
 		@java.pipeName(interface, true) =
 				new LEDataOutputStream("@java.pipeFilename(interface, idl.main, true)");
 		@java.pipeName(interface, false) =
 				new LEDataInputStream("@java.pipeFilename(interface, idl.main, false)");
+}
 }
 		@(idl.main.name).main(args);
 	}
@@ -44,9 +54,14 @@ public class @(idl.main.name)_entry {
 @for(interface <- idl.interfaces) {
 class @(interface.name) {
 @for(function <- interface.functions) {
+@if(options.transact) {
+@java_shim_transact(java, options, function, interface, idl.main,
+		s"${idl.main.name}_entry.${java.transactName(interface)}")
+} else {
 @java_shim(java, options, function, interface, idl.main,
 		s"${idl.main.name}_entry.${java.pipeName(interface, true)}",
 		s"${idl.main.name}_entry.${java.pipeName(interface, false)}")
+}
 
 }
 }

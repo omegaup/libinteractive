@@ -83,6 +83,9 @@ automatically generated.
   it might detect an error on the contestant's data), the function must possess
   the `NoReturn` attribute to avoid causing the other process to get confused
   about exiting when it stops receiving information mid-call.
+* If you are using the `transact` kernel module to speed up IPC calls, you can
+  add the ShmSize attribute to the interface to explicitly specify the size of
+  the shared memory region if you need a value different from the 64k default.
 
 # Sample .idl files
 
@@ -159,7 +162,7 @@ but with some syntax to help programming contests.
         ;
     
     interface
-        = "interface", ident, "{", { function }, "}", ";"
+        = { interface-attribute }, "interface", ident, "{", { function }, "}", ";"
         ;
     
     function
@@ -195,6 +198,15 @@ but with some syntax to help programming contests.
     param
         = { param-attribute }, type, ident
         ;
+    
+    interface-attribute
+        = "[", shmsize-attribute, "]"
+        ;
+    
+    shmsize-attribute
+        = "ShmSize", "(", number, ")"
+        ;
+    
 
     function-attribute
         = "[", noreturn-attribute, "]"

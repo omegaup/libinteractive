@@ -56,7 +56,9 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 						input,
 						outputResolve(Paths.get(interface.name, s"${interface.name}_entry.$extension"))
 					),
-					compiler, s"$cflags -o $$@ $$^ -lm -O2 -g $ldflags -Wno-unused-result -I" + relativeToRoot(outputResolve(interface.name)))) ++
+					compiler, s"$cflags -o $$@ $$^ -lm -O2 -g $ldflags -Wno-unused-result -I" + relativeToRoot(outputResolve(interface.name))
+				)
+			) ++
 			idl.interfaces.map(interface =>
 				MakefileRule(Paths.get(interface.name, interface.name + "_debug" + executableExtension),
 					List(
@@ -64,7 +66,9 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 						outputResolve(Paths.get(interface.name, s"${interface.name}_entry.$extension"))
 					),
 					compiler, s"$cflags -o $$@ $$^ -lm -g $ldflags -Wno-unused-result -I" + relativeToRoot(outputResolve(interface.name)),
-					debug = true))
+					debug = true
+				)
+			)
 		}
 	}
 

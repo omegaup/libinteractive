@@ -1,0 +1,55 @@
+@import com.omegaup.libinteractive.idl.ArrayType
+@import com.omegaup.libinteractive.idl.Function
+@import com.omegaup.libinteractive.idl.Interface
+@import com.omegaup.libinteractive.idl.PrimitiveType
+@import com.omegaup.libinteractive.target.Java
+@import com.omegaup.libinteractive.target.Options
+@(java: Java, options: Options, function: Function, callee: Interface, caller: Interface, transactName: String)
+	public static @(java.declareFunction(function)) {
+		try {
+@if(options.verbose) {
+			System.err.printf("invoking @function.name begin\n");
+}
+			final int __msgid = 0x@("%x" format java.functionIds((caller.name, callee.name, function.name)));
+			final int __cookie = 0x@("%x" format java.rand.nextInt);
+
+			Message __message = new Message();
+			@(transactName).allocate(__message, __msgid, @function.params.foldLeft(4L)(_+_.paramType.byteSize));
+@for(param <- function.params) {
+@param.paramType match {
+case primitive: PrimitiveType => {
+			__message.@(java.writePrimitive(primitive))(@param.name);
+}
+case array: ArrayType => {
+@java.writeArray("__message", param, array, 3)
+}
+}
+}
+			__message.writeInt(__cookie);
+
+			@(transactName).call(__message, @function.noReturn, false);
+			@(caller.name)_entry.__message_loop_@(callee.name)(
+					__message, __msgid, @function.noReturn);
+
+@if(function.returnType != PrimitiveType("void")) {
+			@java.formatType(function.returnType) __ans =
+				__message.@(java.readPrimitive(function.returnType))();
+}
+			int __cookie_result = __message.readInt();
+			if (__cookie != __cookie_result) {
+				System.err.printf("invalid cookie\n");
+				System.exit(1);
+			}
+@if(options.verbose) {
+			System.err.printf("invoking @function.name end\n");
+}
+@if(function.returnType != PrimitiveType("void")) {
+			return __ans;
+}
+		} catch (IOException __e) {
+			System.err.println(__e);
+			__e.printStackTrace();
+			System.exit(1);
+			throw new RuntimeException(); // Needed to compile.
+		}
+	}

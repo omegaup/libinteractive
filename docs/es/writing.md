@@ -83,6 +83,10 @@ de manera automática.
   una operación inválida), la función debe tener el atributo `NoReturn` para
   evitar que el otro proceso se confunda cuando deje de recibir información a
   media llamada.
+* Si estás utilizando el módulo de kernel `transact` para hacer llamadas IPC
+  rápidas, puedes agregar el atributo `ShmSize` a las interfaces para
+  establecer explícitamente el tamaño de la región de memoria compartida si
+  necesitas un valor distinto del valor por defecto (64k).
 
 # Ejemplos de archivos .idl
 
@@ -159,7 +163,7 @@ concursos de programación:
         ;
     
     interface
-        = "interface", ident, "{", { function }, "}", ";"
+        = { interface-attribute }, "interface", ident, "{", { function }, "}", ";"
         ;
     
     function
@@ -194,6 +198,14 @@ concursos de programación:
     
     param
         = { param-attribute }, type, ident
+        ;
+    
+    interface-attribute
+        = "[", shmsize-attribute, "]"
+        ;
+    
+    shmsize-attribute
+        = "ShmSize", "(", number, ")"
         ;
     
     function-attribute

@@ -1,0 +1,70 @@
+@import com.omegaup.libinteractive.idl.ArrayType
+@import com.omegaup.libinteractive.idl.Interface
+@import com.omegaup.libinteractive.idl.PrimitiveType
+@import com.omegaup.libinteractive.target.C
+@import com.omegaup.libinteractive.target.Options
+@(c: C, options: Options, caller: Interface, callee: Interface, transactName: String)
+static struct message* __message_loop_@(caller.name)(struct message* __message, int __current_function, int __noreturn) {
+	int __msgid;
+	while (1) {
+		__msgid = __message->msgid;
+		if (__msgid == __current_function) return __message;
+		switch (__msgid) {
+@for(function <- callee.functions) {
+			case 0x@("%x" format c.functionIds((caller.name, callee.name, function.name))): {
+				// @caller.name -> @(callee.name).@(function.name)
+@if(options.verbose) {
+				fprintf(stderr, "calling @function.name begin\n");
+}
+				int __cookie;
+				char* __readbuf = __message->data;
+@for(param <- function.params) {
+@* Workaround for https://github.com/playframework/twirl/issues/35 *@
+@if(param.paramType.isInstanceOf[ArrayType]) {
+				@c.declareVar(param, function) = (@c.formatType(param.paramType))__readbuf;
+} else {
+				@c.declareVar(param, function) = *(@c.formatType(param.paramType)*)__readbuf;
+}
+				__readbuf += @c.fieldLength(param.paramType, Some(function));
+}
+				__cookie = *(int*)__readbuf;
+				__readbuf += sizeof(int);
+
+@if(function.returnType != PrimitiveType("void")) {
+				@c.formatType(function.returnType) result =
+}
+				@(function.name)(@function.params.map(function.name + "_" + _.name).mkString(", "));
+
+				__message = __message_alloc(&@transactName, @(4 + function.returnType.byteSize));
+				__message->msgid = __msgid;
+				char* __writebuf = __message->data;
+@if(function.returnType != PrimitiveType("void")) {
+				*((@c.formatType(function.returnType)*)__writebuf) = result;
+				__writebuf += sizeof(@c.formatType(function.returnType));
+}
+				*(int*)__writebuf = __cookie;
+				__writebuf += sizeof(int);
+				__message = __message_call(&@transactName, __message, 1, 0);
+@if(options.verbose) {
+				fprintf(stderr, "calling @function.name end\n");
+}
+				break;
+			}
+
+}
+			default: {
+				fprintf(stderr, "Unknown message id 0x%x\n", __msgid);
+				exit(1);
+			}
+		}
+	}
+	if (__noreturn) {
+		exit(0);
+	}
+	if (__current_function != -1) {
+		fprintf(stderr, "Confused about exiting\n");
+		exit(1);
+	}
+
+	return __message;
+}
