@@ -71,11 +71,6 @@ int main(int argc, char* argv[]) {
 	int retval = 0;
 
 @if(options.transact) {
-	cpu_set_t mask;
-	CPU_ZERO(&mask);
-	CPU_SET(0, &mask);
-	sched_setaffinity(0, sizeof(mask), &mask);
-
 	__interface_init(&@c.transactName(interface), 0, "@interface.name",
 		"@c.transactFilename(interface)",
 		"@c.shmFilename(interface)", @interface.shmSize);

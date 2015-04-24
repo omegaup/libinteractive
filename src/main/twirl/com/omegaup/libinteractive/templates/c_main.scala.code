@@ -73,11 +73,6 @@ static struct __stream @idl.interfaces.flatMap(interface =>
 
 static void __NOINLINE __libinteractive_init() {
 @if(options.transact) {
-	cpu_set_t mask;
-	CPU_ZERO(&mask);
-	CPU_SET(0, &mask);
-	sched_setaffinity(0, sizeof(mask), &mask);
-
 @for(interface <- idl.interfaces) {
 	__interface_init(&@c.transactName(interface), 1, "@interface.name",
 		"@c.transactFilename(interface)", "@c.shmFilename(interface)", @interface.shmSize);

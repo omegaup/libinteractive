@@ -297,7 +297,6 @@ object Compiler extends Enumeration {
 	val Javac = Value("javac")
 	val Python = Value("python")
 	val Ruby = Value("ruby")
-	val Shell = Value("")
 }
 import Compiler.Compiler
 
