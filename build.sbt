@@ -1,6 +1,6 @@
 name := "libinteractive"
 
-version := "1.6.1"
+version := "2.0.0"
 
 organization := "com.omegaup"
 
