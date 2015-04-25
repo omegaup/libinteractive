@@ -23,7 +23,7 @@ object Main {
 			version("version") text("display version information")
 
 			opt[File]("output-directory") action
-					{ (x, c) => c.copy(outputDirectory = x.toPath) } text
+					{ (x, c) => c.copy(root = x.toPath.toAbsolutePath) } text
 					("the directory in which to generate the files")
 			cmd("validate") action { (_, c) => c.copy(command = Command.Validate) } text
 					("only validate the .idl file") children(
@@ -113,21 +113,21 @@ object Main {
 			}
 			options.command match {
 				case Command.Generate => {
-					val installer = new InstallVisitor(options.outputDirectory, options.root)
-					val problemsetter = options.idlFile.resolve(
-						s"../${idl.main.name}.${options.parentLang}").normalize
-					val contestant = options.idlFile.resolve(
-						s"../${options.moduleName}.${options.childLang}").normalize
+					val installer = new InstallVisitor
+					val problemsetter = options.idlFile.resolveSibling(
+						s"${idl.main.name}.${options.parentLang}").normalize
+					val contestant = options.idlFile.resolveSibling(
+						s"${options.moduleName}.${options.childLang}").normalize
 
-					installer.apply(new OutputDirectory(Paths.get(".")))
+					installer.apply(OutputDirectory(options.root))
 					Generator.generate(idl, options, problemsetter, contestant)
 						.foreach(installer.apply)
 				}
 				case Command.GenerateAll => {
 					val supportedLanguages = List("c", "cpp", "java", "py", "pas")
 					val candidates = supportedLanguages.map(
-						lang => (lang, options.idlFile.resolve(
-							s"../${idl.main.name}.${lang}").normalize)
+						lang => (lang, options.idlFile.resolveSibling(
+							s"${idl.main.name}.${lang}").normalize)
 					).filter(x => Files.exists(x._2))
 
 					if (candidates.isEmpty) {
@@ -143,8 +143,8 @@ object Main {
 						legacyFlags = true,
 						parentLang = candidates(0)._1,
 						parentSource = Some({
-							val distribPath = options.idlFile.resolve(
-								s"../${idl.main.name}.distrib.${candidates(0)._1}").normalize
+							val distribPath = options.idlFile.resolveSibling(
+								s"${idl.main.name}.distrib.${candidates(0)._1}").normalize
 							if (Files.exists(distribPath)) {
 								distribPath
 							} else {
@@ -162,19 +162,18 @@ object Main {
 							case Some(path) => path
 					}).toFile).mkString
 
-					val examplesPath = options.idlFile.resolve(
-						s"../examples").normalize
+					val examplesPath = options.idlFile.resolveSibling(
+						"examples").normalize
 					val examples = (if (Files.isDirectory(examplesPath)) {
 						val stream = Files.newDirectoryStream(examplesPath)
 
-						List(OutputDirectory(Paths.get("examples"), true)) ++
+						List(OutputDirectory(options.resolve("examples"))) ++
 						stream.flatMap(entry => {
 							val name = entry.getName(entry.getNameCount - 1).toString
 							if (name.endsWith(".in")) {
 								Some(OutputFile(
-									Paths.get("examples", name),
-									Source.fromFile(entry.toFile).mkString,
-									false
+									options.resolve("examples", name),
+									Source.fromFile(entry.toFile).mkString
 								))
 							} else {
 								None
@@ -199,16 +198,16 @@ object Main {
 								contestant)
 
 							val visitor = os match {
-								case OS.Windows => new ZipVisitor(finalOptions.outputDirectory,
+								case OS.Windows => new ZipVisitor(finalOptions.root,
 									finalOptions.packageDirectory.resolve(
 										s"${finalOptions.packagePrefix}windows_${lang}.zip"))
-								case OS.Unix => new CompressedTarballVisitor(finalOptions.outputDirectory,
+								case OS.Unix => new CompressedTarballVisitor(finalOptions.root,
 									finalOptions.packageDirectory.resolve(
 										s"${finalOptions.packagePrefix}unix_${lang}.tar.bz2"))
 							}
 							examples.foreach(visitor.apply)
 							try {
-								visitor.apply(OutputFile(problemsetter, problemsetterSource, false))
+								visitor.apply(OutputFile(problemsetter, problemsetterSource))
 								outputs.foreach(visitor.apply)
 							} finally {
 								visitor.close

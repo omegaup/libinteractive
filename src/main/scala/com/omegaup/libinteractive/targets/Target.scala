@@ -97,7 +97,7 @@ case class Options(
 	legacyFlags: Boolean = false,
 	makefile: Boolean = false,
 	moduleName: String = "",
-	outputDirectory: Path = Paths.get("libinteractive"),
+	libraryDirectory: Path = Paths.get("libinteractive"),
 	os: OS.EnumVal = OS.Unix,
 	root: Path = Paths.get(".").normalize,
 	packageDirectory: Path = Paths.get(".").normalize,
@@ -111,43 +111,72 @@ case class Options(
 	sequentialIds: Boolean = false,
 	transact: Boolean = false,
 	verbose: Boolean = false
-)
+) {
+	private def resolve(path: Path, library: Boolean): Path = {
+		var resolvedPath = (if (library && libraryDirectory.toString.length > 0) {
+			libraryDirectory.resolve(path)
+		} else {
+			path
+		})
+		(if (root.toString.length == 0) {
+			resolvedPath
+		} else {
+			root.resolve(resolvedPath)
+		}).normalize
+	}
+
+	def resolve(path: Path): Path = {
+		resolve(path, true)
+	}
+
+	def resolve(first: String, more: String*): Path = {
+		resolve(Paths.get(first, more:_*), true)
+	}
+
+	def rootResolve(path: Path): Path = {
+		resolve(path, false)
+	}
+
+	def rootResolve(first: String, more: String*): Path = {
+		resolve(Paths.get(first, more:_*), false)
+	}
+
+	def relativize(path: Path): Path = {
+		root.relativize(path)
+	}
+
+	def relativeToRoot(path: Path): Path = {
+		relativize(resolve(path))
+	}
+
+	def relativeToRoot(first: String, more: String*): Path = {
+		relativeToRoot(Paths.get(first, more:_*))
+	}
+}
 
 abstract class OutputPath(val path: Path)
-case class OutputDirectory(override val path: Path,
-	val relative: Boolean = true) extends OutputPath(path)
-case class OutputFile(override val path: Path, val contents: String,
-	val relative: Boolean = true)	extends OutputPath(path)
+case class OutputDirectory(override val path: Path) extends OutputPath(path)
+case class OutputFile(override val path: Path,
+	val contents: String)	extends OutputPath(path)
 case class OutputLink(override val path: Path, val target: Path)
 		extends OutputPath(path)
 
-class InstallVisitor(installPath: Path, root: Path) {
+class InstallVisitor {
 	def apply(outputPath: OutputPath) = outputPath match {
 		case dir: OutputDirectory => {
-			val directory = (if (dir.relative) {
-				installPath.resolve(dir.path).normalize
-			} else {
-				dir.path
-			})
-			if (!Files.exists(directory)) {
-				Files.createDirectories(directory)
+			if (!Files.exists(dir.path)) {
+				Files.createDirectories(dir.path)
 			}
 		}
 
 		case file: OutputFile => {
-			val destination = (if (file.relative) {
-				installPath.resolve(file.path)
-			} else {
-				file.path
-			})
-			Files.write(destination, List(file.contents), StandardCharsets.UTF_8)
+			Files.write(file.path, List(file.contents), StandardCharsets.UTF_8)
 		}
 
 		case link: OutputLink => { 
-			val linkPath = installPath.resolve(link.path)
-			if (!Files.exists(linkPath, LinkOption.NOFOLLOW_LINKS)) {
-				Files.createSymbolicLink(linkPath,
-					linkPath.getParent.relativize(link.target))
+			if (!Files.exists(link.path, LinkOption.NOFOLLOW_LINKS)) {
+				Files.createSymbolicLink(link.path,
+					link.path.getParent.relativize(link.target))
 			}
 		}
 	}
@@ -164,22 +193,14 @@ class CompressedTarballVisitor(installPath: Path, tgzFilename: Path)
 
 	override def apply(outputPath: OutputPath) = outputPath match {
 		case dir: OutputDirectory => {
-			val directory = (if (dir.relative) {
-				installPath.resolve(dir.path).normalize
-			} else {
-				dir.path
-			})
 			tar.putArchiveEntry(
-				new TarArchiveEntry(directory.toString + "/", TarConstants.LF_DIR))
+				new TarArchiveEntry(dir.path.toString + "/", TarConstants.LF_DIR))
 			tar.closeArchiveEntry
 		}
 
 		case file: OutputFile => {
-			val entry = new TarArchiveEntry((if (file.relative) {
-				installPath.resolve(file.path)
-			} else {
-				file.path
-			}).toString, TarConstants.LF_NORMAL)
+			val entry = new TarArchiveEntry(file.path.toString,
+				TarConstants.LF_NORMAL)
 			val bytes = file.contents.getBytes(StandardCharsets.UTF_8)
 			entry.setSize(bytes.length)
 			entry.setUserId(1000)
@@ -213,21 +234,12 @@ class ZipVisitor(installPath: Path, zipFilename: Path)
 
 	override def apply(outputPath: OutputPath) = outputPath match {
 		case dir: OutputDirectory => {
-			val directory = (if (dir.relative) {
-				installPath.resolve(dir.path).normalize
-			} else {
-				dir.path
-			})
-			zip.putNextEntry(new ZipEntry(directory.toString + "/"))
+			zip.putNextEntry(new ZipEntry(dir.path.toString + "/"))
 			zip.closeEntry
 		}
 
 		case file: OutputFile => {
-			val entry = new ZipEntry((if (file.relative) {
-				installPath.resolve(file.path)
-			} else {
-				file.path
-			}).toString)
+			val entry = new ZipEntry(file.path.toString)
 			val bytes = new ByteArrayOutputStream
 			val writer = new OutputStreamWriter(bytes, StandardCharsets.UTF_8)
 			var lastChar = '\u0000'
@@ -272,14 +284,14 @@ object NoOpLinkFilter extends LinkFilter {
 	override def apply(input: OutputPath) = Some(input)
 }
 
-class WindowsLinkFilter(root: Path) extends LinkFilter {
+class WindowsLinkFilter extends LinkFilter {
 	private val links = MutableList.empty[ResolvedOutputLink]
 
 	override def resolvedLinks() = links
 	override def apply(input: OutputPath) = {
 		input match {
 			case link: OutputLink => {
-				val resolvedLink = root.resolve(link.path)
+				val resolvedLink = link.path
 				links += ResolvedOutputLink(
 					resolvedLink, link.target)
 				None
@@ -367,22 +379,6 @@ abstract class Target(idl: IDL, options: Options) {
 		s"__${interface.name}_transact"
 	}
 
-	def outputResolve(path: Path): Path = {
-		options.outputDirectory.resolve(path)
-	}
-
-	def outputResolve(filename: String): Path = {
-		outputResolve(Paths.get(filename))
-	}
-
-	def relativeToRoot(path: Path) = {
-		(if (options.root.toString.length == 0) {
-			path
-		} else {
-			options.root.relativize(path)
-		}).normalize
-	}
-
 	def generate(): Iterable[OutputPath]
 	def extension(): String
 	def generateMakefileRules(): Iterable[MakefileRule]
@@ -390,7 +386,7 @@ abstract class Target(idl: IDL, options: Options) {
 
 	protected def generateLink(interface: Interface, input: Path): OutputPath = {
 		val moduleFile = s"${options.moduleName}.$extension"
-		new OutputLink(Paths.get(interface.name, moduleFile), input)
+		new OutputLink(options.resolve(interface.name, moduleFile), input)
 	}
 	protected def generateTemplates(moduleName: String,
 			interfacesToImplement: Iterable[Interface], callableModuleName: String,
@@ -407,7 +403,7 @@ object Generator {
 		if (options.makefile) {
 			val filter = options.os match {
 				case OS.Unix => NoOpLinkFilter
-				case OS.Windows => new WindowsLinkFilter(options.outputDirectory)
+				case OS.Windows => new WindowsLinkFilter
 			}
 			val filteredOutputs = originalOutputs.flatMap(filter.apply)
 			filteredOutputs ++ new Makefile(idl,

@@ -3,6 +3,7 @@
 @(message: String, runPath: Path, allExecutables: String, allRules: Iterable[MakefileRule], sampleFiles: Iterable[String])
 # @message
 
+.PHONY: all
 all: @allExecutables
 
 @for(rule <- allRules) {
@@ -15,13 +16,13 @@ clean:
 	@@rm @allExecutables
 
 .PHONY: run
-run: @allExecutables
+run: all
 	@@@runPath
 
 .PHONY: debug
-debug: @allExecutables
+debug: all
 	@@@runPath --debug
 
 .PHONY: test
-test: @allExecutables
+test: all
 	@@@runPath @sampleFiles.map("'" + _ + "'").mkString(" ")

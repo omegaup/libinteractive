@@ -18,8 +18,8 @@ CALL :getpython || EXIT /B 1
 
 REM Update all "links"
 @for(link <- resolvedLinks) {
-SET TARGET=@target.relativeToRoot(link.link).toString.replace("/", "\\")
-SET SOURCES=@target.relativeToRoot(link.target).toString.replace("/", "\\")
+SET TARGET=@options.relativize(link.link).toString.replace("/", "\\")
+SET SOURCES=@options.relativize(link.target).toString.replace("/", "\\")
 call:recompile %TARGET% %SOURCES%
 IF "%RECOMPILE%" == "1" (
 copy %SOURCES% %TARGET%
@@ -43,7 +43,7 @@ ECHO DONE
 }
 
 REM Run the driver
-@target.relativeToRoot(options.outputDirectory.resolve(Paths.get("run.exe"))).toString.replace("/", "\\") %*
+@options.relativeToRoot("run.exe").toString.replace("/", "\\") %*
 IF !ERRORLEVEL! NEQ 0 EXIT /B !ERRORLEVEL!
 GOTO:EOF
 

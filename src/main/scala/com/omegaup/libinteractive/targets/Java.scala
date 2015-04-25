@@ -21,8 +21,8 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 		if (parent) {
 			val mainFile = s"${idl.main.name}.java"
 			List(
-				new OutputDirectory(Paths.get(idl.main.name)),
-				new OutputLink(Paths.get(idl.main.name, mainFile), input),
+				new OutputDirectory(options.resolve(idl.main.name)),
+				new OutputLink(options.resolve(idl.main.name, mainFile), input),
 				generateMainFile)
 		} else {
 			val moduleFile = s"${options.moduleName}.java"
@@ -30,7 +30,7 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 					idl.main.name, List(idl.main), input) ++
 			idl.interfaces.flatMap(interface =>
 				List(
-					new OutputDirectory(Paths.get(interface.name)),
+					new OutputDirectory(options.resolve(interface.name)),
 					generate(interface),
 					generateLink(interface, input))
 			)
@@ -39,19 +39,19 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 
 	override def generateMakefileRules() = {
 		if (parent) {
-			List(MakefileRule(Paths.get(idl.main.name, s"${idl.main.name}.class"),
+			List(MakefileRule(options.resolve(idl.main.name, s"${idl.main.name}.class"),
 				List(
-					outputResolve(Paths.get(idl.main.name, s"${idl.main.name}.java")),
-					outputResolve(Paths.get(idl.main.name, s"${idl.main.name}_entry.java"))
+					options.resolve(idl.main.name, s"${idl.main.name}.java"),
+					options.resolve(idl.main.name, s"${idl.main.name}_entry.java")
 				),
 				Compiler.Javac, "$^"))
 		} else {
 			idl.interfaces.flatMap(interface =>
 				List(
-					MakefileRule(Paths.get(interface.name, s"${interface.name}_entry.class"),
+					MakefileRule(options.resolve(interface.name, s"${interface.name}_entry.class"),
 						List(
-							outputResolve(Paths.get(interface.name, s"${options.moduleName}.java")),
-							outputResolve(Paths.get(interface.name, s"${interface.name}_entry.java"))
+							options.resolve(interface.name, s"${options.moduleName}.java"),
+							options.resolve(interface.name, s"${interface.name}_entry.java")
 						),
 						Compiler.Javac, "$^")
 				)
@@ -73,9 +73,7 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 			idl.interfaces
 		}).map(interface =>
 			ExecDescription(Array(javaExecutable, "-cp",
-				relativeToRoot(
-					options.outputDirectory.resolve(interface.name)
-				).toString,
+				options.relativeToRoot(interface.name).toString,
 				s"${interface.name}_entry"))
 		)
 	}
@@ -92,14 +90,14 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 		val template = templates.code.java_template(this, options,
 			moduleName, callableInterfaces, interfacesToImplement)
 
-		List(OutputFile(input, template.toString, false))
+		List(OutputFile(input, template.toString))
 	}
 
 	private def generate(interface: Interface) = {
 		val java = templates.code.java(this, options, interface, idl.main)
 
 		OutputFile(
-			Paths.get(interface.name, s"${interface.name}_entry.java"),
+			options.resolve(interface.name, s"${interface.name}_entry.java"),
 			java.toString)
 	}
 
@@ -107,7 +105,7 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 		val java = templates.code.java_main(this, options, idl)
 
 		OutputFile(
-			Paths.get(idl.main.name, s"${idl.main.name}_entry.java"),
+			options.resolve(idl.main.name, s"${idl.main.name}_entry.java"),
 			java.toString)
 	}
 

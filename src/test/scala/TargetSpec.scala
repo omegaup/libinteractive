@@ -67,18 +67,17 @@ class TargetSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
       idlFile = idlFile,
       makefile = true,
 			moduleName = moduleName,
-			root = root,
-			quiet = true,
-			outputDirectory = root.resolve("libinteractive")
+			root = root.toAbsolutePath,
+			quiet = true
     )
 		val parser = new Parser
 		val idl = parser.parse(Source.fromFile(idlFile.toFile).mkString)
 
-		val installer = new InstallVisitor(root.resolve("libinteractive"), root)
+		val installer = new InstallVisitor
 		val problemsetter = deploy(path.resolve(
-			s"${idl.main.name}.${options.parentLang}"))
+			s"${idl.main.name}.${options.parentLang}")).toAbsolutePath
 		val contestant = deploy(path.resolve(
-			s"${options.moduleName}.${options.childLang}"))
+			s"${options.moduleName}.${options.childLang}")).toAbsolutePath
 
 		installer.apply(new OutputDirectory(Paths.get(".")))
 		Generator.generate(idl, options, problemsetter, contestant).foreach(

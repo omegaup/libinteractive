@@ -26,59 +26,57 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 
 	private def generateCodeBlocksUnixProject(extension: String): OutputFile = {
 		OutputFile(
-			path = options.root.resolve(s"${options.moduleName}.cbp"),
+			path = options.rootResolve(s"${options.moduleName}.cbp"),
 			contents = templates.code.codeblocks_unix(message, this,
-				runPath = relativeToRoot(options.outputDirectory.resolve(Paths.get("run"))),
-				debugExecutable = rules.find(_.debug).map(rule =>
-					relativeToRoot(options.outputDirectory.resolve(rule.target))).get,
+				runPath = options.relativeToRoot("run"),
+				debugExecutable = rules.find(_.debug).map(_.target).get,
 				resolvedLinks = resolvedLinks,
 				sampleFiles = options.sampleFiles,
-				parentFile = relativeToRoot(Paths.get(s"${idl.main.name}.${options.parentLang}")),
+				parentFile = Paths.get(s"${idl.main.name}.${options.parentLang}"),
 				moduleName = options.moduleName,
-				extension = extension).toString,
-			relative = false)
+				extension = extension).toString
+			)
 	}
 
 	private def generateCodeBlocksWindowsProject(extension: String): OutputFile = {
 		OutputFile(
-			path = options.root.resolve(s"${options.moduleName}.cbp"),
+			path = options.rootResolve(s"${options.moduleName}.cbp"),
 			contents = templates.code.codeblocks_windows(message, this,
-				runPath = relativeToRoot(options.outputDirectory.resolve(Paths.get("run.exe"))),
-				makefilePath = relativeToRoot(options.outputDirectory.resolve(Paths.get("Makefile"))),
-				debugExecutable = rules.find(_.debug).map(rule =>
-					relativeToRoot(options.outputDirectory.resolve(rule.target))).get,
+				runPath = options.relativeToRoot("run.exe"),
+				makefilePath = options.relativeToRoot("Makefile"),
+				debugExecutable = rules.find(_.debug).map(_.target).get,
 				resolvedLinks = resolvedLinks,
 				sampleFiles = options.sampleFiles,
-				parentFile = relativeToRoot(Paths.get(s"${idl.main.name}.${options.parentLang}")),
+				parentFile = Paths.get(s"${idl.main.name}.${options.parentLang}"),
 				moduleName = options.moduleName,
-				extension = extension).toString,
-			relative = false)
+				extension = extension).toString
+			)
 	}
 
 	private def generateLazarusUnixProject(extension: String): OutputFile = {
 		OutputFile(
-			path = options.root.resolve(s"${options.moduleName}.lpi"),
+			path = options.rootResolve(s"${options.moduleName}.lpi"),
 			contents = templates.code.lazarus_unix(message, this,
-				runPath = relativeToRoot(options.outputDirectory.resolve(Paths.get("run"))),
-				makefilePath = relativeToRoot(Paths.get("Makefile")),
+				runPath = options.relativeToRoot("run"),
+				makefilePath = Paths.get("Makefile"),
 				sampleFiles = options.sampleFiles,
-				parentFile = relativeToRoot(Paths.get(s"${idl.main.name}.${options.parentLang}")),
+				parentFile = Paths.get(s"${idl.main.name}.${options.parentLang}"),
 				moduleName = options.moduleName,
-				extension = extension).toString,
-			relative = false)
+				extension = extension).toString
+			)
 	}
 
 	private def generateLazarusWindowsProject(extension: String): OutputFile = {
 		OutputFile(
-			path = options.root.resolve(s"${options.moduleName}.lpi"),
+			path = options.rootResolve(s"${options.moduleName}.lpi"),
 			contents = templates.code.lazarus_windows(message, this,
-				runPath = relativeToRoot(options.outputDirectory.resolve(Paths.get("run.exe"))),
-				makefilePath = relativeToRoot(options.outputDirectory.resolve(Paths.get("Makefile"))),
+				runPath = options.resolve("run.exe"),
+				makefilePath = options.relativize(options.resolve("Makefile")),
 				sampleFiles = options.sampleFiles,
-				parentFile = relativeToRoot(Paths.get(s"${idl.main.name}.${options.parentLang}")),
+				parentFile = Paths.get(s"${idl.main.name}.${options.parentLang}"),
 				moduleName = options.moduleName,
-				extension = extension).toString,
-			relative = false)
+				extension = extension).toString
+		)
 	}
 
 	private def generateUnixIdeProject(): Iterable[OutputFile] = {
@@ -102,57 +100,55 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 	private def generateMakefileUnixContents() = {
 		val allRules = (rules ++ List(
 			MakefileRule(
-				Paths.get("run"),
-				List(outputResolve("run.c")),
+				options.relativeToRoot("run"),
+				List(options.relativeToRoot("run.c")),
 				Compiler.Gcc, "-std=c99 -o $@ -lrt $^ -O2 -D_XOPEN_SOURCE=600 " +
-				"-D_BSD_SOURCE -Wall"))).map(resolve)
+				"-D_BSD_SOURCE -Wall")))
 		val makefile = templates.code.makefile_unix(message,
 			allRules = allRules,
 			allExecutables = allRules.map(_.target).mkString(" "),
-			runPath = relativeToRoot(options.outputDirectory.resolve(Paths.get("run"))),
+			runPath = options.relativeToRoot("run"),
 			sampleFiles = options.sampleFiles)
 
-		OutputFile(options.root.resolve("Makefile"), makefile.toString, false)
+		OutputFile(options.rootResolve("Makefile"), makefile.toString)
 	}
 
 	private def generateMakefileWindowsContents() = {
 		val allRules = (rules ++ List(
 			MakefileRule(
-				Paths.get("run.exe"),
-				List(outputResolve("run.c")),
+				options.relativeToRoot("run.exe"),
+				List(options.relativeToRoot("run.c")),
 				Compiler.Gcc, "-std=c99 -o $@ $^ -O2 -lpsapi -Wall"))
-		).map(resolve)
+		)
 		val makefile = templates.code.makefile_windows(message,
 			allRules = allRules,
 			allExecutables = allRules.map(_.target).mkString(" "),
-			runPath = relativeToRoot(options.outputDirectory.resolve(Paths.get("run"))),
-			resolvedLinks = resolvedLinks,
+			runPath = options.relativeToRoot("run.exe"),
+			resolvedLinks = resolvedLinks.map(
+				link => new ResolvedOutputLink(
+					options.relativize(link.link),
+					options.relativize(link.target)
+				)
+			),
 			sampleFiles = options.sampleFiles)
 
-		OutputFile(Paths.get("Makefile"), makefile.toString)
+		OutputFile(options.resolve("Makefile"), makefile.toString)
 	}
 
 	private def generateBatchFileContents() = {
 		val allRules = (rules ++ List(
 				MakefileRule(
-					Paths.get("run.exe"),
-					List(outputResolve("run.c")),
-					Compiler.Gcc, "-std=c99 -o $@ $^ -O2 -lpsapi -Wall"))).map(resolve)
+					options.relativeToRoot("run.exe"),
+					List(options.relativeToRoot("run.c")),
+					Compiler.Gcc, "-std=c99 -o $@ $^ -O2 -lpsapi -Wall")))
 
 		val runbat = templates.code.runbat(this, message, allRules, resolvedLinks, options)
 
 		List(
-			OutputFile(options.root.resolve("run.bat"), runbat.toString, false),
-			OutputFile(options.root.resolve("test.bat"), s"@ECHO OFF\r\nREM $message\r\n\r\n" +
-				s"""run.bat ${options.sampleFiles.map("\"" + _ + "\"").mkString(" ")}""", false)
+			OutputFile(options.rootResolve("run.bat"), runbat.toString),
+			OutputFile(options.rootResolve("test.bat"), s"@ECHO OFF\r\nREM $message\r\n\r\n" +
+				s"""run.bat ${options.sampleFiles.map("\"" + _ + "\"").mkString(" ")}""")
 		)
-	}
-
-	private def resolve(rule: MakefileRule) = {
-		new MakefileRule(
-			relativeToRoot(options.outputDirectory.resolve(rule.target)),
-			rule.requisites.map(relativeToRoot),
-			rule.compiler, rule.params)
 	}
 
 	private def generateRunDriver() = {
@@ -167,7 +163,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 			maxNameLength = idl.allInterfaces.foldLeft(0)((length, interface) =>
 				Math.max(length, interface.name.length)))
 
-		OutputFile(Paths.get("run.c"), rundriver.toString)
+		OutputFile(options.resolve("run.c"), rundriver.toString)
 	}
 
 	private def generateRunDriverWindows() = {
@@ -176,7 +172,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 			maxNameLength = idl.allInterfaces.foldLeft(0)((length, interface) =>
 				Math.max(length, interface.name.length)))
 
-		OutputFile(Paths.get("run.c"), rundriver.toString)
+		OutputFile(options.resolve("run.c"), rundriver.toString)
 	}
 
 	override def extension() = ???

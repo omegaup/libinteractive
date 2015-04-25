@@ -26,7 +26,7 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 		if (parent) {
 			val mainFile = s"${idl.main.name}.$extension"
 			List(
-				new OutputDirectory(Paths.get(idl.main.name)),
+				new OutputDirectory(options.resolve(idl.main.name)),
 				generateMainHeader,
 				generateMainFile)
 		} else {
@@ -34,7 +34,7 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 					idl.main.name, List(idl.main), input) ++
 			idl.interfaces.flatMap(interface =>
 				List(
-					new OutputDirectory(Paths.get(interface.name)),
+					new OutputDirectory(options.resolve(interface.name)),
 					generateHeader(interface),
 					generate(interface))
 			)
@@ -43,29 +43,33 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 
 	override def generateMakefileRules() = {
 		if (parent) {
-			List(MakefileRule(Paths.get(idl.main.name, idl.main.name + executableExtension),
+			List(MakefileRule(
+				options.relativeToRoot(idl.main.name, idl.main.name + executableExtension),
 				List(
-					input.resolveSibling(Paths.get(s"${idl.main.name}.$extension")),
-					outputResolve(Paths.get(idl.main.name, s"${idl.main.name}_entry.$extension"))
+					options.relativize(input.resolveSibling(Paths.get(s"${idl.main.name}.$extension"))),
+					options.relativeToRoot(idl.main.name, s"${idl.main.name}_entry.$extension")
 				),
-				compiler, s"$cflags -o $$@ $$^ -lm -O2 -g $ldflags -Wno-unused-result -I" + relativeToRoot(outputResolve(idl.main.name))))
+				compiler, s"$cflags -o $$@ $$^ -lm -O2 -g $ldflags -Wno-unused-result -I" + options.relativeToRoot(idl.main.name)
+			))
 		} else {
 			idl.interfaces.map(interface =>
-				MakefileRule(Paths.get(interface.name, interface.name + executableExtension),
+				MakefileRule(
+					options.relativeToRoot(interface.name, interface.name + executableExtension),
 					List(
-						input,
-						outputResolve(Paths.get(interface.name, s"${interface.name}_entry.$extension"))
+						options.relativize(input),
+						options.relativeToRoot(interface.name, s"${interface.name}_entry.$extension")
 					),
-					compiler, s"$cflags -o $$@ $$^ -lm -O2 -g $ldflags -Wno-unused-result -I" + relativeToRoot(outputResolve(interface.name))
+					compiler, s"$cflags -o $$@ $$^ -lm -O2 -g $ldflags -Wno-unused-result -I" + options.relativeToRoot(interface.name)
 				)
 			) ++
 			idl.interfaces.map(interface =>
-				MakefileRule(Paths.get(interface.name, interface.name + "_debug" + executableExtension),
+				MakefileRule(
+					options.relativeToRoot(interface.name, interface.name + "_debug" + executableExtension),
 					List(
-						input,
-						outputResolve(Paths.get(interface.name, s"${interface.name}_entry.$extension"))
+						options.relativize(input),
+						options.relativeToRoot(interface.name, s"${interface.name}_entry.$extension")
 					),
-					compiler, s"$cflags -o $$@ $$^ -lm -g $ldflags -Wno-unused-result -I" + relativeToRoot(outputResolve(interface.name)),
+					compiler, s"$cflags -o $$@ $$^ -lm -g $ldflags -Wno-unused-result -I" + options.relativeToRoot(interface.name),
 					debug = true
 				)
 			)
@@ -80,11 +84,8 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 	}
 
 	private def runCommand(interface: Interface, suffix: String = "") = {
-		relativeToRoot(
-			options.outputDirectory.resolve(
-				Paths.get(interface.name, interface.name + suffix + executableExtension)
-			)
-		).toString
+		options.relativeToRoot(interface.name,
+			interface.name + suffix + executableExtension).toString
 	}
 
 	override def generateRunCommands() = {
@@ -116,38 +117,42 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 
 		val template = templates.code.c_template(this, options, callableInterfaces, interfacesToImplement)
 
-		List(OutputFile(input, template.toString, false))
+		List(OutputFile(input, template.toString))
 	}
 
 	private def generateHeader(interface: Interface) = {
 		val header = templates.code.c_header(this, List(interface, idl.main))
 
 		OutputFile(
-			Paths.get(interface.name, s"${options.moduleName}.h"),
-			header.toString)
+			options.resolve(interface.name, s"${options.moduleName}.h"),
+			header.toString
+		)
 	}
 
 	private def generate(interface: Interface) = {
 		val child = templates.code.c(this, idl, options, interface)
 		
 		OutputFile(
-			Paths.get(interface.name, s"${interface.name}_entry.$extension"),
-			child.toString)
+			options.resolve(interface.name, s"${interface.name}_entry.$extension"),
+			child.toString
+		)
 	}
 
 	private def generateMainHeader() = {
 		val header = templates.code.c_header(this, idl.allInterfaces)
 
 		OutputFile(
-			Paths.get(idl.main.name, s"${options.moduleName}.h"),
-			header.toString)
+			options.resolve(idl.main.name, s"${options.moduleName}.h"),
+			header.toString
+		)
 	}
 
 	private def generateMainFile() = {
 		val c = templates.code.c_main(this, options, idl)
 		OutputFile(
-			Paths.get(idl.main.name, s"${idl.main.name}_entry.$extension"),
-			c.toString)
+			options.resolve(idl.main.name, s"${idl.main.name}_entry.$extension"),
+			c.toString
+		)
 	}
 
 	def compiler() = Compiler.Gcc

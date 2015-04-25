@@ -38,7 +38,7 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 					idl.main.name, List(idl.main), input) ++
 			idl.interfaces.flatMap(interface =>
 				List(
-					new OutputDirectory(Paths.get(interface.name)),
+					new OutputDirectory(options.resolve(interface.name)),
 					generateEntry(interface),
 					generate(interface),
 					generateLink(interface, input))
@@ -51,11 +51,12 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 			throw new UnsupportedOperationException;
 		} else {
 			idl.interfaces.map(interface =>
-				MakefileRule(Paths.get(interface.name, interface.name + executableExtension),
+				MakefileRule(
+					options.resolve(interface.name, interface.name + executableExtension),
 					List(
-						outputResolve(Paths.get(interface.name, s"${options.moduleName}.pas")),
-						outputResolve(Paths.get(interface.name, s"${idl.main.name}.pas")),
-						outputResolve(Paths.get(interface.name, s"${interface.name}_entry.pas"))
+						options.relativeToRoot(interface.name, s"${options.moduleName}.pas"),
+						options.relativeToRoot(interface.name, s"${idl.main.name}.pas"),
+						options.relativeToRoot(interface.name, s"${interface.name}_entry.pas")
 					),
 					Compiler.Fpc, ldflags + " -O2 -Mobjfpc -Sc -Sh -o$@ $^" + (
 						if (options.quiet) " > /dev/null" else ""
@@ -63,11 +64,12 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 				)
 			) ++
 			idl.interfaces.map(interface =>
-				MakefileRule(Paths.get(interface.name, interface.name + "_debug" + executableExtension),
+				MakefileRule(
+					options.resolve(interface.name, interface.name + "_debug" + executableExtension),
 					List(
-						outputResolve(Paths.get(interface.name, s"${options.moduleName}.pas")),
-						outputResolve(Paths.get(interface.name, s"${idl.main.name}.pas")),
-						outputResolve(Paths.get(interface.name, s"${interface.name}_entry.pas"))
+						options.relativeToRoot(interface.name, s"${options.moduleName}.pas"),
+						options.relativeToRoot(interface.name, s"${idl.main.name}.pas"),
+						options.relativeToRoot(interface.name, s"${interface.name}_entry.pas")
 					),
 					Compiler.Fpc, ldflags + " -g -Mobjfpc -Sc -Sh -o$@ $^" + (
 						if (options.quiet) " > /dev/null" else ""
@@ -90,7 +92,7 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 			options, moduleName, callableInterfaces,
 			interfacesToImplement, callableModuleName)
 
-		List(OutputFile(input, template.toString, false))
+		List(OutputFile(input, template.toString))
 	}
 
 	private def gdbserverPath = {
@@ -101,11 +103,8 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 	}
 
 	private def runCommand(interface: Interface, suffix: String = "") = {
-		relativeToRoot(
-			options.outputDirectory.resolve(
-				Paths.get(interface.name, interface.name + suffix + executableExtension)
-			)
-		).toString
+		options.relativeToRoot(interface.name,
+			interface.name + suffix + executableExtension).toString
 	}
 
 	override def generateRunCommands() = {
@@ -139,7 +138,7 @@ begin
 end.
 """
 		OutputFile(
-			Paths.get(interface.name, s"${interface.name}_entry.pas"),
+			options.resolve(interface.name, s"${interface.name}_entry.pas"),
 			builder.mkString)
 	}
 
@@ -147,7 +146,7 @@ end.
 		val pascal = templates.code.pascal(this, options, interface, idl.main)
 
 		OutputFile(
-			Paths.get(interface.name, s"${idl.main.name}.pas"),
+			options.resolve(interface.name, s"${idl.main.name}.pas"),
 			pascal.toString)
 	}
 

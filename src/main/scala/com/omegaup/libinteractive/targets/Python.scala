@@ -23,8 +23,8 @@ class Python(idl: IDL, options: Options, input: Path, parent: Boolean)
 		if (parent) {
 			val mainFile = s"${idl.main.name}.py"
 			List(
-				new OutputDirectory(Paths.get(idl.main.name)),
-				new OutputLink(Paths.get(idl.main.name, mainFile), input),
+				new OutputDirectory(options.resolve(idl.main.name)),
+				new OutputLink(options.resolve(idl.main.name, mainFile), input),
 				generateMain,
 				generateMainEntry)
 		} else {
@@ -33,7 +33,7 @@ class Python(idl: IDL, options: Options, input: Path, parent: Boolean)
 					idl.main.name, List(idl.main), input) ++
 			idl.interfaces.flatMap(interface =>
 				List(
-					new OutputDirectory(Paths.get(interface.name)),
+					new OutputDirectory(options.resolve(interface.name)),
 					generateLib(interface),
 					generate(interface),
 					generateLink(interface, input))
@@ -59,10 +59,11 @@ class Python(idl: IDL, options: Options, input: Path, parent: Boolean)
 			idl.interfaces
 		}).map(interface =>
 			ExecDescription(
-				Array(pythonExecutable, relativeToRoot(
-					options.outputDirectory.resolve(
-						Paths.get(interface.name, s"${interface.name}_entry.py")
-				)).toString)
+				Array(
+					pythonExecutable,
+					options.relativeToRoot(interface.name,
+						s"${interface.name}_entry.py").toString
+				)
 			)
 		)
 	}
@@ -79,7 +80,7 @@ class Python(idl: IDL, options: Options, input: Path, parent: Boolean)
 		val template = templates.code.python_template(this,
 			options, callableInterfaces, interfacesToImplement)
 
-		List(OutputFile(input, template.toString, false))
+		List(OutputFile(input, template.toString))
 	}
 
 	def structFormat(formatType: Type): String = {
@@ -140,13 +141,12 @@ class Python(idl: IDL, options: Options, input: Path, parent: Boolean)
 import sys
 import runpy
 
-sys.path[0] = "${relativeToRoot(
-	options.outputDirectory.resolve(Paths.get(idl.main.name))).toString}"
+sys.path[0] = "${options.relativeToRoot(idl.main.name)}"
 
 runpy.run_module("${idl.main.name}", run_name="__main__")
 """
 		OutputFile(
-			Paths.get(idl.main.name, s"${idl.main.name}_entry.py"),
+			options.resolve(idl.main.name, s"${idl.main.name}_entry.py"),
 			builder.mkString)
 	}
 
@@ -154,7 +154,7 @@ runpy.run_module("${idl.main.name}", run_name="__main__")
 		val main = templates.code.python_main(this, options, idl) 
 
 		OutputFile(
-			Paths.get(idl.main.name, s"${options.moduleName}.py"),
+			options.resolve(idl.main.name, s"${options.moduleName}.py"),
 			main.toString)
 	}
 
@@ -166,7 +166,7 @@ runpy.run_module("${idl.main.name}", run_name="__main__")
 import ${idl.main.name}
 """
 		OutputFile(
-			Paths.get(interface.name, s"${interface.name}_entry.py"),
+			options.resolve(interface.name, s"${interface.name}_entry.py"),
 			builder.mkString)
 	}
 
@@ -174,7 +174,7 @@ import ${idl.main.name}
 		val python = templates.code.python(this, options, interface, idl.main)
 
 		OutputFile(
-			Paths.get(interface.name, s"${idl.main.name}.py"),
+			options.resolve(interface.name, s"${idl.main.name}.py"),
 			python.toString)
 	}
 
