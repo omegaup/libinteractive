@@ -99,6 +99,7 @@ case class Options(
 	moduleName: String = "",
 	libraryDirectory: Path = Paths.get("libinteractive"),
 	os: OS.EnumVal = OS.Unix,
+	preferOriginalSources: Boolean = true,
 	root: Path = Paths.get(".").normalize,
 	packageDirectory: Path = Paths.get(".").normalize,
 	packagePrefix: String = "",

@@ -28,7 +28,12 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 			List(
 				new OutputDirectory(options.resolve(idl.main.name)),
 				generateMainHeader,
-				generateMainFile)
+				generateMainFile) ++
+			(if (options.preferOriginalSources) {
+				List()
+			} else {
+				List(new OutputLink(options.resolve(idl.main.name, mainFile), input))
+			})
 		} else {
 			generateTemplates(options.moduleName, idl.interfaces,
 					idl.main.name, List(idl.main), input) ++
@@ -36,43 +41,58 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 				List(
 					new OutputDirectory(options.resolve(interface.name)),
 					generateHeader(interface),
-					generate(interface))
+					generate(interface)) ++
+				(if (options.preferOriginalSources) {
+					List()
+				} else {
+					List(generateLink(interface, input))
+				})
 			)
 		}
 	}
 
 	override def generateMakefileRules() = {
 		if (parent) {
+			val sourcePath = (if (options.preferOriginalSources) {
+				options.relativize(input.resolveSibling(Paths.get(s"${idl.main.name}.$extension")))
+			} else {
+				options.relativeToRoot(idl.main.name, s"${idl.main.name}.$extension")
+			})
 			List(MakefileRule(
 				options.relativeToRoot(idl.main.name, idl.main.name + executableExtension),
 				List(
-					options.relativize(input.resolveSibling(Paths.get(s"${idl.main.name}.$extension"))),
+					sourcePath,
 					options.relativeToRoot(idl.main.name, s"${idl.main.name}_entry.$extension")
 				),
 				compiler, s"$cflags -o $$@ $$^ -lm -O2 -g $ldflags -Wno-unused-result -I" + options.relativeToRoot(idl.main.name)
 			))
 		} else {
-			idl.interfaces.map(interface =>
-				MakefileRule(
-					options.relativeToRoot(interface.name, interface.name + executableExtension),
-					List(
-						options.relativize(input),
-						options.relativeToRoot(interface.name, s"${interface.name}_entry.$extension")
+			idl.interfaces.flatMap(interface => {
+				val sourcePath = (if (options.preferOriginalSources) {
+					options.relativize(input)
+				} else {
+					options.relativeToRoot(interface.name, s"${interface.name}.$extension")
+				})
+				List(
+					MakefileRule(
+						options.relativeToRoot(interface.name, interface.name + executableExtension),
+						List(
+							sourcePath,
+							options.relativeToRoot(interface.name, s"${interface.name}_entry.$extension")
+						),
+						compiler, s"$cflags -o $$@ $$^ -lm -O2 -g $ldflags -Wno-unused-result -I" + options.relativeToRoot(interface.name)
 					),
-					compiler, s"$cflags -o $$@ $$^ -lm -O2 -g $ldflags -Wno-unused-result -I" + options.relativeToRoot(interface.name)
+					MakefileRule(
+						options.relativeToRoot(interface.name, interface.name + "_debug" + executableExtension),
+						List(
+							sourcePath,
+							options.relativeToRoot(interface.name, s"${interface.name}_entry.$extension")
+						),
+						compiler, s"$cflags -o $$@ $$^ -lm -g $ldflags -Wno-unused-result -I" + options.relativeToRoot(interface.name),
+						debug = true
+					)
 				)
-			) ++
-			idl.interfaces.map(interface =>
-				MakefileRule(
-					options.relativeToRoot(interface.name, interface.name + "_debug" + executableExtension),
-					List(
-						options.relativize(input),
-						options.relativeToRoot(interface.name, s"${interface.name}_entry.$extension")
-					),
-					compiler, s"$cflags -o $$@ $$^ -lm -g $ldflags -Wno-unused-result -I" + options.relativeToRoot(interface.name),
-					debug = true
-				)
-			)
+			})
 		}
 	}
 
