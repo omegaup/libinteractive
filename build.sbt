@@ -10,6 +10,11 @@ scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
 
 lazy val root = (project in file("."))
 	.enablePlugins(SbtTwirl)
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "com.omegaup.libinteractive"
+  )
 
 publishArtifact in (Proguard) := true
 
