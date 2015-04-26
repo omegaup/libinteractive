@@ -18,7 +18,9 @@ import @interface.name
 @for(function <- interface.functions) {
 @python.declareFunction(function):
 	# FIXME
-@if(function.returnType != PrimitiveType("void")) {
+@if(function.returnType == PrimitiveType("void")) {
+	pass
+} else {
 	return @python.defaultValue(function.returnType)
 }
 
