@@ -139,6 +139,22 @@ object Main {
 						System.exit(1)
 					}
 
+					val examplesPath = options.idlFile.resolveSibling("examples").normalize
+					val examples = (if (Files.isDirectory(examplesPath)) {
+						val stream = Files.newDirectoryStream(examplesPath)
+
+						stream.flatMap(entry => {
+							val name = entry.getName(entry.getNameCount - 1).toString
+							if (name.endsWith(".in")) {
+								Some(entry)
+							} else {
+								None
+							}
+						})
+					} else {
+						List()
+					}).toList.sortWith(_.getFileName.toString < _.getFileName.toString)
+
 					val finalOptions = options.copy(
 						legacyFlags = true,
 						parentLang = candidates(0)._1,
@@ -150,7 +166,8 @@ object Main {
 							} else {
 								candidates(0)._2
 							}
-						})
+						}),
+						sampleFiles = examples.map(entry => s"examples/${entry.getFileName}").toList
 					)
 
 					val problemsetter = Paths.get(
@@ -162,23 +179,14 @@ object Main {
 							case Some(path) => path
 					}).toFile).mkString
 
-					val examplesPath = options.idlFile.resolveSibling(
-						"examples").normalize
-					val examples = (if (Files.isDirectory(examplesPath)) {
-						val stream = Files.newDirectoryStream(examplesPath)
-
-						List(OutputDirectory(options.resolve("examples"))) ++
-						stream.flatMap(entry => {
-							val name = entry.getName(entry.getNameCount - 1).toString
-							if (name.endsWith(".in")) {
-								Some(OutputFile(
-									options.resolve("examples", name),
-									Source.fromFile(entry.toFile).mkString
-								))
-							} else {
-								None
-							}
-						})
+					var exampleOutputs = (if (!examples.isEmpty) {
+						List(OutputDirectory(finalOptions.rootResolve("examples"))) ++
+						examples.map(entry =>
+							OutputFile(
+								finalOptions.rootResolve("examples", entry.getFileName.toString),
+								Source.fromFile(entry.toFile).mkString
+							)
+						)
 					} else {
 						List()
 					})
@@ -194,8 +202,9 @@ object Main {
 							val contestant = Paths.get(
 								s"${finalOptions.moduleName}.${lang}")
 
-							val outputs = Generator.generate(idl, localOptions, problemsetter,
-								contestant)
+							val outputs = Generator.generate(idl, localOptions,
+								problemsetter, contestant) ++ exampleOutputs ++
+							List(OutputFile(problemsetter, problemsetterSource))
 
 							val visitor = os match {
 								case OS.Windows => new ZipVisitor(finalOptions.root,
@@ -205,9 +214,7 @@ object Main {
 									finalOptions.packageDirectory.resolve(
 										s"${finalOptions.packagePrefix}unix_${lang}.tar.bz2"))
 							}
-							examples.foreach(visitor.apply)
 							try {
-								visitor.apply(OutputFile(problemsetter, problemsetterSource))
 								outputs.foreach(visitor.apply)
 							} finally {
 								visitor.close
