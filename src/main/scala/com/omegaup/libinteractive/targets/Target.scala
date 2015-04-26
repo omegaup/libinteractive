@@ -195,12 +195,13 @@ class CompressedTarballVisitor(installPath: Path, tgzFilename: Path)
 	override def apply(outputPath: OutputPath) = outputPath match {
 		case dir: OutputDirectory => {
 			tar.putArchiveEntry(
-				new TarArchiveEntry(dir.path.toString + "/", TarConstants.LF_DIR))
+				new TarArchiveEntry(installPath.resolve(dir.path).toString + "/",
+					TarConstants.LF_DIR))
 			tar.closeArchiveEntry
 		}
 
 		case file: OutputFile => {
-			val entry = new TarArchiveEntry(file.path.toString,
+			val entry = new TarArchiveEntry(installPath.resolve(file.path).toString,
 				TarConstants.LF_NORMAL)
 			val bytes = file.contents.getBytes(StandardCharsets.UTF_8)
 			entry.setSize(bytes.length)
@@ -215,7 +216,8 @@ class CompressedTarballVisitor(installPath: Path, tgzFilename: Path)
 		case link: OutputLink => {
 			val linkPath = installPath.resolve(link.path)
 			val entry = new TarArchiveEntry(linkPath.toString, TarConstants.LF_SYMLINK)
-			entry.setLinkName(linkPath.getParent.relativize(link.target).toString)
+			entry.setLinkName(linkPath.getParent.relativize(
+				installPath.resolve(link.target)).toString)
 			entry.setUserId(1000)
 			entry.setUserName("omegaup")
 			entry.setModTime(System.currentTimeMillis)

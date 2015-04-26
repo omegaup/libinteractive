@@ -200,19 +200,20 @@ object Main {
 								generateTemplate = true
 							)
 							val contestant = Paths.get(
-								s"${finalOptions.moduleName}.${lang}")
+								s"${localOptions.moduleName}.${lang}")
 
 							val outputs = Generator.generate(idl, localOptions,
 								problemsetter, contestant) ++ exampleOutputs ++
 							List(OutputFile(problemsetter, problemsetterSource))
 
 							val visitor = os match {
-								case OS.Windows => new ZipVisitor(finalOptions.root,
-									finalOptions.packageDirectory.resolve(
-										s"${finalOptions.packagePrefix}windows_${lang}.zip"))
-								case OS.Unix => new CompressedTarballVisitor(finalOptions.root,
-									finalOptions.packageDirectory.resolve(
-										s"${finalOptions.packagePrefix}unix_${lang}.tar.bz2"))
+								case OS.Windows => new ZipVisitor(localOptions.root,
+									localOptions.packageDirectory.resolve(
+										s"${localOptions.packagePrefix}windows_${lang}.zip"))
+								case OS.Unix => new CompressedTarballVisitor(
+									localOptions.root.resolve(localOptions.moduleName),
+									localOptions.packageDirectory.resolve(
+										s"${localOptions.packagePrefix}unix_${lang}.tar.bz2"))
 							}
 							try {
 								outputs.foreach(visitor.apply)
