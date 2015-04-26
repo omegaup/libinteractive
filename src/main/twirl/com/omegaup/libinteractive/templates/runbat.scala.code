@@ -18,8 +18,8 @@ CALL :getpython || EXIT /B 1
 
 REM Update all "links"
 @for(link <- resolvedLinks) {
-SET TARGET=@options.relativize(link.link).toString.replace("/", "\\")
-SET SOURCES=@options.relativize(link.target).toString.replace("/", "\\")
+SET TARGET=@link.link.toString.replace("/", "\\")
+SET SOURCES=@link.target.toString.replace("/", "\\")
 call:recompile %TARGET% %SOURCES%
 IF "%RECOMPILE%" == "1" (
 copy %SOURCES% %TARGET%
