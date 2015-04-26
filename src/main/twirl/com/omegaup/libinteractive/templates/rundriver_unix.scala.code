@@ -113,15 +113,14 @@ void execute(int i, int input, int debug) {
 		close(localpipes[3]);
 
 		// Close stdin except for the first program.
-		if (input != 0) {
-			close(0);
-			if (i != 0) {
-				if (dup2(input, 0) == -1) {
-					perror("dup2");
-				}
+		if (i == 0) {
+			if (dup2(input, 0) == -1) {
+				perror("dup2");
 			}
-			close(input);
-		} else if (i != 0) {
+			if (input != 0) {
+				close(input);
+			}
+		} else {
 			close(0);
 		}
 
