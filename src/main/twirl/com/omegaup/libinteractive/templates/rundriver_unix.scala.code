@@ -25,6 +25,9 @@
 }
 #define LABEL_FORMAT "[%@(maxNameLength)s] "
 
+#define print_error(fmt, ...) fprintf(stderr, LABEL_FORMAT " (%s:%d) " fmt ": %s\n", \
+	"ERROR", __FILE__, __LINE__, ##__VA_ARGS__, strerror(errno))
+
 const char* interfaces[] = {
 	@idl.allInterfaces.map('"' + _.name + '"').mkString(", ")
 };
@@ -76,17 +79,17 @@ int pids[NUM_PROCESSES] = {0};
 void execute(int i, int input, int debug) {
 	int localpipes[4];
 	if (pipe(localpipes) == -1) {
-		perror("pipe");
+		print_error("pipe");
 		return;
 	}
 	if (pipe(localpipes + 2) == -1) {
-		perror("pipe");
+		print_error("pipe");
 		return;
 	}
 
 	int pid = vfork();
 	if (pid == -1) {
-		perror("fork");
+		print_error("fork");
 	} else if (pid > 0) {
 		// Close write end of the pipes.
 		close(localpipes[1]);
@@ -102,10 +105,10 @@ void execute(int i, int input, int debug) {
 
 		// Close stdout,stderr and redirect them to the pipes.
 		if (dup2(localpipes[1], 1) == -1) {
-			perror("dup2");
+			print_error("dup2");
 		}
 		if (dup2(localpipes[3], 2) == -1) {
-			perror("dup2");
+			print_error("dup2");
 		}
 
 		// Close duplicated ends.
@@ -115,7 +118,7 @@ void execute(int i, int input, int debug) {
 		// Close stdin except for the first program.
 		if (i == 0) {
 			if (dup2(input, 0) == -1) {
-				perror("dup2");
+				print_error("dup2");
 			}
 			if (input != 0) {
 				close(input);
@@ -126,12 +129,12 @@ void execute(int i, int input, int debug) {
 
 		if (!debug) {
 			if (execve(commands[i][0], commands[i], envs[i]) == -1) {
-				perror("execve");
+				print_error("execve %s", commands[i][0]);
 				_exit(1);
 			}
 		} else {
 			if (execve(debug_commands[i][0], debug_commands[i], envs[i]) == -1) {
-				perror("execve");
+				print_error("execve %s", commands[i][0]);
 				_exit(1);
 			}
 		}
@@ -152,19 +155,19 @@ int run(int input, int debug) {
 				continue;
 			} else {
 				if (unlink(shmNames[i]) == -1) {
-					perror("unlink");
+					print_error("unlink %s", shmNames[i]);
 					retval = 1;
 					goto cleanup;
 				}
 			}
 		} else if (errno != ENOENT) {
-			perror("stat");
+			print_error("stat %s", shmNames[i]);
 			retval = 1;
 			goto cleanup;
 		}
 		int fd = creat(shmNames[i], 0664);
 		if (fd == -1) {
-			perror("creat");
+			print_error("creat %s", shmNames[i]);
 			retval = 1;
 			goto cleanup;
 		}
@@ -179,13 +182,13 @@ int run(int input, int debug) {
 			};
 			char* env[] = { NULL };
 			if (execve("/usr/bin/sudo", (char* const*)argv, env) == -1) {
-				perror("execve");
+				print_error("execve /usr/bin/sudo");
 				exit(-1);
 			}
 		} else {
 			int status;
 			if (wait(&status) == -1) {
-				perror("wait");
+				print_error("wait");
 				retval = 1;
 				goto cleanup;
 			}
@@ -204,18 +207,18 @@ int run(int input, int debug) {
 				continue;
 			} else {
 				if (unlink(pipeNames[i]) == -1) {
-					perror("unlink");
+					print_error("unlink %s", pipeNames[i]);
 					retval = 1;
 					goto cleanup;
 				}
 			}
 		} else if (errno != ENOENT) {
-			perror("stat");
+			print_error("stat %s", pipeNames[i]);
 			retval = 1;
 			goto cleanup;
 		}
 		if (mknod(pipeNames[i], 0664 | S_IFIFO, 0) == -1) {
-			perror("mknod");
+			print_error("mknod %s", pipeNames[i]);
 			retval = 1;
 			goto cleanup;
 		}
@@ -252,7 +255,7 @@ int run(int input, int debug) {
 		int ready = select(nfds + 1, &readfds, &writefds, &exceptfds, NULL);
 
 		if (ready == -1) {
-			perror("select");
+			print_error("select");
 			break;
 		}
 
@@ -262,7 +265,7 @@ int run(int input, int debug) {
 					buffers[i].buf + buffers[i].pos,
 					sizeof(buffers[i].buf) - buffers[i].pos);
 			if (nbytes == -1) {
-				perror("read");
+				print_error("read %d", i);
 			} else if (nbytes > 0) {
 				buffers[i].pos += nbytes;
 				int off = 0;
@@ -306,7 +309,7 @@ int run(int input, int debug) {
 		int status;
 		struct rusage usage;
 		if (wait4(pids[i], &status, 0, &usage) == -1) {
-			perror("wait4");
+			print_error("wait4 %d", i);
 		} else if (i != 0) {
 			if (maxrss < usage.ru_maxrss) {
 				maxrss = usage.ru_maxrss;
@@ -319,16 +322,16 @@ cleanup:
 @if(options.transact) {
 	for (int i = 0; i < NUM_TRANSACT; i++) {
 		if (unlink(shmNames[i]) == -1) {
-			perror("unlink");
+			print_error("unlink %s", shmNames[i]);
 		}
 		if (unlink(transactNames[i]) == -1) {
-			perror("unlink");
+			print_error("unlink %s", transactNames[i]);
 		}
 	}
 } else {
 	for (int i = 0; i < NUM_PIPES; i++) {
 		if (unlink(pipeNames[i]) == -1) {
-			perror("unlink");
+			print_error("unlink %s", pipeNames[i]);
 		}
 	}
 }
@@ -357,7 +360,7 @@ int main(int argc, char* argv[]) {
 		from_stdin = 0;
 		int input = open(argv[i], O_RDONLY);
 		if (input == -1) {
-			perror("open");
+			print_error("open %s", argv[i]);
 			continue;
 		}
 		fprintf(stderr, "%s:\n", argv[i]);
