@@ -44,7 +44,7 @@ static void __interface_init(struct interface* interface, int parent,
 	interface->transact_fd = open(transact_name, O_RDWR);
 	if (interface->transact_fd == -1) {
 		write(2, "transactfd\n", 11);
-		exit(1);
+		exit(243);
 	}
 
 	// Make sure the child process waits until the parent issues a read() call.
@@ -54,17 +54,17 @@ static void __interface_init(struct interface* interface, int parent,
 	interface->shm_fd = open(shm_name, O_RDWR);
 	if (interface->shm_fd == -1) {
 		write(2, "shm_open\n", 9);
-		exit(1);
+		exit(243);
 	}
 	if (parent && ftruncate(interface->shm_fd, size) == -1) {
 		write(2, "ftruncat\n", 9);
-		exit(1);
+		exit(243);
 	}
 	interface->shm = (struct message_root*)mmap(NULL, size, PROT_READ | PROT_WRITE,
 			MAP_SHARED, interface->shm_fd, 0);
 	if (interface->shm == (struct message_root*)-1) {
 		write(2, "mmap\n", 5);
-		exit(1);
+		exit(243);
 	}
 	if (parent) {
 		interface->shm->free_offset = 0;
@@ -91,7 +91,7 @@ static struct message* __message_alloc(struct interface* interface, size_t bytes
 		// shared memory region, it is definitely invalid.
 		if (next < 0 || next >= interface->size || next >= prev_next) {
 			fprintf(stderr, "Illegal next pointer\n");
-			exit(1);
+			exit(238);
 		}
 		struct message* prev = interface->shm->root + next;
 		if (prev->free && prev->size == blocks) {
@@ -106,7 +106,7 @@ static struct message* __message_alloc(struct interface* interface, size_t bytes
 	ptrdiff_t free_offset = interface->shm->free_offset;
 	if (free_offset < 0 || free_offset >= interface->size) {
 		fprintf(stderr, "Illegal free offset\n");
-		exit(1);
+		exit(238);
 	}
 
 	// Need to perform allocation.
@@ -115,7 +115,7 @@ static struct message* __message_alloc(struct interface* interface, size_t bytes
 		fprintf(stderr, "No more memory for arena allocation. "
 				"Need shm size to be at least %zu\n",
 				(free_offset + blocks) * sizeof(struct message) + sizeof(struct message_root));
-		exit(1);
+		exit(237);
 	}
 
 	struct message* ptr = interface->shm->root + free_offset;
@@ -140,7 +140,7 @@ static struct message* __message_get(struct interface* interface) {
 	ptrdiff_t offset = interface->shm->current_msg_offset;
 	if (offset < 0 || offset >= interface->size) {
 		fprintf(stderr, "Illegal message offset\n");
-		exit(1);
+		exit(238);
 	}
 	return interface->shm->root + offset;
 }
@@ -154,9 +154,8 @@ static struct message* __message_call(struct interface* interface,
 		if (noret) {
 			exit(0);
 		}
-		fprintf(stderr, "%s died unexpectedly while calling 0x%zx\n",
-				interface->name, request->msgid);
-		exit(1);
+		fprintf(stderr, "Confused about exiting\n");
+		exit(242);
 	}
 	if (!nofree) {
 		__message_free(interface, request);

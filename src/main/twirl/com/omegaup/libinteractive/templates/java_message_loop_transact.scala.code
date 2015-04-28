@@ -47,7 +47,7 @@
 }
 				default: {
 					System.err.printf("Unknown message id 0x%x\n", __msgid);
-					System.exit(1);
+					System.exit(241);
 				}
 			}
 		}

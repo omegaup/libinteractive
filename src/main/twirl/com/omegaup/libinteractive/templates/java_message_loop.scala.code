@@ -51,7 +51,7 @@
 }
 				default: {
 					System.err.printf("Unknown message id 0x%x\n", __msgid);
-					System.exit(1);
+					System.exit(241);
 				}
 			}
 		}
@@ -60,6 +60,6 @@
 		}
 		if (__current_function != -1) {
 			System.err.printf("Confused about exiting\n");
-			System.exit(1);
+			System.exit(242);
 		}
 	}

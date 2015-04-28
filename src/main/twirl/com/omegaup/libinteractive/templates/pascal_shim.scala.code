@@ -43,7 +43,7 @@ case primitive: PrimitiveType => {
 	if (__cookie <> __cookie_result) then
 	begin
 		Writeln(ErrOutput, 'invalid cookie');
-		Halt(1);
+		Halt(240);
 	end;
 @if(options.verbose) {
 	Writeln(ErrOutput, #9'invoking @function.name end');

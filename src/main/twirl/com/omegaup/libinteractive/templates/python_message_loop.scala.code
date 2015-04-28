@@ -12,7 +12,7 @@ def __message_loop_@(caller.name)(__current_function, __noreturn):
 			break
 		elif len(__buf) != 4:
 			print>>sys.stderr, "Incomplete message"
-			sys.exit(1)
+			sys.exit(239)
 		__msgid = struct.unpack('I', __buf)[0]
 		if __msgid == __current_function:
 			return
@@ -51,9 +51,9 @@ def __message_loop_@(caller.name)(__current_function, __noreturn):
 }
 		else:
 			print>>sys.stderr, "Unknown message id 0x%x" % __msgid
-			sys.exit(1)
+			sys.exit(241)
 	if __noreturn:
 		sys.exit(0)
 	if __current_function != -1:
 		print>>sys.stderr, "Confused about exiting"
-		sys.exit(1)
+		sys.exit(242)

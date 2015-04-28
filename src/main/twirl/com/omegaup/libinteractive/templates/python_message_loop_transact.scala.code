@@ -45,4 +45,4 @@ def __message_loop_@(caller.name)(__message, __current_function, __noreturn):
 }
 		else:
 			print>>sys.stderr, "Unknown message id 0x%x" % __msgid
-			sys.exit(1)
+			sys.exit(241)

@@ -112,7 +112,8 @@ class _Transact:
 			if noreturn:
 				sys.exit(0)
 			else:
-				raise IOError("Confused about exiting")
+				print>>sys.stderr, "Confused about exiting"
+				sys.exit(242)
 		if not nofree:
 			message.release()
 		return self.get()

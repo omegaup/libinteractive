@@ -54,7 +54,7 @@ static void __message_loop_@(caller.name)(int __current_function, int __noreturn
 }
 			default: {
 				fprintf(stderr, "Unknown message id 0x%x\n", __msgid);
-				exit(1);
+				exit(241);
 			}
 		}
 	}
@@ -63,6 +63,6 @@ static void __message_loop_@(caller.name)(int __current_function, int __noreturn
 	}
 	if (__current_function != -1) {
 		fprintf(stderr, "Confused about exiting\n");
-		exit(1);
+		exit(242);
 	}
 }

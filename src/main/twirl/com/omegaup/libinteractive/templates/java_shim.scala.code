@@ -36,7 +36,7 @@ case array: ArrayType => {
 			int __cookie_result = @(infd).readInt();
 			if (__cookie != __cookie_result) {
 				System.err.printf("invalid cookie\n");
-				System.exit(1);
+				System.exit(240);
 			}
 @if(options.verbose) {
 			System.err.printf("invoking @function.name end\n");

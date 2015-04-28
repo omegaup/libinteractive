@@ -67,7 +67,7 @@ begin
 }
 			else begin
 				Writeln(ErrOutput, 'Unknown message id 0x', IntToHex(__msgid, 8));
-				halt(1);
+				halt(241);
 			end;
 		end;
 	end;
@@ -78,6 +78,6 @@ begin
 	if (__current_function <> $FFFFFFFF) then
 	begin
 		Writeln(ErrOutput, 'Confused about exiting');
-		Halt(1);
+		Halt(242);
 	end;
 end;

@@ -36,8 +36,8 @@ case _: ArrayType => {
 	readfull(&@infd, &__cookie_result, sizeof(int), 1);
 
 	if (__cookie != __cookie_result) {
-		fprintf(stderr, "invalid __cookie\n");
-		exit(1);
+		fprintf(stderr, "invalid cookie\n");
+		exit(240);
 	}
 @if(options.verbose) {
 

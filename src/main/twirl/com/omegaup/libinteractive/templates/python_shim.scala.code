@@ -33,7 +33,7 @@ case array: ArrayType => {
 	__cookie_result = struct.unpack('I', @(infd).read(4))[0]
 	if __cookie != __cookie_result:
 		print>>sys.stderr, "invalid cookie"
-		sys.exit(1)
+		sys.exit(240)
 
 @if(options.verbose) {
 	print>>sys.stderr, "\tinvoking @function.name end"

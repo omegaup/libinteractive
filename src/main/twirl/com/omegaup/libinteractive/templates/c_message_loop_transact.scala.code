@@ -54,7 +54,7 @@ static struct message* __message_loop_@(caller.name)(struct message* __message, 
 }
 			default: {
 				fprintf(stderr, "Unknown message id 0x%x\n", __msgid);
-				exit(1);
+				exit(241);
 			}
 		}
 	}
@@ -63,7 +63,7 @@ static struct message* __message_loop_@(caller.name)(struct message* __message, 
 	}
 	if (__current_function != -1) {
 		fprintf(stderr, "Confused about exiting\n");
-		exit(1);
+		exit(242);
 	}
 
 	return __message;
