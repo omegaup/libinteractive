@@ -73,7 +73,8 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 					),
 					Compiler.Fpc, ldflags + " -g -Mobjfpc -Sc -Sh -o$@ $^" + (
 						if (options.quiet) " > /dev/null" else ""
-					)
+					),
+					debug = true
 				)
 			)
 		}
