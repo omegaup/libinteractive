@@ -8,12 +8,12 @@ all: @allExecutables
 
 @for(link <- resolvedLinks) {
 @link.link: @link.target
-	copy $^ $@@
+	copy "@link.target.toString.replace("/", "\\")" "@link.link.toString.replace("/", "\\")"
 
 }
 @for(rule <- allRules) {
 @rule.target: @rule.requisites.mkString(" ")
-	@rule.compiler @rule.params
+	@rule.compiler @rule.params.replace("$@", "\"" + rule.target + "\"").replace("$^", rule.requisites.map("\"" + _.toString.replace("/", "\\") + "\"").mkString(" "))
 
 }
 .PHONY: run
