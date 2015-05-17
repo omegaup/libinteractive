@@ -143,7 +143,11 @@ case class Options(
 	}
 
 	def relativize(path: Path): Path = {
-		root.relativize(path)
+		if (root.toString.length == 0) {
+			path
+		} else {
+			root.relativize(path)
+		}
 	}
 
 	def relativeToRoot(path: Path): Path = {
