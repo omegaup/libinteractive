@@ -71,7 +71,7 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 				val sourcePath = (if (options.preferOriginalSources) {
 					options.relativize(input)
 				} else {
-					options.relativeToRoot(interface.name, s"${interface.name}.$extension")
+					options.relativeToRoot(interface.name, s"${options.moduleName}.$extension")
 				})
 				List(
 					MakefileRule(
