@@ -1,6 +1,8 @@
 libinteractive
 ==============
 
+[![Build Status](https://travis-ci.org/omegaup/libinteractive.svg)](https://travis-ci.org/omegaup/libinteractive)
+
 A tiny IDL translator that creates IPC shims to easily create interactive problems.
 
 You can grab the latest `.jar` from the [Releases page](https://github.com/omegaup/libinteractive/releases)

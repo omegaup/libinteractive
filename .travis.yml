@@ -1,0 +1,5 @@
+language: scala
+
+notifications:
+  slack:
+    secure: P4DrpO26K1dpltdCT4yZcOLxw5xG3ongSOTNWfTTg++xKjMqe5v78laaV/UjDtIPn5JdD6sWuLv9l1kHvnu5QX37cYptDAQyZKJrFdaL05a3sBID9CCGt3PsILrejQSz5wOz6dtEhv6cGCpmyduJxedhjXX9lPapb5wMZC0lJoI=
