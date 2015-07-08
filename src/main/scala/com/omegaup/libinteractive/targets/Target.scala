@@ -76,16 +76,16 @@ trait Enum {
 object Command extends Enum {
 	sealed trait EnumVal extends Value
 
-	val Validate = new EnumVal { val name = "validate" }
-	val Generate = new EnumVal { val name = "generate" }
-	val GenerateAll = new EnumVal { val name = "generate-all" }
+	object Validate extends EnumVal { val name = "validate" }
+	object Generate extends EnumVal { val name = "generate" }
+	object GenerateAll extends EnumVal { val name = "generate-all" }
 }
 
 object OS extends Enum {
 	sealed trait EnumVal extends Value
 
-	val Unix = new EnumVal { val name = "unix" }
-	val Windows = new EnumVal { val name = "windows" }
+	object Unix extends EnumVal { val name = "unix" }
+	object Windows extends EnumVal { val name = "windows" }
 }
 
 case class Options(
