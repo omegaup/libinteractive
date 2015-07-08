@@ -1,6 +1,10 @@
 name := "libinteractive"
 
-version := "2.0.8"
+enablePlugins(GitVersioning)
+
+git.useGitDescribe := true
+
+git.gitDescribedVersion <<= git.gitDescribedVersion((v) => v.map(_.drop(1)))
 
 organization := "com.omegaup"
 
