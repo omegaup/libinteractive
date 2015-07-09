@@ -20,7 +20,41 @@ lazy val root = (project in file("."))
     buildInfoPackage := "com.omegaup.libinteractive"
   )
 
-publishArtifact in (Proguard) := true
+publishMavenStyle := true
+
+publishArtifact in Test := false
+
+publishTo := {
+	val nexus = "https://oss.sonatype.org/"
+	if (isSnapshot.value)
+		Some("snapshots" at nexus + "content/repositories/snapshots")
+	else
+		Some("releases"  at nexus + "service/local/staging/deploy/maven2")
+}
+
+pomIncludeRepository := { _ => false }
+
+pomExtra := (
+	<url>https://omegaup.com/libinteractive/</url>
+	<licenses>
+		<license>
+			<name>BSD-style</name>
+			<url>http://www.opensource.org/licenses/bsd-license.php</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+	<scm>
+		<url>git@github.com:omegaup/libinteractive.git</url>
+		<connection>scm:git:git@github.com:omegaup/libinteractive.git</connection>
+	</scm>
+	<developers>
+		<developer>
+			<id>lhchavez</id>
+			<name>Luis Hector Chavez</name>
+			<url>http://lhchavez.com</url>
+		</developer>
+	</developers>
+)
 
 TwirlKeys.templateFormats += ("code" -> "com.omegaup.libinteractive.templates.CodeFormat")
 
