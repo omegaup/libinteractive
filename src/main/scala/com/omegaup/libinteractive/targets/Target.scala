@@ -308,6 +308,21 @@ class WindowsLinkFilter extends LinkFilter {
 	}
 }
 
+object WindowsNewlineFilter extends OutputPathFilter {
+	override def apply(input: OutputPath) = {
+		input match {
+			case file: OutputFile => {
+				Some(OutputFile(
+					file.path,
+					file.contents.replace("\r", "").replace("\n", "\r\n")
+				))
+			}
+			case path: OutputPath => Some(path)
+		}
+	}
+}
+
+
 object Compiler extends Enumeration {
 	type Compiler = Value
 	val Gcc = Value("gcc")
@@ -407,7 +422,7 @@ object Generator {
 
 		val originalTargets = List(parent, child)
 		val originalOutputs = originalTargets.flatMap(_.generate)
-		if (options.makefile) {
+		(if (options.makefile) {
 			val filter = options.os match {
 				case OS.Unix => NoOpLinkFilter
 				case OS.Windows => new WindowsLinkFilter
@@ -419,7 +434,10 @@ object Generator {
 				filter.resolvedLinks, options).generate
 		} else {
 			originalOutputs
-		}
+		}).flatMap((options.os match {
+				case OS.Unix => NoOpFilter
+				case OS.Windows => WindowsNewlineFilter
+		}).apply)
 	}
 
 	def target(lang: String, idl: IDL, options: Options, input: Path,

@@ -96,6 +96,10 @@ object Main {
 				rawOptions.copy(moduleName = fileName.substring(0, extPos))
 			})
 
+			if (options.os == OS.Windows) {
+				System.setProperty("line.separator", "\r\n")
+			}
+
 			if (options.parentLang == "pas") {
 				System.err.println("Use of `pas' as parent language is not supported")
 				System.exit(1);

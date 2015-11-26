@@ -9,7 +9,7 @@ REM @message
 SETLOCAL EnableDelayedExpansion
 
 REM Get all compilers/paths needed
-@for(compiler: String <- allRules.map(_.compiler.toString).toSet) {
+@for(compiler: String <- allRules.map(_.compiler.toString.replace("g++", "gxx")).toSet) {
 CALL :get@compiler || EXIT /B 1
 }
 @if(options.parentLang == "py" || options.childLang == "py") {
@@ -35,7 +35,7 @@ SET SOURCES=@rule.requisites.map(_.toString.replace("/", "\\")).mkString(" ")
 call:recompile %TARGET% %SOURCES%
 IF "%RECOMPILE%" == "1" (
 <NUL SET /p elidenewline=Compiling %TARGET%... 
-%@rule.compiler.toString.toUpperCase% @rule.params.replace("$@", "%TARGET%").replace("$^", "%SOURCES%")
+%@rule.compiler.toString.replace("g++", "gxx").toUpperCase% @rule.params.replace("$@", "%TARGET%").replace("$^", "%SOURCES%")
 IF !ERRORLEVEL! NEQ 0 EXIT /B !ERRORLEVEL!
 ECHO DONE
 )
@@ -62,9 +62,9 @@ SET PATH=%PATH%;%GCC%\MinGW\bin
 SET GCC="%GCC%\MinGW\bin\gcc.exe"
 GOTO:EOF
 
-:getg++
-FOR %%A IN (g++.exe) DO (SET G++="%%~$PATH:A")
-IF %G++% NEQ "" GOTO:EOF
+:getgxx
+FOR %%A IN (g++.exe) DO (SET GXX="%%~$PATH:A")
+IF %GXX% NEQ "" GOTO:EOF
 REG QUERY HKCU\Software\CodeBlocks /v Path 2>NUL >NUL
 IF "%ERRORLEVEL%" NEQ "0" (
 ECHO Please install the latest version of CodeBlocks and launch it once
@@ -72,9 +72,9 @@ ECHO http://www.codeblocks.org/downloads/binaries#windows ^(mingw-setup.exe^)
 EXIT /B 1
 GOTO:EOF
 )
-FOR /F "tokens=2*" %%A IN ('REG QUERY HKCU\Software\CodeBlocks /v Path') DO SET G++=%%B
-SET PATH=%PATH%;%G++%\MinGW\bin
-SET G++="%G++%\MinGW\bin\g++.exe"
+FOR /F "tokens=2*" %%A IN ('REG QUERY HKCU\Software\CodeBlocks /v Path') DO SET GXX=%%B
+SET PATH=%PATH%;%GXX%\MinGW\bin
+SET GXX="%GXX%\MinGW\bin\g++.exe"
 GOTO:EOF
 
 :getjavac
