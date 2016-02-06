@@ -206,6 +206,17 @@ object Main {
 							val contestant = Paths.get(
 								s"${localOptions.moduleName}.${lang}")
 
+							val distribPath = options.idlFile.resolveSibling(
+								s"${options.moduleName}.distrib.${lang}").normalize
+							val replacements = (if (Files.exists(distribPath)) {
+								Some(OutputFile(
+									Paths.get(s"${options.moduleName}.${lang}"),
+									Source.fromFile(distribPath.toFile).mkString
+								))
+							} else {
+								None
+							}).toList
+
 							val outputs = Generator.generate(idl, localOptions,
 								problemsetter, contestant) ++ exampleOutputs ++
 							List(OutputFile(problemsetter, problemsetterSource))
@@ -220,7 +231,9 @@ object Main {
 										s"${localOptions.packagePrefix}unix_${lang}.tar.bz2"))
 							}
 							try {
-								outputs.foreach(visitor.apply)
+								outputs
+									.flatMap(new ReplacementFilter(replacements).apply)
+									.foreach(visitor.apply)
 							} finally {
 								visitor.close
 							}

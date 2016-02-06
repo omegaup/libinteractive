@@ -322,6 +322,19 @@ object WindowsNewlineFilter extends OutputPathFilter {
 	}
 }
 
+class ReplacementFilter(replacements: List[OutputFile]) extends OutputPathFilter {
+	override def apply(input: OutputPath) = {
+		input match {
+			case file: OutputFile => {
+				replacements.find(_.path == file.path) match {
+					case Some(replacement) => Some(replacement)
+					case None => Some(file)
+				}
+			}
+			case path: OutputPath => Some(path)
+		}
+	}
+}
 
 object Compiler extends Enumeration {
 	type Compiler = Value
