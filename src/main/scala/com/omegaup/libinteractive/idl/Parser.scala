@@ -21,6 +21,7 @@ case class IDL(main: Interface, interfaces: List[Interface])
 		extends Object with AstNode {
 	override def children() = List(main) ++ interfaces
 	def allInterfaces() = List(main) ++ interfaces
+	def childInterfaces() = interfaces
 }
 
 case class Interface(name: String, functions: List[Function],

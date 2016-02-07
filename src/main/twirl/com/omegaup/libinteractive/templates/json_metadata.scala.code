@@ -1,0 +1,7 @@
+@import com.omegaup.libinteractive.Json
+@(moduleName: String, main: String, interfaces: List[String])
+{
+	"Interfaces": [@interfaces.map(Json.encode).mkString(", ")],
+	"Main": @Json.encode(main),
+	"ModuleName": @Json.encode(moduleName)
+}

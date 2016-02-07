@@ -28,7 +28,9 @@ object Main {
 			cmd("validate") action { (_, c) => c.copy(command = Command.Validate) } text
 					("only validate the .idl file") children(
 				arg[File]("file") action { (x, c) => c.copy(idlFile = x.toPath) } text
-						("the .idl file that describes the interfaces")
+						("the .idl file that describes the interfaces"),
+				opt[Unit]("metadata") action { (x, c) => c.copy(metadata = true) } text
+						("print metadata about the .idl file")
 			)
 			cmd("generate") action { (_, c) => c.copy(command = Command.Generate) } text
 					("generate IPC shims") children(
@@ -240,8 +242,17 @@ object Main {
 						}
 					}
 				}
-				case Command.Validate =>
-					System.out.println("OK")
+				case Command.Validate => {
+					if (options.metadata) {
+						System.out.println(templates.code.json_metadata(
+							options.moduleName,
+							idl.main.name,
+							idl.childInterfaces.map(_.name)
+						))
+					} else {
+						System.out.println("OK")
+					}
+				}
 			}
 		}} getOrElse {
 			System.exit(1)

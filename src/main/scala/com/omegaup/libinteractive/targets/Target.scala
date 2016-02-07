@@ -95,6 +95,7 @@ case class Options(
 	generateTemplate: Boolean = false,
 	idlFile: Path = null,
 	legacyFlags: Boolean = false,
+	metadata: Boolean = false,
 	makefile: Boolean = false,
 	moduleName: String = "",
 	libraryDirectory: Path = Paths.get("libinteractive"),
