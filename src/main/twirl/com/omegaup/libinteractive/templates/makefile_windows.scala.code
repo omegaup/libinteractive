@@ -12,8 +12,8 @@ all: @allExecutables
 
 }
 @for(rule <- allRules) {
-@rule.target: @rule.requisites.mkString(" ")
-	@rule.compiler @rule.params.replace("$@", "\"" + rule.target + "\"").replace("$^", rule.requisites.map("\"" + _.toString.replace("/", "\\") + "\"").mkString(" "))
+@rule.target.mkString(" "): @rule.requisites.mkString(" ")
+	@rule.compiler @rule.params.replace("$@", rule.target.map("\"" + _.toString.replace("/", "\\") + "\"").mkString(" ")).replace("$^", rule.requisites.map("\"" + _.toString.replace("/", "\\") + "\"").mkString(" "))
 
 }
 .PHONY: run

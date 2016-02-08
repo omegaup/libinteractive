@@ -36,48 +36,56 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 			val moduleFile = s"${options.moduleName}.pas"
 			generateTemplates(options.moduleName, idl.interfaces,
 					idl.main.name, List(idl.main), input) ++
-			idl.interfaces.flatMap(interface =>
-				List(
-					new OutputDirectory(options.resolve(interface.name)),
-					generateEntry(interface),
-					generate(interface),
-					generateLink(interface, input))
-			)
+			idl.interfaces.flatMap(generateInterface)
 		}
+	}
+
+	override def generateInterface(interface: Interface) = {
+		List(
+			new OutputDirectory(options.resolve(interface.name)),
+			generateEntry(interface),
+			generate(interface),
+			generateLink(interface, input))
 	}
 
 	override def generateMakefileRules() = {
 		if (parent) {
 			throw new UnsupportedOperationException;
 		} else {
-			idl.interfaces.map(interface =>
-				MakefileRule(
-					options.resolve(interface.name, interface.name + executableExtension),
-					List(
-						options.relativeToRoot(interface.name, s"${options.moduleName}.pas"),
-						options.relativeToRoot(interface.name, s"${idl.main.name}.pas"),
-						options.relativeToRoot(interface.name, s"${interface.name}_entry.pas")
-					),
-					Compiler.Fpc, ldflags + " -O2 -Mobjfpc -Sc -Sh -o$@ $^" + (
-						if (options.quiet) " > /dev/null" else ""
-					)
-				)
-			) ++
-			idl.interfaces.map(interface =>
-				MakefileRule(
-					options.resolve(interface.name, interface.name + "_debug" + executableExtension),
-					List(
-						options.relativeToRoot(interface.name, s"${options.moduleName}.pas"),
-						options.relativeToRoot(interface.name, s"${idl.main.name}.pas"),
-						options.relativeToRoot(interface.name, s"${interface.name}_entry.pas")
-					),
-					Compiler.Fpc, ldflags + " -g -Mobjfpc -Sc -Sh -o$@ $^" + (
-						if (options.quiet) " > /dev/null" else ""
-					),
-					debug = true
-				)
-			)
+			idl.interfaces.flatMap(generateMakefileRules)
 		}
+	}
+
+	override def generateMakefileRules(interface: Interface) = {
+		List(
+			MakefileRule(
+				List(
+					options.relativeToRoot(interface.name, interface.name + executableExtension)
+				),
+				List(
+					options.relativeToRoot(interface.name, s"${options.moduleName}.pas"),
+					options.relativeToRoot(interface.name, s"${idl.main.name}.pas"),
+					options.relativeToRoot(interface.name, s"${interface.name}_entry.pas")
+				),
+				Compiler.Fpc, ldflags + " -O2 -Mobjfpc -Sc -Sh -o$@ $^" + (
+					if (options.quiet) " > /dev/null" else ""
+				)
+			),
+			MakefileRule(
+				List(
+					options.relativeToRoot(interface.name, interface.name + "_debug" + executableExtension)
+				),
+				List(
+					options.relativeToRoot(interface.name, s"${options.moduleName}.pas"),
+					options.relativeToRoot(interface.name, s"${idl.main.name}.pas"),
+					options.relativeToRoot(interface.name, s"${interface.name}_entry.pas")
+				),
+				Compiler.Fpc, ldflags + " -g -Mobjfpc -Sc -Sh -o$@ $^" + (
+					if (options.quiet) " > /dev/null" else ""
+				),
+				debug = true
+			)
+		)
 	}
 
 	override def generateTemplates(moduleName: String,
@@ -120,10 +128,12 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 					)
 				)
 			) ++
-			idl.interfaces.tail.map(
-				interface => ExecDescription(Array(runCommand(interface)))
-			)
+			idl.interfaces.tail.map(generateRunCommand)
 		}
+	}
+
+	override def generateRunCommand(interface: Interface) = {
+		ExecDescription(Array(runCommand(interface)))
 	}
 
 	private def generateEntry(interface: Interface) = {

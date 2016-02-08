@@ -13,8 +13,11 @@ import com.omegaup.libinteractive.idl._
 class Ruby(idl: IDL, options: Options) extends Target(idl, options) {
 	override def extension() = ???
 	override def generateMakefileRules() = ???
+	override def generateMakefileRules(interface: Interface) = ???
 	override def generateRunCommands() = ???
+	override def generateRunCommand(interface: Interface) = ???
 	override def generate() = ???
+	override def generateInterface(interface: Interface) = ???
 	protected def generateTemplates(moduleName: String,
 			interfacesToImplement: Iterable[Interface], callableModuleName: String,
 			callableInterfaces: Iterable[Interface], input: Path) = ???

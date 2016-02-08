@@ -7,12 +7,19 @@ package com.omegaup.libinteractive
 import scala.collection.mutable.StringBuilder
 
 object Json {
+	def encode(b: Boolean): String = {
+		b match {
+			case true => "true"
+			case false => "false"
+		}
+	}
+
 	def encode(s: String): String = {
 		val buffer = new StringBuilder()
 		buffer.append('"')
 		s.foreach {
 			c => {
-				if (c == '/' || c == '\\' || c == '"') buffer.append('\\' + c)
+				if (c == '/' || c == '\\' || c == '"') buffer.append("\\" + c)
 				else if (c == '\b') buffer.append("\\b")
 				else if (c == '\f') buffer.append("\\f")
 				else if (c == '\n') buffer.append("\\n")
@@ -23,6 +30,16 @@ object Json {
 		}
 		buffer.append('"')
 		buffer.toString
+	}
+
+	def encode(l: Iterable[String]): String = {
+		"[" + l.map(encode).mkString(", ") + "]"
+	}
+
+	def encode(m: Map[String, String]): String = {
+		"{" + m.map({
+			case (k, v) => encode(k) + ": " + encode(v)
+		}).mkString(", ") + "}"
 	}
 }
 

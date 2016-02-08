@@ -29,7 +29,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 			path = options.rootResolve(s"${options.moduleName}.cbp"),
 			contents = templates.code.codeblocks_unix(message, this,
 				runPath = options.relativeToRoot("run"),
-				debugExecutable = rules.find(_.debug).map(_.target).get,
+				debugExecutable = rules.find(_.debug).map(_.target).get.find(x => true).get,
 				resolvedLinks = resolvedLinks,
 				sampleFiles = options.sampleFiles,
 				parentFile = Paths.get(s"${idl.main.name}.${options.parentLang}"),
@@ -44,7 +44,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 			contents = templates.code.codeblocks_windows(message, this,
 				runPath = options.relativeToRoot("run.exe"),
 				makefilePath = options.relativeToRoot("Makefile"),
-				debugExecutable = rules.find(_.debug).map(_.target).get,
+				debugExecutable = rules.find(_.debug).map(_.target).get.find(x => true).get,
 				resolvedLinks = resolvedLinks,
 				sampleFiles = options.sampleFiles,
 				parentFile = Paths.get(s"${idl.main.name}.${options.parentLang}"),
@@ -100,13 +100,13 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 	private def generateMakefileUnixContents() = {
 		val allRules = (rules ++ List(
 			MakefileRule(
-				options.relativeToRoot("run"),
+				List(options.relativeToRoot("run")),
 				List(options.relativeToRoot("run.c")),
 				Compiler.Gcc, "-std=c99 -o $@ -lrt $^ -O2 -D_XOPEN_SOURCE=600 " +
 				"-D_BSD_SOURCE -Wall")))
 		val makefile = templates.code.makefile_unix(message,
 			allRules = allRules,
-			allExecutables = allRules.map(_.target).mkString(" "),
+			allExecutables = allRules.flatMap(_.target).mkString(" "),
 			runPath = options.relativeToRoot("run"),
 			sampleFiles = options.sampleFiles)
 
@@ -116,13 +116,13 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 	private def generateMakefileWindowsContents() = {
 		val allRules = (rules ++ List(
 			MakefileRule(
-				options.relativeToRoot("run.exe"),
+				List(options.relativeToRoot("run.exe")),
 				List(options.relativeToRoot("run.c")),
 				Compiler.Gcc, "-std=c99 -o $@ $^ -O2 -lpsapi -Wall"))
 		)
 		val makefile = templates.code.makefile_windows(message,
 			allRules = allRules,
-			allExecutables = allRules.map(_.target).mkString(" "),
+			allExecutables = allRules.flatMap(_.target).mkString(" "),
 			runPath = options.relativeToRoot("run.exe"),
 			resolvedLinks = resolvedLinks.map(
 				link => new ResolvedOutputLink(
@@ -138,7 +138,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 	private def generateBatchFileContents() = {
 		val allRules = (rules ++ List(
 				MakefileRule(
-					options.relativeToRoot("run.exe"),
+					List(options.relativeToRoot("run.exe")),
 					List(options.relativeToRoot("run.c")),
 					Compiler.Gcc, "-std=c99 -o $@ $^ -O2 -lpsapi -Wall")))
 
@@ -185,8 +185,11 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 	}
 
 	override def extension() = ???
+	override def generateInterface(interface: Interface) = ???
 	override def generateMakefileRules() = ???
+	override def generateMakefileRules(interface: Interface) = ???
 	override def generateRunCommands() = ???
+	override def generateRunCommand(interface: Interface) = ???
 	protected def generateTemplates(moduleName: String,
 			interfacesToImplement: Iterable[Interface], callableModuleName: String,
 			callableInterfaces: Iterable[Interface], input: Path) = ???
