@@ -168,11 +168,8 @@ static void process_buffer(buffer* buf) {
 			write_full(buf->write_fd, "\r\n", 2);
 			buf->pos = 0;
 		} else {
-			char* wpos = buf->buf;
-			for (const char* rpos = last; rpos < end; rpos++, wpos++) {
-				*wpos++ = *rpos;
-			}
 			buf->pos = end - last;
+			memmove(buf->buf, last, buf->pos);
 		}
 	} else {
 		write_full(buf->write_fd, buf->buf, buf->pos);

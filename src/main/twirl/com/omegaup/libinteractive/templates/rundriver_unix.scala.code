@@ -290,10 +290,8 @@ int run(int input, int debug) {
 					}
 				}
 				if (off != 0) {
-					for (int j = off; j < buffers[i].pos; j++) {
-						buffers[i].buf[j - off] = buffers[i].buf[j];
-					}
 					buffers[i].pos -= off;
+					memmove(buffers[i].buf, buffers[i].buf + off, buffers[i].pos);
 				} else if (buffers[i].pos == sizeof(buffers[i].buf)) {
 					fwrite(buffers[i].buf, sizeof(buffers[i].buf), 1, i == 0 ? stdout : stderr);
 					buffers[i].pos = 0;
