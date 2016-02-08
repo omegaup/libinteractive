@@ -1,7 +1,40 @@
+@import com.omegaup.libinteractive.BuildInfo
 @import com.omegaup.libinteractive.Json
-@(moduleName: String, main: String, interfaces: List[String])
+@import com.omegaup.libinteractive.idl.Interface
+@import com.omegaup.libinteractive.target.GeneratedInterface
+@import com.omegaup.libinteractive.target.MakefileRule
+@(moduleName: String, main: String, interfaces: Map[String, Map[String, GeneratedInterface]], parentLang: String)
+@renderMakefileRule(rule: MakefileRule) = {
+					{
+						"Targets": @Json.encode(rule.target.map(_.toString)),
+						"Requisites": @Json.encode(rule.requisites.map(_.toString)),
+						"Compiler": @Json.encode(rule.compiler.toString),
+						"Params": @Json.encode(rule.params),
+						"Debug": @Json.encode(rule.debug)
+					}}
+@renderInterface(interface: GeneratedInterface) = {
+			{
+				"MakefileRules": [
+					@interface.makefileRules.map(renderMakefileRule).mkString(",\n\t\t\t\t\t")
+				],
+				"ExecutableDescription": {
+					"Args": @Json.encode(interface.executableDescription.args),
+					"Env": @Json.encode(interface.executableDescription.env)
+				},
+				"Files": @Json.encode(interface.files.map(file => file.path.toString -> file.contents).toMap)
+			}}
 {
-	"Interfaces": [@interfaces.map(Json.encode).mkString(", ")],
+	"Interfaces": {
+		@interfaces.map({ case (name, l_i) => {
+				Json.encode(name) + ": {\n" +
+					l_i.map( { case (lang, interface) => {
+						"\t\t\t" + Json.encode(lang) + ": " + renderInterface(interface)
+					}} ).mkString(",\n") +
+				"\n\t\t}"
+		}}).mkString(",\n\t\t")
+	},
 	"Main": @Json.encode(main),
-	"ModuleName": @Json.encode(moduleName)
+	"ModuleName": @Json.encode(moduleName),
+	"ParentLang": @Json.encode(parentLang),
+	"LibinteractiveVersion": @Json.encode(BuildInfo.version)
 }

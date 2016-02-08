@@ -13,6 +13,7 @@ import com.omegaup.libinteractive.idl.Parser
 import com.omegaup.libinteractive.idl.ParseException
 import com.omegaup.libinteractive.target._
 import scala.io.Source
+import scala.io.StdIn
 import scala.collection.JavaConversions.iterableAsScalaIterable
 
 object Main {
@@ -42,12 +43,16 @@ object Main {
 						("the language in which the submission is written"),
 				opt[Unit]("force") action { (x, c) => c.copy(force = true) } text
 						("overwrites files if needed"),
+				opt[File]("library-directory") action { (x, c) => c.copy(libraryDirectory = x.toPath) } text
+						("the directory in which the intermediate files will be stored. Defaults to 'libinteractive'"),
 				opt[Unit]("legacy") action { (x, c) => c.copy(legacyFlags = true) } text
 						("use flags for older compilers"),
 				opt[Unit]("makefile") action { (_, c) => c.copy(makefile = true) } text
 						("also generate a Makefile"),
 				opt[Unit]("pipe-dirs") action { (_, c) => c.copy(pipeDirectories = true) } text
 						("use separate directories for each pipe"),
+				opt[Unit]("avoid-original-sources") action { (_, c) => c.copy(preferOriginalSources = false) } text
+						("do not try to use the source files located next to the .idl. Instead, expect the sources to be present in the per-interface directory"),
 				opt[String]("sample-file") action { (x, c) => c.copy(sampleFiles = (c.sampleFiles ++ List(x))) } text
 						("one of the automated test cases provided with the task"),
 				opt[Unit]("sequential-ids") action
@@ -74,11 +79,32 @@ object Main {
 					opt[String]("package-prefix") action { (x, c) => c.copy(packagePrefix = x) } text
 						("the prefix of the generated packages")
 			)
+			cmd("json") action { (_, c) => c.copy(command = Command.Json) } text
+				("generate a JSON-encoded runtime metadata + output for all languages") children(
+					arg[File]("file") optional() action { (x, c) => c.copy(idlFile = x.toPath) } text
+						("the .idl file that describes the interfaces. Will use stdin if empty."),
+					opt[String]("module-name") action { (x, c) => c.copy(moduleName = x) } text
+						("the name of the .idl module if input comes from stdin"),
+					opt[String]("parent-lang") action { (x, c) => c.copy(parentLang = x) } text
+						("the language in which the grader/validator is written"),
+					opt[Unit]("omit-debug-targets") action { (x, c) => c.copy(generateDebugTargets = false) } text
+						("omit debug Makefile targets"),
+					opt[Unit]("transact") action { (_, c) => c.copy(transact = true) } text
+							("use shared memory and the transact kernel module (experimental)")
+			)
 			checkConfig { c => {
-				if (c.idlFile == null)
+				if (c.command == Command.Json) {
+					if (c.idlFile == null && (c.moduleName == null || c.parentLang == null))
+						failure("Must specify both --module-name and --parent-lang when reading from stdin")
+					else if (c.idlFile != null && (c.moduleName != null || c.parentLang != null))
+						failure("Cannot specify both a file and --module-name or --parent-lang")
+					else
+						success
+				} else if (c.idlFile == null) {
 					failure("An .idl file must be chosen.")
-				else
+				} else {
 					success
+				}
 			}}
 		}
 
@@ -89,27 +115,34 @@ object Main {
 			OS.Unix
 		})
 		optparse.parse(args, Options(os = defaultOS)) map { rawOptions => {
-			val fileName =
-					rawOptions.idlFile.getName(rawOptions.idlFile.getNameCount - 1).toString
-			val extPos = fileName.lastIndexOf('.')
-			val options = (if (extPos == -1) {
-				rawOptions.copy(moduleName = fileName)
-			} else {
-				rawOptions.copy(moduleName = fileName.substring(0, extPos))
-			})
-
-			if (options.os == OS.Windows) {
+			if (rawOptions.os == OS.Windows) {
 				System.setProperty("line.separator", "\r\n")
 			}
 
-			if (options.parentLang == "pas") {
+			if (rawOptions.parentLang == "pas") {
 				System.err.println("Use of `pas' as parent language is not supported")
 				System.exit(1);
 			}
 
+			var idlSource: String = null
+			val options = (if (rawOptions.idlFile != null) {
+				val fileName =
+						rawOptions.idlFile.getName(rawOptions.idlFile.getNameCount - 1).toString
+				val extPos = fileName.lastIndexOf('.')
+				idlSource = Source.fromFile(rawOptions.idlFile.toFile).mkString
+				if (extPos == -1) {
+					rawOptions.copy(moduleName = fileName)
+				} else {
+					rawOptions.copy(moduleName = fileName.substring(0, extPos))
+				}
+			} else {
+				idlSource = Iterator.continually(StdIn.readLine).takeWhile(_ != null).mkString("\n")
+				rawOptions
+			})
+
 			val parser = new Parser
 			val idl: IDL = try {
-				parser.parse(Source.fromFile(options.idlFile.toFile).mkString)
+				parser.parse(idlSource)
 			} catch {
 				case e: ParseException => {
 					System.err.println(e)
@@ -242,16 +275,57 @@ object Main {
 						}
 					}
 				}
-				case Command.Validate => {
-					if (options.metadata) {
-						System.out.println(templates.code.json_metadata(
-							options.moduleName,
-							idl.main.name,
-							idl.childInterfaces.map(_.name)
-						))
+				case Command.Json => {
+					val supportedLanguages = List("c", "cpp", "java", "py", "pas")
+					val (parentLang, parentSource) = (if (options.idlFile != null) {
+						val candidates = supportedLanguages.map(
+							lang => (lang, options.idlFile.resolveSibling(
+								s"${idl.main.name}.${lang}").normalize)
+						).filter(x => Files.exists(x._2))
+
+						if (candidates.isEmpty) {
+							System.err.println(
+								s"""${idl.main.name}.{${supportedLanguages.mkString(",")}} not found""")
+							System.exit(1)
+						} else if (candidates.length > 1) {
+							System.err.println(s"Multiple parent files found")
+							System.exit(1)
+						}
+						candidates(0)
 					} else {
-						System.out.println("OK")
-					}
+						(options.parentLang, Paths.get("${idl.main.name}.${options.parentLang}"))
+					})
+
+					val finalOptions = options.copy(
+						libraryDirectory = Paths.get(""),
+						pipeDirectories = true,
+						parentLang = parentLang,
+						parentSource = Some(parentSource),
+						preferOriginalSources = false
+					)
+
+					val problemsetter = Paths.get(s"${idl.main.name}.${finalOptions.parentLang}")
+					val interfaces = idl.childInterfaces.map({interface => (interface.name, {
+						supportedLanguages.map({lang => (lang, {
+							val localOptions = finalOptions.copy(
+								childLang = lang
+							)
+							val contestant = Paths.get(s"${localOptions.moduleName}.${lang}")
+							Generator.generateInterface(idl, localOptions, contestant,
+								lang, interface)
+						})}).toMap
+					})}).toMap ++ Map(idl.main.name -> Map(
+						finalOptions.parentLang -> Generator.generateInterface(idl,
+							finalOptions, problemsetter, finalOptions.parentLang, idl.main)))
+					System.out.println(templates.code.json_metadata(
+						moduleName = options.moduleName,
+						main = idl.main.name,
+						interfaces = interfaces,
+						parentLang = finalOptions.parentLang
+					))
+				}
+				case Command.Validate => {
+					System.out.println("OK")
 				}
 			}
 		}} getOrElse {

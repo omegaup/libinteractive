@@ -30,7 +30,7 @@ IF !ERRORLEVEL! NEQ 0 EXIT /B !ERRORLEVEL!
 
 REM Build all binaries (if needed)
 @for(rule <- allRules) {
-SET TARGET=@rule.target.toString.replace("/", "\\")
+SET TARGET=@rule.target.find(x => true).get.toString.replace("/", "\\")
 SET SOURCES=@rule.requisites.map(_.toString.replace("/", "\\")).mkString(" ")
 call:recompile %TARGET% %SOURCES%
 IF "%RECOMPILE%" == "1" (

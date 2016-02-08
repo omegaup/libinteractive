@@ -31,18 +31,16 @@ class Python(idl: IDL, options: Options, input: Path, parent: Boolean)
 			val moduleFile = s"${options.moduleName}.py"
 			generateTemplates(options.moduleName, idl.interfaces,
 					idl.main.name, List(idl.main), input) ++
-			idl.interfaces.flatMap(interface =>
-				List(
-					new OutputDirectory(options.resolve(interface.name)),
-					generateLib(interface),
-					generate(interface),
-					generateLink(interface, input))
-			)
+			idl.interfaces.flatMap(generateInterface)
 		}
 	}
 
-	override def generateMakefileRules() = {
-		List.empty[MakefileRule]
+	override def generateInterface(interface: Interface) = {
+		List(
+			new OutputDirectory(options.resolve(interface.name)),
+			generateLib(interface),
+			generate(interface),
+			generateLink(interface, input))
 	}
 
 	def pythonExecutable() = {
@@ -52,18 +50,43 @@ class Python(idl: IDL, options: Options, input: Path, parent: Boolean)
 		}
 	}
 
+	override def generateMakefileRules() = {
+		(if (parent) {
+			List(idl.main)
+		} else {
+			idl.interfaces
+		}).flatMap(generateMakefileRules)
+	}
+
+	override def generateMakefileRules(interface: Interface) = {
+		List(MakefileRule(
+			List(
+				options.relativeToRoot(interface.name, s"${idl.main.name}.pyc"),
+				options.relativeToRoot(interface.name, s"${options.moduleName}.pyc"),
+				options.relativeToRoot(interface.name, s"${interface.name}_entry.pyc")
+			),
+			List(
+				options.relativeToRoot(interface.name, s"${idl.main.name}.py"),
+				options.relativeToRoot(interface.name, s"${options.moduleName}.py"),
+				options.relativeToRoot(interface.name, s"${interface.name}_entry.py")
+			),
+			Compiler.Python, "-m py_compile $^"))
+	}
+
 	override def generateRunCommands() = {
 		(if (parent) {
 			List(idl.main)
 		} else {
 			idl.interfaces
-		}).map(interface =>
-			ExecDescription(
-				Array(
-					pythonExecutable,
-					options.relativeToRoot(interface.name,
-						s"${interface.name}_entry.py").toString
-				)
+		}).map(generateRunCommand)
+	}
+
+	override def generateRunCommand(interface: Interface) = {
+		ExecDescription(
+			Array(
+				pythonExecutable,
+				options.relativeToRoot(interface.name,
+					s"${interface.name}_entry.py").toString
 			)
 		)
 	}

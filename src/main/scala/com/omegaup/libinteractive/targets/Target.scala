@@ -77,6 +77,7 @@ object Command extends Enum {
 	sealed trait EnumVal extends Value
 
 	object Validate extends EnumVal { val name = "validate" }
+	object Json extends EnumVal { val name = "json" }
 	object Generate extends EnumVal { val name = "generate" }
 	object GenerateAll extends EnumVal { val name = "generate-all" }
 }
@@ -93,18 +94,20 @@ case class Options(
 	command: Command.EnumVal = Command.Validate,
 	force: Boolean = false,
 	generateTemplate: Boolean = false,
+	generateDebugTargets: Boolean = true,
 	idlFile: Path = null,
+	json: Boolean = false,
 	legacyFlags: Boolean = false,
 	metadata: Boolean = false,
 	makefile: Boolean = false,
-	moduleName: String = "",
+	moduleName: String = null,
 	libraryDirectory: Path = Paths.get("libinteractive"),
 	os: OS.EnumVal = OS.Unix,
 	preferOriginalSources: Boolean = true,
 	root: Path = Paths.get(".").normalize,
 	packageDirectory: Path = Paths.get(".").normalize,
 	packagePrefix: String = "",
-	parentLang: String = "c",
+	parentLang: String = null,
 	parentSource: Option[Path] = None,
 	pipeDirectories: Boolean = false,
 	quiet: Boolean = false,
@@ -337,6 +340,9 @@ class ReplacementFilter(replacements: List[OutputFile]) extends OutputPathFilter
 	}
 }
 
+case class GeneratedInterface(interface: Interface, files: Iterable[OutputFile],
+	makefileRules: Iterable[MakefileRule], executableDescription: ExecDescription)
+
 object Compiler extends Enumeration {
 	type Compiler = Value
 	val Gcc = Value("gcc")
@@ -348,7 +354,7 @@ object Compiler extends Enumeration {
 }
 import Compiler.Compiler
 
-case class MakefileRule(target: Path, requisites: Iterable[Path], compiler: Compiler,
+case class MakefileRule(target: Iterable[Path], requisites: Iterable[Path], compiler: Compiler,
 		params: String, debug: Boolean = false)
 
 case class ExecDescription(args: Array[String],
@@ -416,9 +422,12 @@ abstract class Target(idl: IDL, options: Options) {
 	}
 
 	def generate(): Iterable[OutputPath]
+	def generateInterface(interface: Interface): Iterable[OutputPath]
 	def extension(): String
 	def generateMakefileRules(): Iterable[MakefileRule]
+	def generateMakefileRules(interface: Interface): Iterable[MakefileRule]
 	def generateRunCommands(): Iterable[ExecDescription]
+	def generateRunCommand(interface: Interface): ExecDescription
 
 	protected def generateLink(interface: Interface, input: Path): OutputPath = {
 		val moduleFile = s"${options.moduleName}.$extension"
@@ -452,6 +461,31 @@ object Generator {
 				case OS.Unix => NoOpFilter
 				case OS.Windows => WindowsNewlineFilter
 		}).apply)
+	}
+
+	def generateInterface(idl: IDL, options: Options, input: Path,
+			lang: String, interface: Interface): GeneratedInterface = {
+		val linkFilter = options.os match {
+			case OS.Unix => NoOpLinkFilter
+			case OS.Windows => new WindowsLinkFilter
+		}
+		val newlineFilter = options.os match {
+			case OS.Unix => NoOpFilter
+			case OS.Windows => WindowsNewlineFilter
+		}
+		val currentTarget = target(lang, idl, options, input, interface == idl.main)
+		GeneratedInterface(
+			interface = interface,
+			files = currentTarget.generate
+				.flatMap(linkFilter.apply)
+				.flatMap(newlineFilter.apply)
+				.flatMap(_ match {
+					case x: OutputFile => Some(x)
+					case _ => None
+				}),
+			makefileRules = currentTarget.generateMakefileRules(interface).filter(!_.debug || options.generateDebugTargets),
+			executableDescription = currentTarget.generateRunCommand(interface)
+		)
 	}
 
 	def target(lang: String, idl: IDL, options: Options, input: Path,

@@ -28,35 +28,44 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 			val moduleFile = s"${options.moduleName}.java"
 			generateTemplates(options.moduleName, idl.interfaces,
 					idl.main.name, List(idl.main), input) ++
-			idl.interfaces.flatMap(interface =>
-				List(
-					new OutputDirectory(options.resolve(interface.name)),
-					generate(interface),
-					generateLink(interface, input))
-			)
+			idl.interfaces.flatMap(generateInterface)
 		}
+	}
+
+	override def generateInterface(interface: Interface) = {
+		List(
+			new OutputDirectory(options.resolve(interface.name)),
+			generate(interface),
+			generateLink(interface, input))
 	}
 
 	override def generateMakefileRules() = {
 		if (parent) {
-			List(MakefileRule(options.resolve(idl.main.name, s"${idl.main.name}.class"),
-				List(
-					options.resolve(idl.main.name, s"${idl.main.name}.java"),
-					options.resolve(idl.main.name, s"${idl.main.name}_entry.java")
-				),
-				Compiler.Javac, "$^"))
+			generateMakefileRules(idl.main)
 		} else {
-			idl.interfaces.flatMap(interface =>
-				List(
-					MakefileRule(options.resolve(interface.name, s"${interface.name}_entry.class"),
-						List(
-							options.resolve(interface.name, s"${options.moduleName}.java"),
-							options.resolve(interface.name, s"${interface.name}_entry.java")
-						),
-						Compiler.Javac, "$^")
-				)
-			)
+			idl.interfaces.flatMap(generateMakefileRules)
 		}
+	}
+
+	override def generateMakefileRules(interface: Interface) = {
+		val targetPath = (if (interface == idl.main) {
+			options.relativeToRoot(interface.name, s"${interface.name}.class")
+		} else {
+			options.relativeToRoot(interface.name, s"${interface.name}_entry.class")
+		})
+		val mainSourcePath = (if (interface == idl.main) {
+			options.relativeToRoot(interface.name, s"${interface.name}.java")
+		} else {
+			options.relativeToRoot(interface.name, s"${options.moduleName}.java")
+		})
+
+		List(MakefileRule(
+			List(targetPath),
+			List(
+				mainSourcePath,
+				options.relativeToRoot(interface.name, s"${interface.name}_entry.java")
+			),
+			Compiler.Javac, "$^"))
 	}
 
 	def javaExecutable() = {
@@ -71,11 +80,13 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 			List(idl.main)
 		} else {
 			idl.interfaces
-		}).map(interface =>
-			ExecDescription(Array(javaExecutable, "-cp",
-				options.relativeToRoot(interface.name).toString,
-				s"${interface.name}_entry"))
-		)
+		}).map(generateRunCommand)
+	}
+
+	override def generateRunCommand(interface: Interface) = {
+		ExecDescription(Array(javaExecutable, "-cp",
+			options.relativeToRoot(interface.name).toString,
+			s"${interface.name}_entry"))
 	}
 
 	override def generateTemplates(moduleName: String,
