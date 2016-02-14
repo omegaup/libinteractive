@@ -77,7 +77,9 @@ object Main {
 					opt[File]("package-directory") action { (x, c) => c.copy(packageDirectory = x.toPath) } text
 						("the directory in which the packaged templates are to be saved"),
 					opt[String]("package-prefix") action { (x, c) => c.copy(packagePrefix = x) } text
-						("the prefix of the generated packages")
+						("the prefix of the generated packages"),
+					opt[Unit]("shift-time-for-zip") action { (_, c) => c.copy(shiftTimeForZip = true) } text
+						("Use GMT-12 for .zip timestamps")
 			)
 			cmd("json") action { (_, c) => c.copy(command = Command.Json) } text
 				("generate a JSON-encoded runtime metadata + output for all languages") children(
@@ -259,7 +261,8 @@ object Main {
 							val visitor = os match {
 								case OS.Windows => new ZipVisitor(localOptions.root,
 									localOptions.packageDirectory.resolve(
-										s"${localOptions.packagePrefix}windows_${lang}.zip"))
+										s"${localOptions.packagePrefix}windows_${lang}.zip"),
+									localOptions.shiftTimeForZip)
 								case OS.Unix => new CompressedTarballVisitor(
 									localOptions.root.resolve(localOptions.moduleName),
 									localOptions.packageDirectory.resolve(

@@ -15,6 +15,7 @@ import java.nio.file.LinkOption
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.Random
+import java.util.TimeZone
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream
@@ -114,6 +115,7 @@ case class Options(
 	sampleFiles: List[String] = List("examples/sample.in"),
 	seed: Long = System.currentTimeMillis,
 	sequentialIds: Boolean = false,
+	shiftTimeForZip: Boolean = false,
 	transact: Boolean = false,
 	verbose: Boolean = false
 ) {
@@ -239,13 +241,26 @@ class CompressedTarballVisitor(installPath: Path, tgzFilename: Path)
 	}
 }
 
-class ZipVisitor(installPath: Path, zipFilename: Path)
+class ZipVisitor(installPath: Path, zipFilename: Path, shiftTimeZone: Boolean)
 		extends ArchiveVisitor(installPath) {
 	val zip = new ZipOutputStream(new FileOutputStream(zipFilename.toFile))
+	val curTz = TimeZone.getDefault
+	val gmtNeg12  = TimeZone.getTimeZone("GMT-12")
+	val timestamp = System.currentTimeMillis
+
+	private def getTime() = {
+		timestamp + (if (shiftTimeZone) {
+			gmtNeg12.getOffset(timestamp) - curTz.getOffset(timestamp)
+		} else {
+			0
+		})
+	}
 
 	override def apply(outputPath: OutputPath) = outputPath match {
 		case dir: OutputDirectory => {
-			zip.putNextEntry(new ZipEntry(dir.path.toString + "/"))
+			val entry = new ZipEntry(dir.path.toString + "/")
+			entry.setTime(getTime)
+			zip.putNextEntry(entry)
 			zip.closeEntry
 		}
 
@@ -264,7 +279,7 @@ class ZipVisitor(installPath: Path, zipFilename: Path)
 			writer.close
 			val rawBytes = bytes.toByteArray
 			entry.setSize(rawBytes.length)
-			entry.setTime(System.currentTimeMillis)
+			entry.setTime(getTime)
 			zip.putNextEntry(entry)
 			zip.write(rawBytes, 0, rawBytes.length)
 			zip.closeEntry
