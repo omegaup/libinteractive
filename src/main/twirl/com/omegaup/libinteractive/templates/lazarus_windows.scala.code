@@ -13,7 +13,7 @@
       </Flags>
       <SessionStorage Value="InProjectDir"/>
       <MainUnit Value="0"/>
-      <Title Value="game"/>
+      <Title Value="@moduleName"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
     </General>
@@ -41,7 +41,7 @@
       <Unit0>
         <Filename Value="@moduleName.@extension"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="game"/>
+        <UnitName Value="@moduleName"/>
       </Unit0>
       <Unit1>
         <Filename Value="@parentFile"/>
@@ -53,7 +53,7 @@
     <Version Value="11"/>
     <PathDelim Value="\"/>
     <Target>
-      <Filename Value="@moduleName"/>
+      <Filename Value="@moduleName.@extension"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
@@ -65,7 +65,7 @@
       </CompilerMessages>
       <CompilerPath Value="$(CompPath)"/>
       <ExecuteBefore>
-        <Command Value="mingw32-make.exe -f @makefilePath all"/>
+        <Command Value="$(ProjPath)\compile.bat"/>
         <ScanForFPCMsgs Value="True"/>
         <ScanForMakeMsgs Value="True"/>
         <ShowAllMessages Value="True"/>

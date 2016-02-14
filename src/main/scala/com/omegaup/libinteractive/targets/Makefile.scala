@@ -142,7 +142,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 					List(options.relativeToRoot("run.c")),
 					Compiler.Gcc, "-std=c99 -o $@ $^ -O2 -lpsapi -Wall")))
 
-		val runbat = templates.code.runbat(this, message,
+		val compilebat = templates.code.compilebat(this, message,
 			allRules = allRules,
 			resolvedLinks = resolvedLinks.map(
 				link => new ResolvedOutputLink(
@@ -154,7 +154,9 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 		)
 
 		List(
-			OutputFile(options.rootResolve("run.bat"), runbat.toString),
+			OutputFile(options.rootResolve("run.bat"),
+				templates.code.runbat(message, options).toString),
+			OutputFile(options.rootResolve("compile.bat"), compilebat.toString),
 			OutputFile(options.rootResolve("test.bat"), s"@ECHO OFF\r\nREM $message\r\n\r\n" +
 				s"""run.bat ${options.sampleFiles.map("\"" + _ + "\"").mkString(" ")}""")
 		)

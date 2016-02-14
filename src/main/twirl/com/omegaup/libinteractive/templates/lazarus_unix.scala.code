@@ -13,7 +13,7 @@
       </Flags>
       <SessionStorage Value="InProjectDir"/>
       <MainUnit Value="0"/>
-      <Title Value="game"/>
+      <Title Value="@moduleName"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
     </General>
@@ -42,7 +42,7 @@
       <Unit0>
         <Filename Value="@moduleName.@extension"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="game"/>
+        <UnitName Value="@moduleName"/>
       </Unit0>
       <Unit1>
         <Filename Value="@parentFile"/>
