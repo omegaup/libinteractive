@@ -491,7 +491,7 @@ object Generator {
 		val currentTarget = target(lang, idl, options, input, interface == idl.main)
 		GeneratedInterface(
 			interface = interface,
-			files = currentTarget.generate
+			files = currentTarget.generateInterface(interface)
 				.flatMap(linkFilter.apply)
 				.flatMap(newlineFilter.apply)
 				.flatMap(_ match {
