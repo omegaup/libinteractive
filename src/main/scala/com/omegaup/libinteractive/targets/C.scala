@@ -27,8 +27,8 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 			val mainFile = s"${idl.main.name}.$extension"
 			List(
 				new OutputDirectory(options.resolve(idl.main.name)),
-				generateMainHeader,
-				generateMainFile) ++
+				generateMainHeader) ++
+			generateMainFiles ++
 			(if (options.preferOriginalSources) {
 				List()
 			} else {
@@ -75,7 +75,13 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 				List(
 					sourcePath,
 					options.relativeToRoot(interface.name, s"${interface.name}_entry.$extension")
-				),
+				) ++
+				(options.os match {
+					case OS.Unix => List(
+						options.relativeToRoot(interface.name, s"${interface.name}_entry.S")
+					)
+					case OS.Windows => List()
+				}),
 				compiler, s"$cflags -o $$@ $$^ -lm -O2 -g $ldflags -Wno-unused-result -I" + options.relativeToRoot(interface.name)
 			))
 		} else {
@@ -183,12 +189,22 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 		)
 	}
 
-	private def generateMainFile() = {
-		val c = templates.code.c_main(this, options, idl)
-		OutputFile(
-			options.resolve(idl.main.name, s"${idl.main.name}_entry.$extension"),
-			c.toString
-		)
+	private def generateMainFiles() = {
+		List(
+			OutputFile(
+				options.resolve(idl.main.name, s"${idl.main.name}_entry.$extension"),
+				templates.code.c_main(this, options, idl).toString
+			)
+		) ++
+		(options.os match {
+			case OS.Unix => List(
+				OutputFile(
+					options.resolve(idl.main.name, s"${idl.main.name}_entry.S"),
+					templates.code.c_main_entry(this).toString
+				)
+			)
+			case OS.Windows => List()
+		})
 	}
 
 	def compiler() = Compiler.Gcc
