@@ -19,13 +19,8 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 
 	override def generate() = {
 		if (parent) {
-			val mainFile = s"${idl.main.name}.java"
-			List(
-				new OutputDirectory(options.resolve(idl.main.name)),
-				new OutputLink(options.resolve(idl.main.name, mainFile), input),
-				generateMainFile)
+			generateInterface(idl.main)
 		} else {
-			val moduleFile = s"${options.moduleName}.java"
 			generateTemplates(options.moduleName, idl.interfaces,
 					idl.main.name, List(idl.main), input) ++
 			idl.interfaces.flatMap(generateInterface)
@@ -33,10 +28,18 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 	}
 
 	override def generateInterface(interface: Interface) = {
-		List(
-			new OutputDirectory(options.resolve(interface.name)),
-			generate(interface),
-			generateLink(interface, input))
+		if (interface == idl.main) {
+			val mainFile = s"${idl.main.name}.$extension"
+			List(
+				new OutputDirectory(options.resolve(idl.main.name)),
+				new OutputLink(options.resolve(idl.main.name, mainFile), input),
+				generateMainFile)
+		} else {
+			List(
+				new OutputDirectory(options.resolve(interface.name)),
+				generate(interface),
+				generateLink(interface, input))
+		}
 	}
 
 	override def generateMakefileRules() = {

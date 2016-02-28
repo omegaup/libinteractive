@@ -24,6 +24,16 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 
 	override def generate() = {
 		if (parent) {
+			generateInterface(idl.main)
+		} else {
+			generateTemplates(options.moduleName, idl.interfaces,
+					idl.main.name, List(idl.main), input) ++
+			idl.interfaces.flatMap(generateInterface)
+		}
+	}
+
+	override def generateInterface(interface: Interface) = {
+		if (interface == idl.main) {
 			val mainFile = s"${idl.main.name}.$extension"
 			List(
 				new OutputDirectory(options.resolve(idl.main.name)),
@@ -35,22 +45,16 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 				List(new OutputLink(options.resolve(idl.main.name, mainFile), input))
 			})
 		} else {
-			generateTemplates(options.moduleName, idl.interfaces,
-					idl.main.name, List(idl.main), input) ++
-			idl.interfaces.flatMap(generateInterface)
+			List(
+				new OutputDirectory(options.resolve(interface.name)),
+				generateHeader(interface),
+				generate(interface)) ++
+			(if (options.preferOriginalSources) {
+				List()
+			} else {
+				List(generateLink(interface, input))
+			})
 		}
-	}
-
-	override def generateInterface(interface: Interface) = {
-		List(
-			new OutputDirectory(options.resolve(interface.name)),
-			generateHeader(interface),
-			generate(interface)) ++
-		(if (options.preferOriginalSources) {
-			List()
-		} else {
-			List(generateLink(interface, input))
-		})
 	}
 
 	override def generateMakefileRules() = {
