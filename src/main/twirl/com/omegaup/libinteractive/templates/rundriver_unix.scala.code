@@ -334,7 +334,13 @@ cleanup:
 	}
 }
 
+#if defined(__APPLE__)
+	// Apple defines rusage.ru_maxrss as bytes, whereas Linux defines it as
+	// kilobytes.
+	fprintf(stderr, "\nMemory: %7.3f MB\n", maxrss / 1048576.0f);
+#else
 	fprintf(stderr, "\nMemory: %7.3f MB\n", maxrss / 1024.0f);
+#endif
 	fprintf(stderr, "Time:   %7.3f s\n", utime / 1e6);
 
 	return retval;

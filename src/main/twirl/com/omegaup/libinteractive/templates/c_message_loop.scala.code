@@ -5,17 +5,17 @@
 @import com.omegaup.libinteractive.target.Options
 @(c: C, options: Options, caller: Interface, callee: Interface, outfd: String, infd: String)
 static void __message_loop_@(caller.name)(int __current_function, int __noreturn) {
-	int __msgid;
-	while (readfull(&@infd, &__msgid, sizeof(int), 0)) {
+	uint32_t __msgid;
+	while (readfull(&@infd, &__msgid, sizeof(__msgid), 0)) {
 		if (__msgid == __current_function) return;
 		switch (__msgid) {
 @for(function <- callee.functions) {
-			case 0x@("%x" format c.functionIds((caller.name, callee.name, function.name))): {
+			case @("0x%xu" format c.functionIds((caller.name, callee.name, function.name))): {
 				// @caller.name -> @(callee.name).@(function.name)
 @if(options.verbose) {
 				fprintf(stderr, "calling @function.name begin\n");
 }
-				int __cookie;
+				uint32_t __cookie;
 @for(param <- function.params) {
 @* Workaround for https://github.com/playframework/twirl/issues/35 *@
 @if(param.paramType.isInstanceOf[ArrayType]) {
@@ -26,18 +26,18 @@ static void __message_loop_@(caller.name)(int __current_function, int __noreturn
 				readfull(&@infd, &@(function.name)_@param.name, @c.fieldLength(param.paramType, Some(function)), 1);
 }
 }
-				readfull(&@infd, &__cookie, sizeof(int), 1);
+				readfull(&@infd, &__cookie, sizeof(__cookie), 1);
 
 @if(function.returnType != PrimitiveType("void")) {
 				@c.formatType(function.returnType) result =
 }
 				@(function.name)(@function.params.map(function.name + "_" + _.name).mkString(", "));
 
-				writefull(&@outfd, &__msgid, sizeof(int));
+				writefull(&@outfd, &__msgid, sizeof(__msgid));
 @if(function.returnType != PrimitiveType("void")) {
 				writefull(&@outfd, &result, sizeof(result));
 }
-				writefull(&@outfd, &__cookie, sizeof(int));
+				writefull(&@outfd, &__cookie, sizeof(__cookie));
 				writeflush(&@outfd);
 @for(param <- function.params) {
 @* Workaround for https://github.com/playframework/twirl/issues/35 *@

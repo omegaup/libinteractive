@@ -197,10 +197,7 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 
 	def ldflags() = {
 		if (parent) {
-			options.os match {
-				case OS.Unix => "-Wl,-e__entry"
-				case OS.Windows => "-Wl,-e___entry"
-			}
+			"-Wl,-e,__entry"
 		} else {
 			""
 		}

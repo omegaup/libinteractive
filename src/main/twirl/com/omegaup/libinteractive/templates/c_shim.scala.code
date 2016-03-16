@@ -10,10 +10,10 @@
 @if(options.verbose) {
 	fprintf(stderr, "invoking @function.name begin\n");
 }
-	const int __msgid = 0x@("%x" format c.functionIds((caller.name, callee.name, function.name)));
-	const int __cookie = 0x@("%x" format c.rand.nextInt);
+	const uint32_t __msgid = @("0x%xu" format c.functionIds((caller.name, callee.name, function.name)));
+	const uint32_t __cookie = @("0x%xu" format c.rand.nextInt);
 
-	writefull(&@outfd, &__msgid, sizeof(int));
+	writefull(&@outfd, &__msgid, sizeof(__msgid));
 @for(param <- function.params) {
 @param.paramType match {
 case _: PrimitiveType => {
@@ -32,8 +32,8 @@ case _: ArrayType => {
 	@c.formatType(function.returnType) __ans = @c.defaultValue(function.returnType);
 	readfull(&@infd, &__ans, sizeof(__ans), 1);
 }
-	int __cookie_result = 0;
-	readfull(&@infd, &__cookie_result, sizeof(int), 1);
+	uint32_t __cookie_result = 0;
+	readfull(&@infd, &__cookie_result, sizeof(__cookie_result), 1);
 
 	if (__cookie != __cookie_result) {
 		fprintf(stderr, "invalid cookie\n");
