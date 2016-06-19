@@ -24,6 +24,14 @@ import org.scalatest._
 class TargetSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
 	val testRoot = Paths.get(".tests")
 
+	val parentLanguages = List("cpp", "java", "py")
+
+	val childLanguages =
+		if (System.getProperty("os.name").toLowerCase.startsWith("mac"))
+			List("c", "cpp", "java", "py")
+		else
+			List("c", "cpp", "java", "py", "pas")
+
 	override def beforeAll() = {
 		if (Files.exists(testRoot)) {
 			Files.walkFileTree(testRoot, new SimpleFileVisitor[Path] {
@@ -105,10 +113,10 @@ class TargetSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
 
 	def runDirectory(directory: Path) = {
 		val output = Source.fromFile(deploy(directory.resolve("output")).toFile).mkString.trim
-		for (lang <- List("cpp", "java", "py")) {
+		for (lang <- parentLanguages) {
 			run(lang, "c", directory, output)
 		}
-		for (lang <- List("c", "cpp", "java", "py", "pas")) {
+		for (lang <- childLanguages) {
 			run("c", lang, directory, output)
 		}
 	}
@@ -120,7 +128,7 @@ class TargetSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
 	"libinteractive" should "produce working templates" in {
 		val directory = Paths.get("templates")
 		val output = Source.fromFile(deploy(directory.resolve("output")).toFile).mkString.trim
-		for (lang <- List("c", "cpp", "java", "py", "pas")) {
+		for (lang <- childLanguages) {
 			run("c", lang, directory, output, Options(generateTemplate = true, verbose = true))
 		}
 	}
