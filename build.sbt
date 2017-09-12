@@ -10,6 +10,8 @@ organization := "com.omegaup"
 
 scalaVersion := "2.11.5"
 
+scalaVersion in ThisProject := "2.11.5"
+
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
 
 lazy val root = (project in file("."))
