@@ -11,7 +11,7 @@
 }
 	global @transactName
 	__msgid = 0x@("%x" format python.functionIds((caller.name, callee.name, function.name)))
-	__cookie = 0x@("%x" format python.rand.nextInt)
+	__cookie = 0x@("%x" format python.cookieId)
 	__message = transact.Message()
 	@(transactName).allocate(__message, __msgid, @function.params.foldLeft(4L)(_+_.paramType.byteSize))
 @for(param <- function.params) {

@@ -11,7 +11,7 @@
 			System.err.printf("invoking @function.name begin\n");
 }
 			final int __msgid = 0x@("%x" format java.functionIds((caller.name, callee.name, function.name)));
-			final int __cookie = 0x@("%x" format java.rand.nextInt);
+			final int __cookie = 0x@("%x" format java.cookieId);
 
 			Message __message = new Message();
 			@(transactName).allocate(__message, __msgid, @function.params.foldLeft(4L)(_+_.paramType.byteSize));

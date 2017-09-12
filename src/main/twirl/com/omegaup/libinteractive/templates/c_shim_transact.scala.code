@@ -11,7 +11,7 @@
 	fprintf(stderr, "invoking @function.name begin\n");
 }
 	const int __msgid = 0x@("%x" format c.functionIds((caller.name, callee.name, function.name)));
-	const int __cookie = 0x@("%x" format c.rand.nextInt);
+	const int __cookie = 0x@("%x" format c.cookieId);
 
 	struct message* __request = __message_alloc(&@transactName, @function.params.foldLeft(4L)(_+_.paramType.byteSize));
 	__request->msgid = __msgid;

@@ -19,7 +19,7 @@ begin
 	Writeln(ErrOutput, #9'invoking @function.name begin');
 }
 	__msgid := $@("%x" format pascal.functionIds((caller.name, callee.name, function.name)));
-	__cookie := $@("%x" format pascal.rand.nextInt);
+	__cookie := $@("%x" format pascal.cookieId);
 
 	@(outfd).WriteBuffer(__msgid, sizeof(__msgid));
 @for(param <- function.params) {

@@ -10,7 +10,7 @@
 	print>>sys.stderr, "\tinvoking @function.name begin"
 }
 	__msgid = 0x@("%x" format python.functionIds((caller.name, callee.name, function.name)))
-	__cookie = 0x@("%x" format python.rand.nextInt)
+	__cookie = 0x@("%x" format python.cookieId)
 	@(outfd).write(struct.pack('I', __msgid))
 @for(param <- function.params) {
 @param.paramType match {

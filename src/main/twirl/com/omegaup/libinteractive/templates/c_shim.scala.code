@@ -11,7 +11,7 @@
 	fprintf(stderr, "invoking @function.name begin\n");
 }
 	const uint32_t __msgid = @("0x%xu" format c.functionIds((caller.name, callee.name, function.name)));
-	const uint32_t __cookie = @("0x%xu" format c.rand.nextInt);
+	const uint32_t __cookie = @("0x%xu" format c.cookieId);
 
 	writefull(&@outfd, &__msgid, sizeof(__msgid));
 @for(param <- function.params) {
