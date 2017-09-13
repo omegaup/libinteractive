@@ -1,0 +1,67 @@
+@import com.omegaup.libinteractive.idl.ArrayType
+@import com.omegaup.libinteractive.idl.Interface
+@import com.omegaup.libinteractive.idl.PrimitiveType
+@import com.omegaup.libinteractive.target.CSharp
+@import com.omegaup.libinteractive.target.Options
+@(cs: CSharp, options: Options, caller: Interface, callee: Interface, outfd: String, infd: String)
+	public static void __message_loop_@(caller.name)(int __current_function, bool __noreturn)
+	{
+		int __msgid;
+		while (true) {
+			try {
+				__msgid = @(infd).ReadInt32();
+			} catch (EndOfStreamException) {
+				break;
+			}
+			if (__msgid == __current_function) return;
+			switch (__msgid) {
+@for(function <- callee.functions) {
+				case 0x@("%x" format cs.functionIds((caller.name, callee.name, function.name))): {
+					// @(caller.name) -> @(callee.name).@function.name
+@if(options.verbose) {
+					Console.Error.WriteLine("calling @function.name begin");
+}
+@for(param <- function.params) {
+@* Workaround for https://github.com/playframework/twirl/issues/35 *@
+@if(param.paramType.isInstanceOf[ArrayType]) {
+					@cs.declareVar(param, function) = @cs.allocateArray(param.paramType.asInstanceOf[ArrayType], function);
+@cs.readArray(infd, param, param.paramType.asInstanceOf[ArrayType], Some(function), 5)
+} else {
+					@cs.declareVar(param, function) = @(infd).@(cs.readPrimitive(param.paramType.asInstanceOf[PrimitiveType]))();
+}
+}
+					int __cookie = @(infd).ReadInt32();
+
+@if(function.returnType != PrimitiveType("void")) {
+					@cs.formatType(function.returnType) __result = 
+}
+					@(callee.name).@(function.name)(@function.params.map(function.name + "_" + _.name).mkString(", "));
+
+					@(outfd).Write(__msgid);
+@if(function.returnType != PrimitiveType("void")) {
+					@(outfd).@(cs.writePrimitive(function.returnType))(__result);
+}
+					@(outfd).Write(__cookie);
+					@(outfd).Flush();
+@if(options.verbose) {
+					Console.Error.WriteLine("calling @function.name end");
+}
+					break;
+				}
+
+}
+				default: {
+					Console.Error.WriteLine("Unknown message id 0x{0:x}", __msgid);
+					Environment.Exit(241);
+					throw new SystemException();  // needed to compile
+				}
+			}
+		}
+		if (__noreturn) {
+			Environment.Exit(0);
+		}
+		if (__current_function != -1) {
+			Console.Error.WriteLine("Confused about exiting");
+			Environment.Exit(242);
+		}
+	}

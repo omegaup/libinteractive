@@ -1,0 +1,21 @@
+@import com.omegaup.libinteractive.target.Options
+@(options: Options)
+<Project Sdk="Microsoft.NET.Sdk">
+
+@if(options.transact) {
+  <ItemGroup>
+    <PackageReference Include="Omegaup.Transact" Version="1.0.0" />
+  </ItemGroup>
+
+}
+  <PropertyGroup>
+@if(options.generateDebugTargets) {
+    <Configuration>Debug</Configuration>
+} else {
+    <Configuration>Release</Configuration>
+}
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+  </PropertyGroup>
+
+</Project>

@@ -30,7 +30,7 @@ class TargetSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
 		if (System.getProperty("os.name").toLowerCase.startsWith("mac"))
 			List("c", "cpp", "java", "py")
 		else
-			List("c", "cpp", "java", "py", "pas")
+			List("c", "cpp", "java", "py", "pas", "cs")
 
 	override def beforeAll() = {
 		if (Files.exists(testRoot)) {

@@ -1,0 +1,53 @@
+@import com.omegaup.libinteractive.idl.ArrayType
+@import com.omegaup.libinteractive.idl.Function
+@import com.omegaup.libinteractive.idl.Interface
+@import com.omegaup.libinteractive.idl.PrimitiveType
+@import com.omegaup.libinteractive.target.CSharp
+@import com.omegaup.libinteractive.target.Options
+@(cs: CSharp, options: Options, function: Function, callee: Interface, caller: Interface, outfd: String, infd: String)
+	public static @(cs.declareFunction(function))
+	{
+		try {
+@if(options.verbose) {
+			Console.Error.WriteLine("invoking @function.name begin");
+}
+			const int __msgid = 0x@("%x" format cs.functionIds((caller.name, callee.name, function.name)));
+			const int __cookie = 0x@("%x" format cs.cookieId);
+
+			@(outfd).Write(__msgid);
+@for(param <- function.params) {
+@param.paramType match {
+case primitive: PrimitiveType => {
+			@(outfd).@(cs.writePrimitive(primitive))(@param.name);
+}
+case array: ArrayType => {
+@cs.writeArray(outfd, param, array, 3)
+}
+}
+}
+			@(outfd).Write(__cookie);
+			@(outfd).Flush();
+
+			@(caller.name)_entry.__message_loop_@(callee.name)(__msgid, @function.noReturn);
+
+@if(function.returnType != PrimitiveType("void")) {
+			@cs.formatType(function.returnType) __ans =
+				@(infd).@(cs.readPrimitive(function.returnType))();
+}
+			int __cookie_result = @(infd).ReadInt32();
+			if (__cookie != __cookie_result) {
+				Console.Error.WriteLine("invalid cookie");
+				Environment.Exit(240);
+			}
+@if(options.verbose) {
+			Console.Error.WriteLine("invoking @function.name end");
+}
+@if(function.returnType != PrimitiveType("void")) {
+			return __ans;
+}
+		} catch (IOException __e) {
+			Console.Error.WriteLine(__e.ToString());
+			Environment.Exit(1);
+			throw new SystemException();  // needed to compile
+		}
+	}

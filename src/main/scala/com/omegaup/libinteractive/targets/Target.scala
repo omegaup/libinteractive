@@ -360,6 +360,7 @@ case class GeneratedInterface(interface: Interface, files: Iterable[OutputFile],
 
 object Compiler extends Enumeration {
 	type Compiler = Value
+	val Dotnet = Value("dotnet")
 	val Gcc = Value("gcc")
 	val Gxx = Value("g++")
 	val Fpc = Value("fpc")
@@ -509,6 +510,7 @@ object Generator {
 			parent: Boolean): Target = {
 		lang match {
 			case "c" => new C(idl, options, input, parent)
+			case "cs" => new CSharp(idl, options, input, parent)
 			case "cpp" => new Cpp(idl, options, input, parent)
 			case "cpp11" => new Cpp(idl, options, input, parent)
 			case "java" => new Java(idl, options, input, parent)

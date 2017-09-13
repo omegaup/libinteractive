@@ -1,0 +1,62 @@
+@import com.omegaup.libinteractive.idl.Interface
+@import com.omegaup.libinteractive.idl.PrimitiveType
+@import com.omegaup.libinteractive.target.CSharp
+@import com.omegaup.libinteractive.target.Options
+@(cs: CSharp, options: Options, interface: Interface, main: Interface)
+/* @cs.message */
+
+using System;
+using System.IO;
+
+@if(options.transact) {
+using Omegaup.Transact;
+}
+
+public class @(interface.name)_entry
+{
+@if(options.transact) {
+	public static Interface @cs.transactName(interface) = null;
+
+@cs_message_loop_transact(cs, options, main, interface, cs.transactName(interface))
+} else {
+	public static BinaryReader __in = null;
+	public static BinaryWriter __out = null;
+
+@cs_message_loop(cs, options, main, interface, "__out", "__in")
+}
+
+	static void Main(string[] args)
+	{
+@if(options.transact) {
+		@cs.transactName(interface) = new Interface(false, "@interface.name",
+				"@cs.transactFilename(interface)", "@cs.shmFilename(interface)", @interface.shmSize);
+		Message __message = @{cs.transactName(interface)}.BuildMessage();
+		__message.Receive();
+		__message_loop_@(main.name)(__message, -1, true);
+} else {
+		using (BinaryReader reader =
+				new BinaryReader(File.Open("@cs.pipeFilename(interface, interface, true)", FileMode.Open, FileAccess.Read))) {
+			using (BinaryWriter writer =
+					new BinaryWriter(File.Open("@cs.pipeFilename(interface, interface, false)", FileMode.Open, FileAccess.Write))) {
+				__in = reader;
+				__out = writer;
+				__message_loop_@(main.name)(-1, true);
+			}
+		}
+}
+	}
+}
+
+class @(main.name)
+{
+@for(function <- main.functions) {
+@if(options.transact) {
+@cs_shim_transact(cs, options, function, main, interface,
+		s"${interface.name}_entry.${cs.transactName(interface)}")
+} else {
+@cs_shim(cs, options, function, main, interface,
+		s"${interface.name}_entry.__out",
+		s"${interface.name}_entry.__in")
+}
+}
+}
