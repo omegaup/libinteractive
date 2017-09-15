@@ -21,6 +21,8 @@ import scala.collection.mutable.ListBuffer
 import scala.collection.JavaConversions.asJavaIterable
 import org.scalatest._
 
+object Transact extends Tag("com.omegaup.libinteractive.Transact")
+
 class TargetSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
 	val testRoot = Paths.get(".tests")
 
@@ -31,6 +33,9 @@ class TargetSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
 			List("c", "cpp", "java", "py")
 		else
 			List("c", "cpp", "java", "py", "pas", "cs")
+
+	val transactSupportedLanguages =
+			Set("c", "cpp", "java", "py", "cs")
 
 	override def beforeAll() = {
 		if (Files.exists(testRoot)) {
@@ -130,6 +135,17 @@ class TargetSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
 		val output = Source.fromFile(deploy(directory.resolve("output")).toFile).mkString.trim
 		for (lang <- childLanguages) {
 			run("c", lang, directory, output, Options(generateTemplate = true, verbose = true))
+		}
+	}
+
+	"libinteractive" should "support transact" taggedAs(Transact) in {
+		assume(Files.isDirectory(Paths.get("/sys/module/transact")),
+			"The 'transact' module is not loaded")
+
+		val directory = Paths.get("templates_transact")
+		val output = Source.fromFile(deploy(directory.resolve("output")).toFile).mkString.trim
+		for (lang <- childLanguages.filter(transactSupportedLanguages)) {
+			run("c", lang, directory, output, Options(generateTemplate = true, verbose = true, transact = true))
 		}
 	}
 }
