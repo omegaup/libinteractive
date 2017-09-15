@@ -216,11 +216,16 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 	def cflags() = "-std=c99"
 
 	def ldflags() = {
-		if (parent) {
+		(if (options.transact) {
+			"-ltransact "
+		} else {
+			""
+		}) +
+		(if (parent) {
 			"-Wl,-e,__entry"
 		} else {
 			""
-		}
+		})
 	}
 
 	def arrayDim(length: ArrayLength) = s"[${length.value}]"

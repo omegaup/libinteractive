@@ -32,12 +32,19 @@
 }
 					@(callee.name).@(function.name)(@function.params.map(function.name + "_" + _.name).mkString(", "));
 
-					@(transactName).allocate(__message, __msgid, @(4 + function.returnType.byteSize));
+					__message.allocate(__msgid, @(4 + function.returnType.byteSize));
 @if(function.returnType != PrimitiveType("void")) {
 					__message.@(java.writePrimitive(function.returnType))(__result);
 }
 					__message.writeInt(__cookie);
-					@(transactName).call(__message, true, false);
+					if (__message.send() == 0) {
+						if (__noreturn) {
+							System.exit(0);
+						} else {
+							throw new IOException("@caller.name died unexpectedly");
+						}
+					}
+					__message.receive();
 @if(options.verbose) {
 					System.err.printf("calling @function.name end\n");
 }

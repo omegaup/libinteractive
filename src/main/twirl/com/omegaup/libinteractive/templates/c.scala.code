@@ -23,8 +23,8 @@
 #endif
 #else
 @if(options.transact) {
-#include <sched.h>
-#include <sys/mman.h>
+#include <errno.h>
+#include <libtransact.h>
 
 }
 #if !defined(PRIuS)
@@ -40,9 +40,7 @@ extern "C" {
 #endif
 
 @if(options.transact) {
-@c_transact_functions(options.verbose)
-
-static struct interface @c.transactName(interface);
+static struct transact_interface* @c.transactName(interface);
 } else {
 @c_stream_functions(options.verbose)
 
@@ -72,12 +70,24 @@ int main(int argc, char* argv[]) {
 	int retval = 0;
 
 @if(options.transact) {
-	__interface_init(&@c.transactName(interface), 0, "@interface.name",
-		"@c.transactFilename(interface)",
-		"@c.shmFilename(interface)", @interface.shmSize);
+	@if(options.verbose) {
+		fprintf(stderr, "Opening `@interface.name'\n");
+	}
+	@c.transactName(interface) = transact_interface_open(0,
+				"@c.transactFilename(interface)",
+				"@c.shmFilename(interface)", @interface.shmSize);
+	if (!@c.transactName(interface)) {
+		fprintf(stderr, "Failed to open transact interface '@interface.name': %m\n");
+		exit(243);
+	}
 
-	struct message* message = __message_get(&@(c.transactName(interface)));
-	__message_loop_@(idl.main.name)(message, -1, 1);
+	struct transact_message message;
+	transact_message_init(@(c.transactName(interface)), &message);
+	if (transact_message_recv(&message) != 0) {
+		fprintf(stderr, "Invalid message offset for '@interface.name': %m\n");
+		exit(238);
+	}
+	__message_loop_@(idl.main.name)(&message, -1, 1);
 } else {
 	openstream(&__in, "@c.pipeFilename(interface, interface, true)", O_RDONLY);
 	openstream(&__out, "@c.pipeFilename(interface, interface, false)", O_WRONLY);

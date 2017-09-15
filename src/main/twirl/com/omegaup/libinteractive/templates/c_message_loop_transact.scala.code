@@ -4,11 +4,11 @@
 @import com.omegaup.libinteractive.target.C
 @import com.omegaup.libinteractive.target.Options
 @(c: C, options: Options, caller: Interface, callee: Interface, transactName: String)
-static struct message* __message_loop_@(caller.name)(struct message* __message, int __current_function, int __noreturn) {
+void __message_loop_@(caller.name)(struct transact_message* __message, int __current_function, int __noreturn) {
 	int __msgid;
 	while (1) {
-		__msgid = __message->msgid;
-		if (__msgid == __current_function) return __message;
+		__msgid = __message->method_id;
+		if (__msgid == __current_function) return;
 		switch (__msgid) {
 @for(function <- callee.functions) {
 			case 0x@("%x" format c.functionIds((caller.name, callee.name, function.name))): {
@@ -35,8 +35,15 @@ static struct message* __message_loop_@(caller.name)(struct message* __message, 
 }
 				@(function.name)(@function.params.map(function.name + "_" + _.name).mkString(", "));
 
-				__message = __message_alloc(&@transactName, @(4 + function.returnType.byteSize));
-				__message->msgid = __msgid;
+				if (transact_message_allocate(__message, __msgid, @(4 + function.returnType.byteSize)) != 0) {
+					if (errno == ENOMEM) {
+						fprintf(stderr, "No more memory for arena allocation. Need at least @function.returnType.byteSize more bytes\n");
+						exit(237);
+					} else {
+						fprintf(stderr, "Illegal state: %m\n");
+						exit(238);
+					}
+				}
 				char* __writebuf = __message->data;
 @if(function.returnType != PrimitiveType("void")) {
 				*((@c.formatType(function.returnType)*)__writebuf) = result;
@@ -44,7 +51,22 @@ static struct message* __message_loop_@(caller.name)(struct message* __message, 
 }
 				*(int*)__writebuf = __cookie;
 				__writebuf += sizeof(int);
-				__message = __message_call(&@transactName, __message, 1, 0);
+				switch (transact_message_send(__message)) {
+					case 0:
+						if (__noreturn) {
+							exit(0);
+						}
+					case -1:
+						fprintf(stderr, "Confused about exiting: %m\n");
+						exit(242);
+						break;
+					case 1:
+						break;
+				}
+				if (transact_message_recv(__message) == -1) {
+					fprintf(stderr, "Illegal state: %m\n");
+					exit(238);
+				}
 @if(options.verbose) {
 				fprintf(stderr, "calling @function.name end\n");
 }
@@ -66,5 +88,5 @@ static struct message* __message_loop_@(caller.name)(struct message* __message, 
 		exit(242);
 	}
 
-	return __message;
+	return;
 }

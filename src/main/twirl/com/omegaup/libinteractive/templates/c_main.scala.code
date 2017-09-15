@@ -30,8 +30,8 @@
 #endif
 #else
 @if(options.transact) {
-#include <sched.h>
-#include <sys/mman.h>
+#include <errno.h>
+#include <libtransact.h>
 
 }
 #if !defined(PRIuS)
@@ -47,9 +47,7 @@ extern "C" {
 #endif
 
 @if(options.transact) {
-@c_transact_functions(options.verbose)
-
-static struct interface @idl.interfaces.map(c.transactName).mkString(", ");
+static struct transact_interface *@idl.interfaces.map(c.transactName).mkString(", *");
 } else {
 @c_stream_functions(options.verbose)
 
@@ -61,8 +59,15 @@ static struct __stream @idl.interfaces.flatMap(interface =>
 void __NOINLINE __libinteractive_init() {
 @if(options.transact) {
 @for(interface <- idl.interfaces) {
-	__interface_init(&@c.transactName(interface), 1, "@interface.name",
+	@if(options.verbose) {
+		fprintf(stderr, "Opening `@interface.name'\n");
+	}
+	@c.transactName(interface) = transact_interface_open(1,
 		"@c.transactFilename(interface)", "@c.shmFilename(interface)", @interface.shmSize);
+	if (!@c.transactName(interface)) {
+		fprintf(stderr, "Failed to open transact interface '@interface.name': %m\n");
+		exit(243);
+	}
 }
 } else {
 @for(interface <- idl.interfaces) {

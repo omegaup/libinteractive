@@ -13,8 +13,8 @@
 			final int __msgid = 0x@("%x" format java.functionIds((caller.name, callee.name, function.name)));
 			final int __cookie = 0x@("%x" format java.cookieId);
 
-			Message __message = new Message();
-			@(transactName).allocate(__message, __msgid, @function.params.foldLeft(4L)(_+_.paramType.byteSize));
+			Message __message = @(transactName).buildMessage();
+			__message.allocate(__msgid, @function.params.foldLeft(4L)(_+_.paramType.byteSize));
 @for(param <- function.params) {
 @param.paramType match {
 case primitive: PrimitiveType => {
@@ -27,7 +27,15 @@ case array: ArrayType => {
 }
 			__message.writeInt(__cookie);
 
-			@(transactName).call(__message, @function.noReturn, false);
+			if (__message.send() == 0) {
+@if(function.noReturn) {
+				System.exit(0);
+} else {
+				throw new IOException("@callee.name died unexpectedly while calling @function.name");
+}
+			}
+			__message.receive();
+
 			@(caller.name)_entry.__message_loop_@(callee.name)(
 					__message, __msgid, @function.noReturn);
 

@@ -31,8 +31,8 @@ public class @(interface.name)_entry {
 @if(options.transact) {
 		@java.transactName(interface) = new Interface(false, "@interface.name",
 				"@java.transactFilename(interface)", "@java.shmFilename(interface)", @interface.shmSize);
-		Message __message = new Message();
-		@(java.transactName(interface)).get(__message);
+		Message __message = @(java.transactName(interface)).buildMessage();
+		__message.receive();
 		__message_loop_@(main.name)(__message, -1, true);
 } else {
 		try (LEDataInputStream fin =

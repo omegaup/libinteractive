@@ -13,9 +13,18 @@
 	const int __msgid = 0x@("%x" format c.functionIds((caller.name, callee.name, function.name)));
 	const int __cookie = 0x@("%x" format c.cookieId);
 
-	struct message* __request = __message_alloc(&@transactName, @function.params.foldLeft(4L)(_+_.paramType.byteSize));
-	__request->msgid = __msgid;
-	char* __writebuf = __request->data;
+	struct transact_message __request;
+	transact_message_init(@transactName, &__request);
+	if (transact_message_allocate(&__request, __msgid, @function.params.foldLeft(4L)(_+_.paramType.byteSize)) != 0) {
+		if (errno == ENOMEM) {
+			fprintf(stderr, "No more memory for arena allocation. Need at least @function.params.foldLeft(4L)(_+_.paramType.byteSize) more bytes\n");
+			exit(237);
+		} else {
+			fprintf(stderr, "Illegal state: %m\n");
+			exit(238);
+		}
+	}
+	char* __writebuf = __request.data;
 @for(param <- function.params) {
 @param.paramType match {
 case _: PrimitiveType => {
@@ -30,10 +39,28 @@ case _: ArrayType => {
 	*(int*)__writebuf = __cookie;
 	__writebuf += sizeof(int);
 
-	struct message* __response = __message_call(&@transactName, __request, @if(function.noReturn) { 1 } else { 0 }, 0);
-	__response = __message_loop_@(callee.name)(__response, __request->msgid, @if(function.noReturn) { 1 } else { 0 });
+	struct transact_message __response;
+	transact_message_init(@transactName, &__response);
+	switch (transact_message_send(&__request)) {
+		case 0:
+@if(function.noReturn) {
+			exit(0);
+			break;
+}
+		case -1:
+			fprintf(stderr, "Confused about exiting: %m\n");
+			exit(242);
+			break;
+		case 1:
+			break;
+	}
+	if (transact_message_recv(&__response) == -1) {
+		fprintf(stderr, "Illegal state: %m\n");
+		exit(238);
+	}
+	__message_loop_@(callee.name)(&__response, __msgid, @if(function.noReturn) { 1 } else { 0 });
 
-	char* __readbuf = __response->data;
+	char* __readbuf = __response.data;
 @if(function.returnType != PrimitiveType("void")) {
 	@c.formatType(function.returnType) __ans = *(@c.formatType(function.returnType)*)__readbuf;
 	__readbuf += sizeof(@c.formatType(function.returnType));
