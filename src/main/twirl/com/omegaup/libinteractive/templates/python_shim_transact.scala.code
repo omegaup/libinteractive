@@ -5,42 +5,45 @@
 @import com.omegaup.libinteractive.target.Options
 @import com.omegaup.libinteractive.target.Python
 @(python: Python, options: Options, function: Function, callee: Interface, caller: Interface, transactName: String)
+# pylint: disable=invalid-name
 @python.declareFunction(function):
+    "@{'"'}" @function.name "@{'"'}"
+
 @if(options.verbose) {
-	print>>sys.stderr, "\tinvoking @function.name begin"
+    print("\tinvoking @function.name begin", file=sys.stderr)
 }
-	global @transactName
-	__msgid = 0x@("%x" format python.functionIds((caller.name, callee.name, function.name)))
-	__cookie = 0x@("%x" format python.cookieId)
-	__message = transact.Message()
-	@(transactName).allocate(__message, __msgid, @function.params.foldLeft(4L)(_+_.paramType.byteSize))
+    __msgid = 0x@("%x" format python.functionIds((caller.name, callee.name, function.name)))
+    __cookie = 0x@("%x" format python.cookieId)
+    __message = transact.Message()
+    @(transactName).allocate(__message, __msgid, @function.params.foldLeft(4L)(_+_.paramType.byteSize))
 @for(param <- function.params) {
 @param.paramType match {
 case primitive: PrimitiveType => {
-	__message.write(struct.pack(@python.structFormat(param.paramType), @param.name))
+    __message.write(struct.pack(@python.structFormat(param.paramType), @param.name))
 }
 case array: ArrayType => {
 @python.writeArray("__message", param.name, array.primitive, array.lengths)
 }
 }
 }
-	__message.write(struct.pack('I', __cookie))
+    __message.write(struct.pack('I', __cookie))
 
-	@(transactName).call(__message, @if(function.noReturn) { True } else { False }, False)
-	__message_loop_@(callee.name)(__message, __msgid, @if(function.noReturn) { True } else { False })
+    @(transactName).call(__message, @if(function.noReturn) {True} else {False}, False)
+    __message_loop_@(callee.name)(__message, __msgid, @if(function.noReturn) {True} else {False})
 
 @if(function.returnType != PrimitiveType("void")) {
-	__ans = struct.unpack(@python.structFormat(function.returnType), __message.read(@python.fieldLength(function.returnType)))[0]
+    __ans = struct.unpack(@python.structFormat(function.returnType), __message.read(@python.fieldLength(function.returnType)))[0]
 }
-	__cookie_result = struct.unpack('I', __message.read(4))[0]
-	if __cookie != __cookie_result:
-		print>>sys.stderr, "invalid cookie"
-		sys.exit(240)
+    __cookie_result = struct.unpack('I', __message.read(4))[0]
+    if __cookie != __cookie_result:
+        print("invalid cookie", file=sys.stderr)
+        sys.exit(240)
 
 @if(options.verbose) {
-	print>>sys.stderr, "\tinvoking @function.name end"
+    print("\tinvoking @function.name end", file=sys.stderr)
 }
 
 @if(function.returnType != PrimitiveType("void")) {
-	return __ans
+    return __ans
 }
+@* vim: set ts=4 sw=4 et : *@

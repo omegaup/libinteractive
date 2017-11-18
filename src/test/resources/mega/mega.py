@@ -1,17 +1,24 @@
 #!/usr/bin/python
 
+"""The Python contestant code for mega."""
+
 import Main
 
-def encode(n, l):
-	for i in xrange(n):
-		for j in xrange(3):
-			l[i][j] *= 2
-	Main.send(n, l)
+def encode(num_rows, matrix):
+    """Encodes the matrix."""
+    for i in xrange(num_rows):
+        for j in xrange(num_rows):
+            matrix[i][j] *= 2
+    Main.send(num_rows, matrix)
 
-def decode(n, l):
-	for i in xrange(n):
-		l[i] *= 2
-	Main.output(n, l)
+def decode(num_rows, encoded):
+    """Decodes the matrix."""
+    for i in xrange(num_rows):
+        encoded[i] *= 2
+    Main.output(num_rows, encoded)
 
-def solve(a, b, c, d, e):
-	return a + b + c + d + e
+def solve(num_a, num_b, num_c, num_d, num_e):
+    """Sums a bunch of numbers."""
+    return num_a + num_b + num_c + num_d + num_e
+
+# vim: set ts=4 sw=4 et :

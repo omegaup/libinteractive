@@ -161,13 +161,17 @@ class Python(idl: IDL, options: Options, input: Path, parent: Boolean)
 		builder ++= s"""#!/usr/bin/python
 # $message
 
-import sys
+"${'"'}"Trampoline for libinteractive's Main."${'"'}"
+
 import runpy
+import sys
 
 sys.path[0] = "${options.relativeToRoot(idl.main.name)}"
 
-runpy.run_module("${idl.main.name}", run_name="__main__")
-"""
+# This is needed so that the ${idl.main.name} module believes it is the main
+# entrypoint. By invoking this file instead of ${idl.main.name} directly, we
+# avoid an import cycle.
+runpy.run_module("${idl.main.name}", run_name="__main__")"""
 		OutputFile(
 			options.resolve(idl.main.name, s"${idl.main.name}_entry.py"),
 			builder.mkString)
@@ -186,8 +190,12 @@ runpy.run_module("${idl.main.name}", run_name="__main__")
 		builder ++= s"""#!/usr/bin/python
 # $message
 
-import ${idl.main.name}
-"""
+"${'"'}"Trampoline for libinteractive's ${interface.name}."${'"'}"
+
+# This is needed so that the ${interface.name} module believes it is the main
+# entrypoint. By invoking this file instead of ${interface.name} directly, we
+# avoid an import cycle.
+import ${idl.main.name}  # pylint: disable=unused-import"""
 		OutputFile(
 			options.resolve(interface.name, s"${interface.name}_entry.py"),
 			builder.mkString)
@@ -227,10 +235,10 @@ import ${idl.main.name}
 			lengths: Iterable[ArrayLength], depth: Integer = 1): String = {
 		lengths match {
 			case head :: Nil =>
-				"\t" * depth + s"$outfd.write(struct.pack(" +
+				"    " * depth + s"$outfd.write(struct.pack(" +
 				s"'%d${structFormat(primitive).charAt(1)}' % (${head.value}), *$name))"
 			case head :: tail =>
-				"\t" * depth + s"for __r$depth in $name:\n" +
+				"    " * depth + s"for __r$depth in $name:\n" +
 					writeArray(outfd, s"__r$depth", primitive, tail, depth + 1)
 		}
 	}

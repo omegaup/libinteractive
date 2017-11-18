@@ -9,7 +9,7 @@
 import @interface.name
 @if(interface.functions.exists(_ => true)) {
 @for(function <- interface.functions) {
-#	@python.declareFunction(function)
+#    @python.declareFunction(function)
 }
 }
 
@@ -17,12 +17,14 @@ import @interface.name
 @for(interface <- interfacesToImplement) {
 @for(function <- interface.functions) {
 @python.declareFunction(function):
-	# FIXME
+    "@{'"'}" @function.name "@{'"'}"
+    # FIXME
 @if(function.returnType == PrimitiveType("void")) {
-	pass
+    pass
 } else {
-	return @python.defaultValue(function.returnType)
+    return @python.defaultValue(function.returnType)
 }
 
 }
 }
+@* vim: set ts=4 sw=4 et : *@

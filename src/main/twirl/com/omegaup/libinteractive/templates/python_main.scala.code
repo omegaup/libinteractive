@@ -6,55 +6,64 @@
 #!/usr/bin/python
 # @python.message
 
+"@{'"'}"Entrypoint for libinteractive program."@{'"'}"
+
+from __future__ import print_function
+
 import array
 import struct
 import sys
-import time
-
-def __readarray(infd, format, l):
-	arr = array.array(format)
-	arr.fromstring(infd.read(l))
-	return arr
-
 @if(options.transact) {
 import transact
+}
 
+def __readarray(infd, fmt, length):
+    "@{'"'}"Reads an array from infd."@{'"'}"
+    arr = array.array(fmt)
+    arr.fromstring(infd.read(length))
+    return arr
+
+@if(options.transact) {
 @for(interface <- idl.interfaces) {
 @python_message_loop_transact(python, options, interface, idl.main,
-		python.transactName(interface), idl.main.name)
+        python.transactName(interface), idl.main.name)
 
 @for(function <- interface.functions) {
 @python_shim_transact(python, options, function, interface, idl.main,
-		python.transactName(interface))
+        python.transactName(interface))
 }
 }
 
 @for(interface <- idl.interfaces) {
 @python.transactName(interface) = transact.Interface(True, "@interface.name",
-		"@python.transactFilename(interface)", "@python.shmFilename(interface)",
-		@interface.shmSize)
+        "@python.transactFilename(interface)", "@python.shmFilename(interface)",
+        @interface.shmSize)
 }
 } else {
 @for(interface <- idl.interfaces) {
 @python_message_loop(python, options, interface, idl.main,
-		python.pipeName(interface, true), python.pipeName(interface, false),
-		idl.main.name)
+        python.pipeName(interface, true), python.pipeName(interface, false),
+        idl.main.name)
 
 @for(function <- interface.functions) {
 @python_shim(python, options, function, interface, idl.main,
-		python.pipeName(interface, true), python.pipeName(interface, false))
+        python.pipeName(interface, true), python.pipeName(interface, false))
 }
 }
 
 @for(interface <- idl.interfaces) {
 @if(options.verbose) {
-print>>sys.stderr, "\topening `@python.pipeFilename(interface, idl.main, true)'"
+print("\topening `@python.pipeFilename(interface, idl.main, true)'", file=sys.stderr)
 }
 @python.pipeName(interface, true) = open("@python.pipeFilename(interface, idl.main, true)", 'wb')
 @if(options.verbose) {
-print>>sys.stderr, "\topening `@python.pipeFilename(interface, idl.main, false)'"
+print("\topening `@python.pipeFilename(interface, idl.main, false)'", file=sys.stderr)
 }
 @python.pipeName(interface, false) = open("@python.pipeFilename(interface, idl.main, false)", 'rb')
 }
 }
-import @idl.main.name
+
+# Ths cannot be placed in a function since it needs to set @idl.main.name in
+# the global namespace.
+import @idl.main.name  # pylint: disable=wrong-import-position
+@* vim: set ts=4 sw=4 et : *@

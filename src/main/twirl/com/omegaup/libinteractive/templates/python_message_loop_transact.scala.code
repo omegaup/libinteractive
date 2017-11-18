@@ -4,45 +4,48 @@
 @import com.omegaup.libinteractive.target.Options
 @import com.omegaup.libinteractive.target.Python
 @(python: Python, options: Options, caller: Interface, callee: Interface, transactName: String, calleeModule: String)
+# pylint: disable=invalid-name,unused-argument,redefined-outer-name
 def __message_loop_@(caller.name)(__message, __current_function, __noreturn):
-	global @transactName
-	while True:
-		__msgid = __message.msgid
-		if __msgid == __current_function:
-			return
+    "@{'"'}" The libinteractive message loop for @caller.name. "@{'"'}"
+
+    while True:
+        __msgid = __message.msgid
+        if __msgid == __current_function:
+            return
 @for(function <- callee.functions) {
-		elif __msgid == 0x@("%x" format python.functionIds((caller.name, callee.name, function.name))):
-			# @caller.name -> @(callee.name).@function.name
+        elif __msgid == 0x@("%x" format python.functionIds((caller.name, callee.name, function.name))):
+            # @caller.name -> @(callee.name).@function.name
 @if(options.verbose) {
-			print>>sys.stderr, "\tcalling @function.name begin"
+            print("\tcalling @function.name begin", file=sys.stderr)
 }
 @for(param <- function.params) {
 @* Workaround for https://github.com/playframework/twirl/issues/35 *@
 @if(param.paramType.isInstanceOf[ArrayType]) {
-			@(function.name)_@param.name = @python.readArray("__message", param.paramType.asInstanceOf[ArrayType].primitive, param.paramType.asInstanceOf[ArrayType].lengths, Some(function))
+            @(function.name)_@param.name = @python.readArray("__message", param.paramType.asInstanceOf[ArrayType].primitive, param.paramType.asInstanceOf[ArrayType].lengths, Some(function))  # pylint: disable=unused-variable
 } else {
-			@(function.name)_@param.name = struct.unpack(@python.structFormat(param.paramType.asInstanceOf[PrimitiveType]), __message.read(@python.fieldLength(param.paramType.asInstanceOf[PrimitiveType])))[0]
+            @(function.name)_@param.name = struct.unpack(@python.structFormat(param.paramType.asInstanceOf[PrimitiveType]), __message.read(@python.fieldLength(param.paramType.asInstanceOf[PrimitiveType])))[0]
 }
 }
-			__cookie = struct.unpack('I', __message.read(4))[0]
+            __cookie = struct.unpack('I', __message.read(4))[0]
 
 @if(function.returnType != PrimitiveType("void")) {
-			__result = @(calleeModule).@(function.name)(@function.params.map(function.name + "_" + _.name).mkString(", "))
+            __result = @(calleeModule).@(function.name)(@function.params.map(function.name + "_" + _.name).mkString(", "))
 } else {
-			@(calleeModule).@(function.name)(@function.params.map(function.name + "_" + _.name).mkString(", "))
+            @(calleeModule).@(function.name)(@function.params.map(function.name + "_" + _.name).mkString(", "))
 }
 
-			@(transactName).allocate(__message, __msgid, @(4 + function.returnType.byteSize))
+            @(transactName).allocate(__message, __msgid, @(4 + function.returnType.byteSize))
 @if(function.returnType != PrimitiveType("void")) {
-			__message.write(struct.pack(@python.structFormat(function.returnType), __result))
+            __message.write(struct.pack(@python.structFormat(function.returnType), __result))
 }
-			__message.write(struct.pack('I', __cookie))
+            __message.write(struct.pack('I', __cookie))
 @if(options.verbose) {
-			print>>sys.stderr, "\tcalling @function.name end"
+            print("\tcalling @function.name end", file=sys.stderr)
 }
-			@(transactName).call(__message, True, False)
+            @(transactName).call(__message, True, False)
 
 }
-		else:
-			print>>sys.stderr, "Unknown message id 0x%x" % __msgid
-			sys.exit(241)
+        else:
+            print("Unknown message id 0x%x" % __msgid, file=sys.stderr)
+            sys.exit(241)
+@* vim: set ts=4 sw=4 et : *@

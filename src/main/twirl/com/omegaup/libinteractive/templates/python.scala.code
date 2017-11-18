@@ -5,50 +5,63 @@
 #!/usr/bin/python
 # @python.message
 
+"@{'"'}"Entrypoint for libinteractive program."@{'"'}"
+
+from __future__ import print_function
+
 import array
 import struct
 import sys
-
-def __readarray(infd, format, l):
-	arr = array.array(format)
-	arr.fromstring(infd.read(l))
-	return arr
-
 @if(options.transact) {
 import transact
+}
 
+def __readarray(infd, fmt, length):
+    "@{'"'}"Reads an array from infd."@{'"'}"
+    arr = array.array(fmt)
+    arr.fromstring(infd.read(length))
+    return arr
+
+@if(options.transact) {
 @python_message_loop_transact(python, options, main, interface,
-		python.transactName(interface), options.moduleName)
+        python.transactName(interface), options.moduleName)
 
 @for(function <- main.functions) {
 @python_shim_transact(python, options, function, main, interface,
-		python.transactName(interface))
+        python.transactName(interface))
 }
 
+# This cannot be placed in a function since it needs to set
+# @python.transactName(interface) and @options.moduleName in the global
+# namespace.
 __message = transact.Message()
-@python.transactName(interface) = transact.Interface(False, "@interface.name",
-		"@python.transactFilename(interface)", "@python.shmFilename(interface)",
-		@interface.shmSize)
-import @options.moduleName
+@python.transactName(interface) = transact.Interface(
+    False, "@interface.name",
+    "@python.transactFilename(interface)", "@python.shmFilename(interface)",
+    @interface.shmSize)
+import @options.moduleName  # pylint: disable=wrong-import-position
 @(python.transactName(interface)).get(__message)
 __message_loop_@(main.name)(__message, -1, True)
 } else {
 @python_message_loop(python, options, main, interface,
-		"__fout", "__fin", options.moduleName)
+        "__fout", "__fin", options.moduleName)
 
 @for(function <- main.functions) {
 @python_shim(python, options, function, main, interface,
-		"__fout", "__fin")
+        "__fout", "__fin")
 }
 
+# This cannot be placed in a function since it needs to set __fin, __fout, and
+# @options.moduleName in the global namespace.
 @if(options.verbose) {
-print>>sys.stderr, "\topening `@python.pipeFilename(interface, interface, true)'"
+print("\topening `@python.pipeFilename(interface, interface, true)'", file=sys.stderr)
 }
 with open("@python.pipeFilename(interface, interface, true)", 'rb') as __fin:
 @if(options.verbose) {
-	print>>sys.stderr, "\topening `@python.pipeFilename(interface, interface, false)'"
+    print("    opening `@python.pipeFilename(interface, interface, false)'", file=sys.stderr)
 }
-	with open("@python.pipeFilename(interface, interface, false)", 'wb') as __fout:
-		import @options.moduleName
-		__message_loop_@(main.name)(-1, True)
+    with open("@python.pipeFilename(interface, interface, false)", 'wb') as __fout:
+        import @options.moduleName  # pylint: disable=wrong-import-position
+        __message_loop_@(main.name)(-1, True)
 }
+@* vim: set ts=4 sw=4 et : *@
