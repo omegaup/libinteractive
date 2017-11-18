@@ -5,6 +5,7 @@
 package com.omegaup.libinteractive
 
 import java.io.File
+import java.nio.charset.CodingErrorAction
 import java.nio.file.Files
 import java.nio.file.Paths
 
@@ -12,6 +13,7 @@ import com.omegaup.libinteractive.idl.IDL
 import com.omegaup.libinteractive.idl.Parser
 import com.omegaup.libinteractive.idl.ParseException
 import com.omegaup.libinteractive.target._
+import scala.io.Codec
 import scala.io.Source
 import scala.io.StdIn
 import scala.collection.JavaConversions.iterableAsScalaIterable
@@ -116,6 +118,8 @@ object Main {
 		} else {
 			OS.Unix
 		})
+		// To avoid crashing when encountering a malformed input.
+		val replacingCodec = Codec.UTF8.decoder.onMalformedInput(CodingErrorAction.REPLACE)
 		optparse.parse(args, Options(os = defaultOS)) map { rawOptions => {
 			if (rawOptions.os == OS.Windows) {
 				System.setProperty("line.separator", "\r\n")
@@ -131,7 +135,7 @@ object Main {
 				val fileName =
 						rawOptions.idlFile.getName(rawOptions.idlFile.getNameCount - 1).toString
 				val extPos = fileName.lastIndexOf('.')
-				idlSource = Source.fromFile(rawOptions.idlFile.toFile).mkString
+				idlSource = Source.fromFile(rawOptions.idlFile.toFile)(replacingCodec).mkString
 				if (extPos == -1) {
 					rawOptions.copy(moduleName = fileName)
 				} else {
@@ -218,14 +222,14 @@ object Main {
 								problemsetter
 							}
 							case Some(path) => path
-					}).toFile).mkString
+					}).toFile)(replacingCodec).mkString
 
 					var exampleOutputs = (if (!examples.isEmpty) {
 						List(OutputDirectory(finalOptions.rootResolve("examples"))) ++
 						examples.map(entry =>
 							OutputFile(
 								finalOptions.rootResolve("examples", entry.getFileName.toString),
-								Source.fromFile(entry.toFile).mkString
+								Source.fromFile(entry.toFile)(replacingCodec).mkString
 							)
 						)
 					} else {
@@ -248,7 +252,7 @@ object Main {
 							val replacements = (if (Files.exists(distribPath)) {
 								Some(OutputFile(
 									Paths.get(s"${options.moduleName}.${lang}"),
-									Source.fromFile(distribPath.toFile).mkString
+									Source.fromFile(distribPath.toFile)(replacingCodec).mkString
 								))
 							} else {
 								None
