@@ -110,6 +110,7 @@ case class Options(
 	packagePrefix: String = "",
 	parentLang: String = null,
 	parentSource: Option[Path] = None,
+	pipeLocation: Path = Paths.get("."),
 	pipeDirectories: Boolean = false,
 	quiet: Boolean = false,
 	sampleFiles: List[String] = List("examples/sample.in"),
@@ -399,27 +400,31 @@ abstract class Target(idl: IDL, options: Options) {
 	def cookieId() = rand.nextInt(0x7FFFFFFF)
 
 	def transactFilename(interface: Interface) = {
-		if (options.pipeDirectories) {
-			s"${interface.name}_transact/transact"
-		} else {
-			s"${interface.name}_transact"
-		}
+		options.pipeLocation.resolve(
+			if (options.pipeDirectories) {
+				s"${interface.name}_transact/transact"
+			} else {
+				s"${interface.name}_transact"
+			}
+		).toString
 	}
 
 	def shmFilename(interface: Interface) = {
-		if (options.pipeDirectories) {
-			s"${interface.name}_transact/shm"
-		} else {
-			s"${interface.name}_shm"
-		}
+		options.pipeLocation.resolve(
+			if (options.pipeDirectories) {
+				s"${interface.name}_transact/shm"
+			} else {
+				s"${interface.name}_shm"
+			}
+		).toString
 	}
 
 	def pipeFilename(interface: Interface, caller: Interface, input: Boolean) = {
 		(if (options.pipeDirectories) {
-			s"${interface.name}_pipes/"
+			options.pipeLocation.resolve(s"${interface.name}_pipes/").toString
 		} else {
 			(options.os match {
-				case OS.Unix => ""
+				case OS.Unix => options.pipeLocation.toString + "/"
 				case OS.Windows => s"\\\\\\\\.\\\\pipe\\\\libinteractive_${caller.name}_"
 			}) + s"${interface.name}_"
 		}) + (input match {

@@ -142,6 +142,23 @@ static void execute(size_t i, int input_fd, bool debug) {
 	}
 }
 
+static int recursively_mkdir_parents(const char* filename) {
+	char path[1024];
+	strcpy(path, filename);
+
+	for (char* current = strchr(path, '/');
+	     current != NULL;
+	     current = strchr(current + 1, '/')) {
+		*current = '\0';
+		if (mkdir(path, 0755) == -1 && errno != EEXIST) {
+			print_error("mkdir %s", path);
+			return -1;
+		}
+		*current = '/';
+	}
+	return 0;
+}
+
 static int run(int input_fd, bool debug) {
 	long maxrss = 0;
 	long long utime = 0;
@@ -166,6 +183,10 @@ static int run(int input_fd, bool debug) {
 			retval = 1;
 			goto cleanup;
 		}
+		if (recursively_mkdir_parents(shmNames[i]) == -1) {
+			retval = 1;
+			goto cleanup;
+		}
 		int fd = creat(shmNames[i], 0664);
 		if (fd == -1) {
 			print_error("creat %s", shmNames[i]);
@@ -173,6 +194,10 @@ static int run(int input_fd, bool debug) {
 			goto cleanup;
 		}
 		close(fd);
+		if (recursively_mkdir_parents(transactNames[i]) == -1) {
+			retval = 1;
+			goto cleanup;
+		}
 		int childpid = fork();
 		if (!childpid) {
 			const char* argv[] = {
@@ -215,6 +240,10 @@ static int run(int input_fd, bool debug) {
 			}
 		} else if (errno != ENOENT) {
 			print_error("stat %s", pipeNames[i]);
+			retval = 1;
+			goto cleanup;
+		}
+		if (recursively_mkdir_parents(pipeNames[i]) == -1) {
 			retval = 1;
 			goto cleanup;
 		}

@@ -51,6 +51,8 @@ object Main {
 						("use flags for older compilers"),
 				opt[Unit]("makefile") action { (_, c) => c.copy(makefile = true) } text
 						("also generate a Makefile"),
+				opt[File]("pipe-location") action { (x, c) => c.copy(pipeLocation = x.toPath) } text
+						("the location of the pipes"),
 				opt[Unit]("pipe-dirs") action { (_, c) => c.copy(pipeDirectories = true) } text
 						("use separate directories for each pipe"),
 				opt[Unit]("avoid-original-sources") action { (_, c) => c.copy(preferOriginalSources = false) } text
@@ -123,6 +125,14 @@ object Main {
 		optparse.parse(args, Options(os = defaultOS)) map { rawOptions => {
 			if (rawOptions.os == OS.Windows) {
 				System.setProperty("line.separator", "\r\n")
+				if (rawOptions.pipeDirectories) {
+					System.err.println("Use of `--pipe-directories' in Windows is not supported")
+					System.exit(1);
+				}
+				if (!rawOptions.pipeLocation.equals(Paths.get("."))) {
+					System.err.println("Use of `--pipe-location' in Windows is not supported")
+					System.exit(1);
+				}
 			}
 
 			if (rawOptions.parentLang == "pas") {
