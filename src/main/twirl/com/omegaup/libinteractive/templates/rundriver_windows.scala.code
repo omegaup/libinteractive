@@ -54,9 +54,9 @@ typedef struct {
 	HANDLE write_fd;
 	const char* read_name;
 	const char* write_name;
-	int connected;
-	int closed;
-	int pending;
+	BOOL connected;
+	BOOL closed;
+	BOOL pending;
 	int pos;
 	char buf[1024];
 	int line;
@@ -178,7 +178,7 @@ static void process_buffer(buffer* buf) {
 }
 
 // A wrapper for CreateProcess. Also redirects stdio.
-void execute(int i, HANDLE input, int debug) {
+void execute(size_t i, HANDLE input, BOOL debug) {
 	STARTUPINFOA si;
 
 	ZeroMemory(&si, sizeof(si));
@@ -272,7 +272,7 @@ static void create_pipe_pair(HANDLE* read, HANDLE* write) {
 	}
 }
 
-int run(HANDLE input, int debug) {
+int run(HANDLE input, BOOL debug) {
 	long maxrss = 0;
 	long long utime = 0;
 
@@ -282,7 +282,7 @@ int run(HANDLE input, int debug) {
 
 	// Create stdout/stderr pipes.
 	memset(buffers, 0, sizeof(buffers));	
-	for (int i = 0; i < NUM_PROCESSES; i++) {
+	for (size_t i = 0; i < NUM_PROCESSES; i++) {
 		create_pipe_pair(&buffers[num_buffers].read_fd, &processes[i].out);
 		BOOL success = DuplicateHandle(
 			GetCurrentProcess(),
@@ -342,7 +342,7 @@ int run(HANDLE input, int debug) {
 	}
 
 	// Create RPC pipes.
-	for (int i = 0; i < NUM_PIPES; i++) {
+	for (size_t i = 0; i < NUM_PIPES; i++) {
 		HANDLE out = create_pipe(pipe_descriptions[i].out, 0);
 		HANDLE in = create_pipe(pipe_descriptions[i].in, 1);
 		events[num_buffers] = CreateEvent(
@@ -363,10 +363,10 @@ int run(HANDLE input, int debug) {
 		}
 		switch (GetLastError()) {
 			case ERROR_IO_PENDING:
-				buffers[num_buffers].connected = 0;
+				buffers[num_buffers].connected = FALSE;
 				break;
 			case ERROR_PIPE_CONNECTED:
-				buffers[num_buffers].connected = 1;
+				buffers[num_buffers].connected = TRUE;
 				break;
 			default:
 				print_error("ConnectNamedPipe");
@@ -377,12 +377,12 @@ int run(HANDLE input, int debug) {
 	}
 
 	// Execute the children.
-	for (int i = 0; i < NUM_PROCESSES; i++) {
+	for (size_t i = 0; i < NUM_PROCESSES; i++) {
 		execute(i, input, debug);
 	}
 
 	// Wait for the children to connect their ends of the pipes.
-	for (int i = 2 * NUM_PROCESSES; i < num_buffers; i++) {
+	for (size_t i = 2 * NUM_PROCESSES; i < num_buffers; i++) {
 		DWORD _;
 		BOOL success = GetOverlappedResult(
 			buffers[i].read_fd,
@@ -397,13 +397,13 @@ int run(HANDLE input, int debug) {
 	}
 	
 	// Release our copies of the children's ends of the pipes.
-	for (int i = 0; i < NUM_PROCESSES; i++) {
+	for (size_t i = 0; i < NUM_PROCESSES; i++) {
 		CloseHandle(processes[i].out);
 		CloseHandle(processes[i].err);
 	}
 	
 	// Process I/O on all the pipes until they are all closed.
-	int alive = num_buffers;
+	size_t alive = num_buffers;
 	while (alive) {
 		int i = WaitForMultipleObjects(
 			num_buffers,
@@ -430,9 +430,9 @@ int run(HANDLE input, int debug) {
 				&bytes_read,
 				FALSE
 			);
-			buffers[i].pending = 0;
+			buffers[i].pending = FALSE;
 			if (!success && bytes_read <= 0) {
-				buffers[i].closed = 1;
+				buffers[i].closed = TRUE;
 				CloseHandle(buffers[i].read_fd);
 				CloseHandle(buffers[i].write_fd);
 				ResetEvent(events[i]);
@@ -453,7 +453,7 @@ int run(HANDLE input, int debug) {
 			);
 			
 			if (success && bytes_read > 0) {
-				buffers[i].pending = 0;
+				buffers[i].pending = FALSE;
 				buffers[i].pos += bytes_read;
 				process_buffer(&buffers[i]);
 				continue;
@@ -461,11 +461,11 @@ int run(HANDLE input, int debug) {
 			
 			DWORD last_error = GetLastError();
 			if (!success && last_error == ERROR_IO_PENDING) {
-				buffers[i].pending = 1;
+				buffers[i].pending = TRUE;
 				break;
 			}
 			
-			buffers[i].closed = 1;
+			buffers[i].closed = TRUE;
 			CloseHandle(buffers[i].read_fd);
 			CloseHandle(buffers[i].write_fd);
 			ResetEvent(events[i]);
@@ -475,7 +475,7 @@ int run(HANDLE input, int debug) {
 	}
 
 	// Close all processes and grab execution data.
-	for (int i = 0; i < NUM_PROCESSES; i++) {
+	for (size_t i = 0; i < NUM_PROCESSES; i++) {
 		WaitForSingleObject(processes[i].pi.hProcess, INFINITE);
 		FILETIME creation, exit, kernel, user;
 		GetProcessTimes(
@@ -520,20 +520,20 @@ int run(HANDLE input, int debug) {
 
 int main(int argc, char* argv[]) {
 	int retval = 0;
-	int debug = 0;
-	int pause = 0;
-	int from_stdin = 1;
+	BOOL debug = FALSE;
+	BOOL pause = FALSE;
+	BOOL from_stdin = TRUE;
 	// Try to use the parameters as input filenames.
 	for (int i = 1; i < argc; i++) {
 		if (strcmp(argv[i], "--pause") == 0) {
-			pause = 1;
+			pause = TRUE;
 			continue;
 		}
 		if (strcmp(argv[i], "--debug") == 0) {
-			debug = 1;
+			debug = TRUE;
 			continue;
 		}
-		from_stdin = 0;
+		from_stdin = FALSE;
 		SECURITY_ATTRIBUTES sa;
 		ZeroMemory(&sa, sizeof(sa));
 		sa.nLength = sizeof(sa);

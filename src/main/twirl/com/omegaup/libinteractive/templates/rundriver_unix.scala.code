@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/resource.h>
@@ -28,39 +29,39 @@
 #define print_error(fmt, ...) fprintf(stderr, LABEL_FORMAT " (%s:%d) " fmt ": %s\n", \
 	"ERROR", __FILE__, __LINE__, ##__VA_ARGS__, strerror(errno))
 
-const char* interfaces[] = {
+static const char* interfaces[] = {
 	@idl.allInterfaces.map('"' + _.name + '"').mkString(", ")
 };
 @if(options.transact) {
-const char* shmNames[] = {
+static const char* shmNames[] = {
 	@idl.interfaces.map(interface =>
 		'"' + target.shmFilename(interface) + '"'
 	).mkString(", ")
 };
-const char* transactNames[] = {
+static const char* transactNames[] = {
 	@idl.interfaces.map(interface =>
 		'"' + target.transactFilename(interface) + '"'
 	).mkString(", ")
 };
 } else {
-const char* pipeNames[] = {
+static const char* pipeNames[] = {
 	@idl.interfaces.flatMap(interface => List(
 		'"' + target.pipeFilename(interface, interface, true) + '"',
 		'"' + target.pipeFilename(interface, interface, false) + '"'
 	)).mkString(", ")
 };
 }
-char* const commands[][@maxCommandLength] = {
+static char* const commands[][@maxCommandLength] = {
 @for(command <- commands) {
 	{ @command.args.map('"' + _ + '"').padTo(maxCommandLength, "NULL").mkString(", ") },
 }
 };
-char* const debug_commands[][@maxDebugCommandLength] = {
+static char* const debug_commands[][@maxDebugCommandLength] = {
 @for(command <- commands) {
 	{ @command.debug_args.getOrElse(command.args).map('"' + _ + '"').padTo(maxDebugCommandLength, "NULL").mkString(", ") },
 }
 };
-char* const envs[][@maxEnvLength] = {
+static char* const envs[][@maxEnvLength] = {
 @for(command <- commands) {
 	{ @command.env.map(env => {'"' + env._1 + '=' + env._2 + '"'}).toList.padTo(maxEnvLength, "NULL").mkString(", ") },
 }
@@ -68,15 +69,15 @@ char* const envs[][@maxEnvLength] = {
 
 typedef struct {
 	int fd;
-	int closed;
-	int pos;
+	bool closed;
+	ssize_t pos;
 	char buf[1024];
 } buffer;
 
-buffer buffers[2 * NUM_PROCESSES];
-int pids[NUM_PROCESSES] = {0};
+static buffer buffers[2 * NUM_PROCESSES];
+static int pids[NUM_PROCESSES] = {0};
 
-void execute(int i, int input, int debug) {
+static void execute(size_t i, int input_fd, bool debug) {
 	int localpipes[4];
 	if (pipe(localpipes) == -1) {
 		print_error("pipe");
@@ -117,11 +118,11 @@ void execute(int i, int input, int debug) {
 
 		// Close stdin except for the first program.
 		if (i == 0) {
-			if (dup2(input, 0) == -1) {
+			if (dup2(input_fd, 0) == -1) {
 				print_error("dup2");
 			}
-			if (input != 0) {
-				close(input);
+			if (input_fd != 0) {
+				close(input_fd);
 			}
 		} else {
 			close(0);
@@ -141,14 +142,14 @@ void execute(int i, int input, int debug) {
 	}
 }
 
-int run(int input, int debug) {
+static int run(int input_fd, bool debug) {
 	long maxrss = 0;
 	long long utime = 0;
 
 	int retval = 0;
 @if(options.transact) {
 	struct stat st;
-	for (int i = 0; i < NUM_TRANSACT; i++) {
+	for (size_t i = 0; i < NUM_TRANSACT; i++) {
 		if (stat(shmNames[i], &st) != -1) {
 			if (S_ISREG(st.st_mode)) {
 				// Shm already exists.
@@ -200,7 +201,7 @@ int run(int input, int debug) {
 	}
 } else {
 	struct stat st;
-	for (int i = 0; i < NUM_PIPES; i++) {
+	for (size_t i = 0; i < NUM_PIPES; i++) {
 		if (stat(pipeNames[i], &st) != -1) {
 			if (S_ISFIFO(st.st_mode)) {
 				// Pipe already exists.
@@ -228,8 +229,8 @@ int run(int input, int debug) {
 	memset(buffers, 0, sizeof(buffers));
 
 	// Execute the children
-	for (int i = 0; i < NUM_PROCESSES; i++) {
-		execute(i, input, debug);
+	for (size_t i = 0; i < NUM_PROCESSES; i++) {
+		execute(i, input_fd, debug);
 	}
 
 	// Redirect children's outputs to screen
@@ -239,7 +240,7 @@ int run(int input, int debug) {
 	while (1) {
 		FD_ZERO(&readfds);
 		int nfds = 0;
-		for (int i = 0; i < 2 * NUM_PROCESSES; i++) {
+		for (size_t i = 0; i < 2 * NUM_PROCESSES; i++) {
 			if (buffers[i].closed) continue;
 			FD_SET(buffers[i].fd, &readfds);
 			if (nfds < buffers[i].fd) {
@@ -259,16 +260,16 @@ int run(int input, int debug) {
 			break;
 		}
 
-		for (int i = 0; i < 2 * NUM_PROCESSES; i++) {
+		for (size_t i = 0; i < 2 * NUM_PROCESSES; i++) {
 			if (!FD_ISSET(buffers[i].fd, &readfds)) continue;
 			ssize_t nbytes = read(buffers[i].fd,
 					buffers[i].buf + buffers[i].pos,
 					sizeof(buffers[i].buf) - buffers[i].pos);
 			if (nbytes == -1) {
-				print_error("read %d", i);
+				print_error("read %zu", i);
 			} else if (nbytes > 0) {
 				buffers[i].pos += nbytes;
-				int off = 0;
+				off_t off = 0;
 				for (int j = 0; j < buffers[i].pos; j++) {
 					if (buffers[i].buf[j] == '\n') {
 						buffers[i].buf[j] = '\0';
@@ -297,17 +298,17 @@ int run(int input, int debug) {
 					buffers[i].pos = 0;
 				}
 			} else {
-				buffers[i].closed = 1;
+				buffers[i].closed = true;
 			}
 		}
 	}
 
 	// Wait for children
-	for (int i = 0; i < NUM_PROCESSES; i++) {
+	for (size_t i = 0; i < NUM_PROCESSES; i++) {
 		int status;
 		struct rusage usage;
 		if (wait4(pids[i], &status, 0, &usage) == -1) {
-			print_error("wait4 %d", i);
+			print_error("wait4 %zu", i);
 		} else if (i != 0) {
 			if (maxrss < usage.ru_maxrss) {
 				maxrss = usage.ru_maxrss;
@@ -318,7 +319,7 @@ int run(int input, int debug) {
 
 cleanup:
 @if(options.transact) {
-	for (int i = 0; i < NUM_TRANSACT; i++) {
+	for (size_t i = 0; i < NUM_TRANSACT; i++) {
 		if (unlink(shmNames[i]) == -1) {
 			print_error("unlink %s", shmNames[i]);
 		}
@@ -327,7 +328,7 @@ cleanup:
 		}
 	}
 } else {
-	for (int i = 0; i < NUM_PIPES; i++) {
+	for (size_t i = 0; i < NUM_PIPES; i++) {
 		if (unlink(pipeNames[i]) == -1) {
 			print_error("unlink %s", pipeNames[i]);
 		}
@@ -348,36 +349,36 @@ cleanup:
 
 int main(int argc, char* argv[]) {
 	int retval = 0;
-	int debug = 0;
-	int pause = 0;
-	int from_stdin = 1;
+	bool debug = false;
+	bool pause = false;
+	bool from_stdin = true;
 	// Try to use the parameters as input filenames.
 	for (int i = 1; i < argc; i++) {
 		if (strcmp(argv[i], "--pause") == 0) {
-			pause = 1;
+			pause = true;
 			continue;
 		}
 		if (strcmp(argv[i], "--debug") == 0) {
-			debug = 1;
+			debug = true;
 			continue;
 		}
-		from_stdin = 0;
-		int input = open(argv[i], O_RDONLY);
-		if (input == -1) {
+		from_stdin = false;
+		int input_fd = open(argv[i], O_RDONLY);
+		if (input_fd == -1) {
 			print_error("open %s", argv[i]);
 			continue;
 		}
 		fprintf(stderr, "%s:\n", argv[i]);
 		fflush(stderr);
-		if (run(input, debug) != 0) {
+		if (run(input_fd, debug) != 0) {
 			retval = 1;
 		}
-		close(input);
+		close(input_fd);
 		fprintf(stderr, "\n");
 	}
 	// No parameters, use stdin.
 	if (from_stdin) {
-		retval = run(0, debug);
+		retval = run(STDIN_FILENO, debug);
 	}
 	if (pause) {
 		fgetc(stdin);
