@@ -10,6 +10,8 @@ puntaje final que el concursante obtuvo en ese caso (si se utiliza el validador
 genere todos los archivos necesarios para poder probar la solución, de esta manera:
 
     java -jar libinteractive.jar generate <archivo.idl> <lenguaje del juez> <lenguaje de la solución> --makefile
+    
+Para usuarios de windows es necesario agregar la bandera `--windows` para que puedas compilar correctamente desde codeblocks
 
 Donde el lenguaje es uno de `c`, `cpp`, `pas`, `py`, `java`. `pas`
 no está soportado como lenguaje para el programa del juez, solo
