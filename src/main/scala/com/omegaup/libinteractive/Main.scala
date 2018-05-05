@@ -211,7 +211,6 @@ object Main {
 					}).toList.sortWith(_.getFileName.toString < _.getFileName.toString)
 
 					val finalOptions = options.copy(
-						legacyFlags = true,
 						parentLang = candidates(0)._1,
 						parentSource = Some({
 							val distribPath = options.idlFile.resolveSibling(
