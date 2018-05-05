@@ -14,6 +14,9 @@ generate all necessary files to be able to test the solution, like so:
 Where the languages are one of `c`, `cpp`, `pas`, `py`, `java`. `pas` is not
 supported as a problemsetter language, so it will fail if you try.
 
+For Windows users, it's necessary to add the `--windows` flag so you it can
+compile correctly from Code::Blocks.
+
 You must also create a directory called `examples` (in lowercase) and place a
 sample input in a file called `sample.in` in that directory. If needed, you can
 add more test cases in that directory, and they will be automatically copied to
