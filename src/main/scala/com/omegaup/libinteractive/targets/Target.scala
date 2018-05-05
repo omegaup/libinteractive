@@ -421,7 +421,7 @@ abstract class Target(idl: IDL, options: Options) {
 
 	def pipeFilename(interface: Interface, caller: Interface, input: Boolean) = {
 		(if (options.pipeDirectories) {
-			options.pipeLocation.resolve(s"${interface.name}_pipes/").toString
+			options.pipeLocation.resolve(s"${interface.name}_pipes").toString + "/"
 		} else {
 			(options.os match {
 				case OS.Unix => options.pipeLocation.toString + "/"
