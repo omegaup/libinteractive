@@ -143,15 +143,18 @@ static void execute(size_t i, int input_fd, bool debug) {
 }
 
 static int recursively_mkdir_parents(const char* filename) {
-	char path[1024];
-	strcpy(path, filename);
+	char path_buffer[1024];
+	strcpy(path_buffer, filename);
+	char* path = path_buffer;
+	if (*path == '/')
+		++path;
 
 	for (char* current = strchr(path, '/');
 	     current != NULL;
 	     current = strchr(current + 1, '/')) {
 		*current = '\0';
-		if (mkdir(path, 0755) == -1 && errno != EEXIST) {
-			print_error("mkdir %s", path);
+		if (mkdir(path_buffer, 0755) == -1 && errno != EEXIST) {
+			print_error("mkdir %s", path_buffer);
 			return -1;
 		}
 		*current = '/';
