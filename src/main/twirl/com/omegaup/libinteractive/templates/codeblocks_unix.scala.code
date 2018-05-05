@@ -56,7 +56,7 @@
 			<code_completion />
 			<debugger>
 				<remote_debugging target="test">
-					<options conn_type="0" serial_baud="115200" ip_address="127.0.0.1" ip_port="8042" additional_cmds_before="shell @runPath --debug @sampleFiles.map("'" + _ + "'").mkString(" ") &amp;&#x0A;symbol-file @debugExecutable&#x0A;set substitute-path @debugExecutable.getParent ." />
+					<options conn_type="0" serial_baud="115200" ip_address="127.0.0.1" ip_port="8042" additional_cmds_before="shell @runPath --debug --pause @sampleFiles.map("'" + _ + "'").mkString(" ") &amp;&#x0A;symbol-file @debugExecutable&#x0A;set substitute-path @debugExecutable.getParent ." />
 				</remote_debugging>
 				<remote_debugging target="all">
 					<options conn_type="0" serial_baud="115200" ip_address="127.0.0.1" ip_port="8042" additional_cmds_before="shell @runPath --debug @sampleFiles.map("'" + _ + "'").mkString(" ") &amp;&#x0A;symbol-file @debugExecutable&#x0A;set substitute-path @debugExecutable.getParent ." />
