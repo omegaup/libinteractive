@@ -3,15 +3,23 @@
 libinteractive es una manera sencilla de hacer problemas interactivos. El
 proceso para compilar, ejecutar y probar los programas es ligeramente distinto
 al que estás acostumbrado, pero es sencillo. Los pasos específicos dependen del
-sistema operativo que estés usando:
+sistema operativo que estés usando.
+
+Primero, elige tu sistema operativo y el lenguaje a utilizar usando
+la herramienta que se encuentra en la descripción del problema. Después,
+sigue los pasos según tu sistema operativo:
 
 ### Windows
 
 * Extrae todos los archivos a una carpeta, abre la consola y dirígete a la
   carpeta donde extrajiste los archivos.
-* Debes tener instalado [CodeBlocks](http://www.codeblocks.org/downloads/binaries#windows)
+* Debes tener instalado [Code::Blocks](http://www.codeblocks.org/downloads/binaries#windows)
   (asegúrate de bajar la versión que dice MinGW) y haberlo ejecutado al menos
   una vez.
+    * Si quieres usar C o C++, simplemente abre el archivo de proyecto de Code::Blocks
+      que viene incluido en la carpeta que acabas de extraer. Puedes ignorar el resto
+      de los pasos. Para intentar otros casos de prueba, modifica el archivo `sample.in` que
+      se encuentra en el proyecto.
     * Si quieres usar Java, debes tener instalado el
       [JDK](http://www.oracle.com/technetwork/java/javase/downloads/).
     * Si quieres usar Pascal, debes tener instalado
