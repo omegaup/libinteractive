@@ -6,7 +6,5 @@ if [ "$#" -ne 1 ]; then
 fi
 
 for dir in */; do
-	pushd $dir
-	mkdocs build --site_dir=$1/$dir --clean
-	popd
+	(cd "${dir}" && mkdocs build --site-dir="${1}/${dir}" --clean)
 done
