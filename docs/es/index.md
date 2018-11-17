@@ -32,14 +32,14 @@ $ cat sumas.py
 def sumas(a, b):
     print 'Hola, mundo!'
     return a + b
-    
+
 $ cat sumas.idl
 interface Main {
-}
+};
 
 interface sumas {
     int sumas(int a, int b);
-}
+};
 
 $ java -jar libinteractive.jar generate sumas.idl cpp py --makefile
 $ make run < input
