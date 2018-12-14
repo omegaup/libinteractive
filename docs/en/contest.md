@@ -42,8 +42,8 @@ correspond to the operating system you are using:
   `gcc`, `g++`, `fpc`, `python` y `openjdk-7-jdk`.
 * Write `make` to compile all needed programs and `make run` to execute your
   code. Rembember that the problemsetter program expects to read a test case
-  from stdin, so either type it on the terminal or redirect stdin (`make run
-  < input.in`).
+  from stdin, so either type it on the terminal or redirect stdin
+  (`make run < input.in`).
 * To test your solution against a test case, write `make test`. This is
   equivalent to running `make run < examples/sample.in`.
 
