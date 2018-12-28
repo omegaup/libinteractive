@@ -21,8 +21,7 @@ class CSharp(idl: IDL, options: Options, input: Path, parent: Boolean)
 		if (parent) {
 			throw new UnsupportedOperationException
 		} else {
-			generateTemplates(options.moduleName, idl.interfaces,
-					idl.main.name, List(idl.main), input) ++
+			generateTemplates(input) ++
 			idl.interfaces.flatMap(generateInterface)
 		}
 	}
@@ -93,19 +92,9 @@ class CSharp(idl: IDL, options: Options, input: Path, parent: Boolean)
 		)
 	}
 
-	override def generateTemplates(moduleName: String,
-			interfacesToImplement: Iterable[Interface], callableModuleName: String,
-			callableInterfaces: Iterable[Interface], input: Path): Iterable[OutputPath] = {
-		if (!options.generateTemplate) return List.empty[OutputPath]
-		if (!options.force && Files.exists(input, LinkOption.NOFOLLOW_LINKS)) {
-			throw new FileAlreadyExistsException(input.toString, null,
-				"Refusing to overwrite file. Delete it or invoke with --force to override.")
-		}
-
-		val template = templates.code.cs_template(this, options,
-			moduleName, callableInterfaces, interfacesToImplement)
-
-		List(OutputFile(input, template.toString))
+	override def generateTemplateSource(): String = {
+		templates.code.cs_template(this, options,
+			options.moduleName, List(idl.main), idl.interfaces).toString
 	}
 
 	private def generate(interface: Interface) = {

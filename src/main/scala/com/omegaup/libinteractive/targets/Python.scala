@@ -8,7 +8,6 @@ import java.nio.file.Files
 import java.nio.file.LinkOption
 import java.nio.file.Path
 import java.nio.file.Paths
-import java.nio.file.FileAlreadyExistsException
 
 import scala.collection.mutable.StringBuilder
 
@@ -28,9 +27,7 @@ class Python(idl: IDL, options: Options, input: Path, parent: Boolean)
 				generateMain,
 				generateMainEntry)
 		} else {
-			val moduleFile = s"${options.moduleName}.py"
-			generateTemplates(options.moduleName, idl.interfaces,
-					idl.main.name, List(idl.main), input) ++
+			generateTemplates(input) ++
 			idl.interfaces.flatMap(generateInterface)
 		}
 	}
@@ -91,19 +88,9 @@ class Python(idl: IDL, options: Options, input: Path, parent: Boolean)
 		)
 	}
 
-	override def generateTemplates(moduleName: String,
-			interfacesToImplement: Iterable[Interface], callableModuleName: String,
-			callableInterfaces: Iterable[Interface], input: Path): Iterable[OutputPath] = {
-		if (!options.generateTemplate) return List.empty[OutputPath]
-		if (!options.force && Files.exists(input, LinkOption.NOFOLLOW_LINKS)) {
-			throw new FileAlreadyExistsException(input.toString, null,
-				"Refusing to overwrite file. Delete it or invoke with --force to override.")
-		}
-
-		val template = templates.code.python_template(this,
-			options, callableInterfaces, interfacesToImplement)
-
-		List(OutputFile(input, template.toString))
+	override def generateTemplateSource(): String = {
+		templates.code.python_template(this, options,
+			List(idl.main), idl.interfaces).toString
 	}
 
 	def structFormat(formatType: Type): String = {

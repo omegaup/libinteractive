@@ -192,9 +192,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 	override def generateMakefileRules(interface: Interface) = ???
 	override def generateRunCommands() = ???
 	override def generateRunCommand(interface: Interface) = ???
-	protected def generateTemplates(moduleName: String,
-			interfacesToImplement: Iterable[Interface], callableModuleName: String,
-			callableInterfaces: Iterable[Interface], input: Path) = ???
+	override def generateTemplateSource() = ???
 }
 
 /* vim: set noexpandtab: */

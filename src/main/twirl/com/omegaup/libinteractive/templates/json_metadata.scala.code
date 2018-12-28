@@ -26,12 +26,17 @@
 {
 	"Interfaces": {
 		@interfaces.map({ case (name, l_i) => {
-				Json.encode(name) + ": {\n" +
-					l_i.map( { case (lang, interface) => {
-						"\t\t\t" + Json.encode(lang) + ": " + renderInterface(interface)
-					}} ).mkString(",\n") +
-				"\n\t\t}"
+			Json.encode(name) + ": {\n" +
+				l_i.map( { case (lang, interface) => {
+					"\t\t\t" + Json.encode(lang) + ": " + renderInterface(interface)
+				}} ).mkString(",\n") +
+			"\n\t\t}"
 		}}).mkString(",\n\t\t")
+	},
+	"Templates": {
+		@interfaces.filterNot({ case (name, _) => name == main }).head._2.map({
+			case (lang, interface) => Json.encode(lang) + ": " + Json.encode(interface.templateSource)
+		}).mkString(",\n\t\t")
 	},
 	"Main": @Json.encode(main),
 	"ModuleName": @Json.encode(moduleName),

@@ -10,6 +10,7 @@ import java.io.ByteArrayOutputStream
 import java.io.OutputStreamWriter
 import java.io.FileOutputStream
 import java.nio.charset.StandardCharsets
+import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Files
 import java.nio.file.LinkOption
 import java.nio.file.Path
@@ -358,7 +359,8 @@ class ReplacementFilter(replacements: List[OutputFile]) extends OutputPathFilter
 }
 
 case class GeneratedInterface(interface: Interface, files: Iterable[OutputFile],
-	makefileRules: Iterable[MakefileRule], executableDescription: ExecDescription)
+	makefileRules: Iterable[MakefileRule], executableDescription: ExecDescription,
+	templateSource: String)
 
 object Compiler extends Enumeration {
 	type Compiler = Value
@@ -446,6 +448,7 @@ abstract class Target(idl: IDL, options: Options) {
 	}
 
 	def generate(): Iterable[OutputPath]
+	def generateTemplateSource(): String
 	def generateInterface(interface: Interface): Iterable[OutputPath]
 	def extension(): String
 	def generateMakefileRules(): Iterable[MakefileRule]
@@ -457,9 +460,15 @@ abstract class Target(idl: IDL, options: Options) {
 		val moduleFile = s"${options.moduleName}.$extension"
 		new OutputLink(options.resolve(interface.name, moduleFile), input)
 	}
-	protected def generateTemplates(moduleName: String,
-			interfacesToImplement: Iterable[Interface], callableModuleName: String,
-			callableInterfaces: Iterable[Interface], input: Path): Iterable[OutputPath]
+	protected final def generateTemplates(input: Path): Iterable[OutputPath] = {
+		if (!options.generateTemplate) return List.empty[OutputPath]
+		if (!options.force && Files.exists(input, LinkOption.NOFOLLOW_LINKS)) {
+			throw new FileAlreadyExistsException(input.toString, null,
+				"Refusing to overwrite file. Delete it or invoke with --force to override.")
+		}
+
+		List(OutputFile(input, generateTemplateSource()))
+	}
 }
 
 object Generator {
@@ -508,7 +517,8 @@ object Generator {
 					case _ => None
 				}),
 			makefileRules = currentTarget.generateMakefileRules(interface).filter(!_.debug || options.generateDebugTargets),
-			executableDescription = currentTarget.generateRunCommand(interface)
+			executableDescription = currentTarget.generateRunCommand(interface),
+			templateSource = currentTarget.generateTemplateSource
 		)
 	}
 
