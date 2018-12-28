@@ -114,7 +114,8 @@ case class Options(
 	pipeDirectories: Boolean = false,
 	quiet: Boolean = false,
 	sampleFiles: List[String] = List("examples/sample.in"),
-	seed: Long = System.currentTimeMillis,
+	// The first 8 bytes of the SHA-1 hash of 'libinteractive'.
+	seed: Long = 0x7377fa52ad19a144l,
 	sequentialIds: Boolean = false,
 	shiftTimeForZip: Boolean = false,
 	transact: Boolean = false,
