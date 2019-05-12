@@ -24,7 +24,7 @@ class Python(idl: IDL, options: Options, input: Path, parent: Boolean)
 			List(
 				new OutputDirectory(options.resolve(idl.main.name)),
 				new OutputLink(options.resolve(idl.main.name, mainFile), input),
-				generateMain,
+				generateMainFile,
 				generateMainEntry)
 		} else {
 			generateTemplates(input) ++
@@ -33,11 +33,20 @@ class Python(idl: IDL, options: Options, input: Path, parent: Boolean)
 	}
 
 	override def generateInterface(interface: Interface) = {
-		List(
-			new OutputDirectory(options.resolve(interface.name)),
-			generateLib(interface),
-			generate(interface),
-			generateLink(interface, input))
+		if (interface == idl.main) {
+			val mainFile = s"${idl.main.name}.$extension"
+			List(
+				new OutputDirectory(options.resolve(idl.main.name)),
+				new OutputLink(options.resolve(idl.main.name, mainFile), input),
+				generateMainFile,
+				generateMainEntry)
+		} else {
+			List(
+				new OutputDirectory(options.resolve(interface.name)),
+				generateLib(interface),
+				generate(interface),
+				generateLink(interface, input))
+		}
 	}
 
 	def pythonExecutable() = {
@@ -164,7 +173,7 @@ runpy.run_module("${idl.main.name}", run_name="__main__")"""
 			builder.mkString)
 	}
 
-	private def generateMain() = {
+	private def generateMainFile() = {
 		val main = templates.code.python_main(this, options, idl) 
 
 		OutputFile(
