@@ -8,6 +8,7 @@
 #if !defined(_WIN32) && !defined(_GNU_SOURCE)
 #define _GNU_SOURCE
 #endif
+#include <inttypes.h>
 #include <fcntl.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -81,13 +82,15 @@ void __NOINLINE __libinteractive_init() {
 // declared in windows.h
 void mainCRTStartup();
 
-// Windows name mangling adds an extra underscore.
-void _entry() {
+void __entry() {
 	__libinteractive_init();
 
 	// Perform regular libc startup
 	mainCRTStartup();
 }
+// Some versions of mingw's name mangling add an extra underscore. Sometimes.
+// So let's just define both flavors so that the symbol is always found.
+void _entry() __attribute__ ((alias ("__entry")));
 
 #elif defined(__APPLE__)
 

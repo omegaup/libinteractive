@@ -7,8 +7,9 @@
 /* @message */
 #include <errno.h>
 #include <fcntl.h>
-#include <stdio.h>
+#include <inttypes.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/resource.h>
@@ -18,6 +19,10 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#if !defined(PRIuS)
+#define PRIuS "zu"
+#endif
+
 #define NUM_PROCESSES @numProcesses
 @if(options.transact) {
 #define NUM_TRANSACT @(numProcesses - 1)
@@ -26,7 +31,7 @@
 }
 #define LABEL_FORMAT "[%@(maxNameLength)s] "
 
-#define print_error(fmt, ...) fprintf(stderr, LABEL_FORMAT " (%s:%d) " fmt ": %s\n", \
+#define print_error(fmt, ...) fprintf(stderr, LABEL_FORMAT " (%s:%" PRIuS ") " fmt ": %s\n", \
 	"ERROR", __FILE__, __LINE__, ##__VA_ARGS__, strerror(errno))
 
 static const char* interfaces[] = {

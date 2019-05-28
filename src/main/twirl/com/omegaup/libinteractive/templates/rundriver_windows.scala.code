@@ -4,12 +4,23 @@
 @import com.omegaup.libinteractive.target.Target
 @(target: Target, message: String, idl: IDL, commands: Iterable[ExecDescription], numProcesses: Int, maxNameLength: Int)
 /* @message */
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #define PSAPI_VERSION 1
 #include <windows.h>
 #include <psapi.h>
+
+#if defined(_WIN32)
+#if !defined(PRIuS)
+#define PRIuS "Iu"
+#endif
+#else
+#if !defined(PRIuS)
+#define PRIuS "zu"
+#endif
+#endif
 
 #define NUM_PROCESSES @numProcesses
 #define NUM_PIPES @(2 * (numProcesses - 1))
@@ -96,8 +107,9 @@ static void _print_error(size_t line_number, DWORD error, const char* fmt, ...) 
 		sizeof(error_buffer),
 		NULL);
 
-	fprintf(stderr, LABEL_FORMAT " (%s:%d) %s: %s\n",
+	fprintf(stderr, LABEL_FORMAT " (%s:%" PRIuS ") %s: %s\n",
 		"ERROR", __FILE__, line_number, buffer, error_buffer);
+	fflush(stderr);
 }
 
 // Ensure a buffer is fully written into the fd.

@@ -1,0 +1,75 @@
+@import _root_.java.nio.file.Path
+@import com.omegaup.libinteractive.target.MakefileRule
+@(message: String, allRules: Iterable[MakefileRule])
+{
+    // @message
+    "version": "2.0.0",
+    "tasks": [
+@for(rule <- allRules) {
+        {
+            "type": "process",
+            "label": "build @rule.target.mkString(" ").replace('\\', '/')",
+            "command": "@rule.compiler",
+            "args": [
+                "-o",
+@for(target <- rule.target) {
+                "${workspaceFolder}/@target.toString.replace('\\', '/')",
+}
+@for(requisite <- rule.requisites) {
+                "${workspaceFolder}/@requisite.toString.replace('\\', '/')",
+}
+@for(flag <- rule.flags) {
+                "@(flag.replace('\\', '/').replaceFirst("^-I([^/])", "-I\\${workspaceFolder}/$1"))",
+}
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": true
+            }
+        },
+}
+        {
+            "label": "build",
+            "dependsOn": [
+@for(rule <- allRules) {
+                "build @rule.target.mkString(" ").replace('\\', '/')",
+}
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "never",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": true
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "type": "shell",
+            "label": "sleep",
+            "command": "sleep",
+            "args": [
+                "2"
+            ],
+            "presentation": {
+                "echo": false,
+                "reveal": "never",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": true
+            }
+        }
+    ]
+}

@@ -53,6 +53,52 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 			)
 	}
 
+	private def generateVSCodeUnixProject(extension: String): List[OutputPath] = {
+		List(
+			OutputDirectory(
+				path = options.rootResolve(".vscode")
+			),
+			OutputFile(
+				path = options.rootResolve(".vscode/tasks.json"),
+				contents = templates.code.vscode_tasks_unix(
+					message,
+					allRules = allRulesUnix
+				).toString
+			),
+			OutputFile(
+				path = options.rootResolve(".vscode/launch.json"),
+				contents = templates.code.vscode_launch_unix(
+					message,
+					runPath = options.relativeToRoot("run"),
+					debugExecutable = rules.find(_.debug).map(_.target).get.find(x => true).get
+				).toString
+			)
+		)
+	}
+
+	private def generateVSCodeWindowsProject(extension: String): List[OutputPath] = {
+		List(
+			OutputDirectory(
+				path = options.rootResolve(".vscode")
+			),
+			OutputFile(
+				path = options.rootResolve(".vscode/tasks.json"),
+				contents = templates.code.vscode_tasks_windows(
+					message,
+					allRules = allRulesWindows
+				).toString
+			),
+			OutputFile(
+				path = options.rootResolve(".vscode/launch.json"),
+				contents = templates.code.vscode_launch_windows(
+					message,
+					runPath = options.relativeToRoot("run.exe"),
+					debugExecutable = rules.find(_.debug).map(_.target).get.find(x => true).get
+				).toString
+			)
+		)
+	}
+
 	private def generateLazarusUnixProject(extension: String): OutputFile = {
 		OutputFile(
 			path = options.rootResolve(s"${options.moduleName}.lpi"),
@@ -79,19 +125,19 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 		)
 	}
 
-	private def generateUnixIdeProject(): Iterable[OutputFile] = {
+	private def generateUnixIdeProject(): Iterable[OutputPath] = {
 		options.childLang match {
-			case "c" => List(generateCodeBlocksUnixProject("c"))
-			case "cpp" => List(generateCodeBlocksUnixProject("cpp"))
+			case "c" => List(generateCodeBlocksUnixProject("c")) ++ generateVSCodeUnixProject("c")
+			case "cpp" => List(generateCodeBlocksUnixProject("cpp")) ++ generateVSCodeUnixProject("cpp")
 			case "pas" => List(generateLazarusUnixProject("pas"))
 			case _ => List()
 		}
 	}
 
-	private def generateWindowsIdeProject(): Iterable[OutputFile] = {
+	private def generateWindowsIdeProject(): Iterable[OutputPath] = {
 		options.childLang match {
-			case "c" => List(generateCodeBlocksWindowsProject("c"))
-			case "cpp" => List(generateCodeBlocksWindowsProject("cpp"))
+			case "c" => List(generateCodeBlocksWindowsProject("c")) ++ generateVSCodeWindowsProject("c")
+			case "cpp" => List(generateCodeBlocksWindowsProject("cpp")) ++ generateVSCodeWindowsProject("cpp")
 			case "pas" => List(generateLazarusWindowsProject("pas"))
 			case _ => List()
 		}
