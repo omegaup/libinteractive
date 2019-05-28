@@ -103,7 +103,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 				List(options.relativeToRoot("run")),
 				List(options.relativeToRoot("run.c")),
 				Compiler.Gcc, "-std=c99 -o $@ $^ -O2 -D_XOPEN_SOURCE=600 " +
-				"-D_BSD_SOURCE -D_DARWIN_C_SOURCE -Wall")))
+				"-D_DEFAULT_SOURCE -D_DARWIN_C_SOURCE -Wall")))
 		val makefile = templates.code.makefile_unix(message,
 			allRules = allRules,
 			allExecutables = allRules.flatMap(_.target).mkString(" "),
