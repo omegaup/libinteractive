@@ -375,7 +375,7 @@ object Compiler extends Enumeration {
 import Compiler.Compiler
 
 case class MakefileRule(target: Iterable[Path], requisites: Iterable[Path], compiler: Compiler,
-		params: String, debug: Boolean = false)
+		params: List[String], flags: List[String] = List(), debug: Boolean = false)
 
 case class ExecDescription(args: Array[String],
 	debug_args: Option[Array[String]] = None, env: Map[String, String] = Map())

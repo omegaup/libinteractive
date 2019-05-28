@@ -35,7 +35,7 @@ SET SOURCES=@rule.requisites.map(_.toString.replace("/", "\\")).mkString(" ")
 call:recompile %TARGET% %SOURCES%
 IF "%RECOMPILE%" == "1" (
 <NUL SET /p elidenewline=Compiling %TARGET%... 
-%@rule.compiler.toString.replace("g++", "gxx").toUpperCase% @rule.params.replace("$@", "%TARGET%").replace("$^", "%SOURCES%")
+%@rule.compiler.toString.replace("g++", "gxx").toUpperCase% @((rule.params ++ rule.flags).mkString(" ").replace("$@", "%TARGET%").replace("$^", "%SOURCES%"))
 IF !ERRORLEVEL! NEQ 0 EXIT /B !ERRORLEVEL!
 ECHO DONE
 )

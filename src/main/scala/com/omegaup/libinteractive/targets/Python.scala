@@ -66,17 +66,19 @@ class Python(idl: IDL, options: Options, input: Path, parent: Boolean)
 
 	override def generateMakefileRules(interface: Interface) = {
 		List(MakefileRule(
-			List(
+			target = List(
 				options.relativeToRoot(interface.name, s"${idl.main.name}.pyc"),
 				options.relativeToRoot(interface.name, s"${options.moduleName}.pyc"),
 				options.relativeToRoot(interface.name, s"${interface.name}_entry.pyc")
 			),
-			List(
+			requisites = List(
 				options.relativeToRoot(interface.name, s"${idl.main.name}.py"),
 				options.relativeToRoot(interface.name, s"${options.moduleName}.py"),
 				options.relativeToRoot(interface.name, s"${interface.name}_entry.py")
 			),
-			Compiler.Python, "-m py_compile $^"))
+			compiler = Compiler.Python,
+			params = List("-m", "py_compile", "$^")
+		))
 	}
 
 	override def generateRunCommands() = {

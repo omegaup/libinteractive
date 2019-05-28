@@ -24,8 +24,8 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 	}
 
 	def ldflags() = options.os match {
-		case OS.Windows => "-Twin32"
-		case _ => "-Tlinux"
+		case OS.Windows => List("-Twin32")
+		case _ => List("-Tlinux")
 	}
 
 	override def generate() = {
@@ -56,29 +56,31 @@ class Pascal(idl: IDL, options: Options, input: Path, parent: Boolean)
 	override def generateMakefileRules(interface: Interface) = {
 		List(
 			MakefileRule(
-				List(
+				target = List(
 					options.relativeToRoot(interface.name, interface.name + executableExtension)
 				),
-				List(
+				requisites = List(
 					options.relativeToRoot(interface.name, s"${options.moduleName}.pas"),
 					options.relativeToRoot(interface.name, s"${idl.main.name}.pas"),
 					options.relativeToRoot(interface.name, s"${interface.name}_entry.pas")
 				),
-				Compiler.Fpc, ldflags + " -O2 -Mobjfpc -Sc -Sh -o$@ $^" + (
-					if (options.quiet) " > /dev/null" else ""
+				compiler = Compiler.Fpc,
+				params = ldflags ++ List("-O2", "-Mobjfpc", "-Sc", "-Sh", "-o$@", "$^") ++ (
+					if (options.quiet) List(">", "/dev/null") else List()
 				)
 			),
 			MakefileRule(
-				List(
+				target = List(
 					options.relativeToRoot(interface.name, interface.name + "_debug" + executableExtension)
 				),
-				List(
+				requisites = List(
 					options.relativeToRoot(interface.name, s"${options.moduleName}.pas"),
 					options.relativeToRoot(interface.name, s"${idl.main.name}.pas"),
 					options.relativeToRoot(interface.name, s"${interface.name}_entry.pas")
 				),
-				Compiler.Fpc, ldflags + " -g -Mobjfpc -Sc -Sh -o$@ $^" + (
-					if (options.quiet) " > /dev/null" else ""
+				compiler = Compiler.Fpc,
+				params = ldflags ++ List("-g", "-Mobjfpc", "-Sc", "-Sh", "-o$@", "$^") ++ (
+					if (options.quiet) List(">", "/dev/null") else List()
 				),
 				debug = true
 			)

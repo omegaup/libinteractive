@@ -13,7 +13,7 @@ all: @allExecutables
 }
 @for(rule <- allRules) {
 @rule.target.mkString(" "): @rule.requisites.mkString(" ")
-	@rule.compiler @rule.params.replace("$@", rule.target.map("\"" + _.toString.replace("/", "\\") + "\"").mkString(" ")).replace("$^", rule.requisites.map("\"" + _.toString.replace("/", "\\") + "\"").mkString(" "))
+	@rule.compiler @((rule.params ++ rule.flags).mkString(" ").replace("$@", rule.target.map("\"" + _.toString.replace("/", "\\") + "\"").mkString(" ")).replace("$^", rule.requisites.map("\"" + _.toString.replace("/", "\\") + "\"").mkString(" ")))
 
 }
 .PHONY: run

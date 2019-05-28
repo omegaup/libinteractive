@@ -71,10 +71,10 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 				options.relativeToRoot(interface.name, s"${interface.name}.$extension")
 			})
 			List(MakefileRule(
-				List(
+				target = List(
 					options.relativeToRoot(interface.name, interface.name + executableExtension)
 				),
-				List(
+				requisites = List(
 					sourcePath,
 					options.relativeToRoot(interface.name, s"${interface.name}_entry.$extension")
 				) ++
@@ -84,7 +84,13 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 					)
 					case OS.Windows => List()
 				}),
-				compiler, s"$cflags -o $$@ $$^ -lm -O2 -g $ldflags -Wno-unused-result -I" + options.relativeToRoot(interface.name)
+				compiler = compiler,
+				params = List("-o", "$@", "$^"),
+				flags = (
+					cflags ++ List("-lm", "-O2", "-g") ++ ldflags ++
+					List("-Wno-unused-result", "-I" +
+					options.relativeToRoot(interface.name))
+				)
 			))
 		} else {
 			val sourcePath = (if (options.preferOriginalSources) {
@@ -94,24 +100,34 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 			})
 			List(
 				MakefileRule(
-					List(
+					target = List(
 						options.relativeToRoot(interface.name, interface.name + executableExtension)
 					),
-					List(
+					requisites = List(
 						sourcePath,
 						options.relativeToRoot(interface.name, s"${interface.name}_entry.$extension")
 					),
-					compiler, s"$cflags -o $$@ $$^ -lm -O2 -g $ldflags -Wno-unused-result -I" + options.relativeToRoot(interface.name)
+					compiler = compiler,
+					params = List("-o", "$@", "$^"),
+					flags = (
+						cflags ++ List("-lm", "-O2", "-g") ++ ldflags ++
+						List("-Wno-unused-result", "-I" + options.relativeToRoot(interface.name))
+					)
 				),
 				MakefileRule(
-					List(
+					target = List(
 						options.relativeToRoot(interface.name, interface.name + "_debug" + executableExtension)
 					),
-					List(
+					requisites = List(
 						sourcePath,
 						options.relativeToRoot(interface.name, s"${interface.name}_entry.$extension")
 					),
-					compiler, s"$cflags -o $$@ $$^ -lm -g $ldflags -Wno-unused-result -I" + options.relativeToRoot(interface.name),
+					compiler = compiler,
+					params = List("-o", "$@", "$^"),
+					flags = (
+						cflags ++ List("-lm", "-g") ++ ldflags ++
+						List("-Wno-unused-result", "-I" + options.relativeToRoot(interface.name))
+					),
 					debug = true
 				)
 			)
@@ -202,18 +218,18 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 
 	def compiler() = Compiler.Gcc
 
-	def cflags() = "-std=c99"
+	def cflags() = List("-std=c99")
 
 	def ldflags() = {
 		(if (options.transact) {
-			"-ltransact "
+			List("-ltransact")
 		} else {
-			""
-		}) +
+			List()
+		}) ++
 		(if (parent) {
-			"-Wl,-e,__entry"
+			List("-Wl,-e,__entry")
 		} else {
-			""
+			List()
 		})
 	}
 
@@ -300,8 +316,8 @@ class Cpp(idl: IDL, options: Options, input: Path, parent: Boolean)
 	override def compiler() = Compiler.Gxx
 
 	override def cflags() = options.legacyFlags match {
-		case false => "-std=c++11"
-		case true => "-std=c++0x"
+		case false => List("-std=c++11")
+		case true => List("-std=c++0x")
 	}
 }
 

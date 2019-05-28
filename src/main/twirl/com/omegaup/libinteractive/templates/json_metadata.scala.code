@@ -9,7 +9,7 @@
 						"Targets": @Json.encode(rule.target.map(_.toString)),
 						"Requisites": @Json.encode(rule.requisites.map(_.toString)),
 						"Compiler": @Json.encode(rule.compiler.toString),
-						"Params": @Json.encode(rule.params),
+						"Params": @Json.encode((rule.params ++ rule.flags).mkString(" ")),
 						"Debug": @Json.encode(rule.debug)
 					}}
 @renderInterface(interface: GeneratedInterface) = {

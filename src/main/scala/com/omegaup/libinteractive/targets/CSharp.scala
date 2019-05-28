@@ -58,14 +58,16 @@ class CSharp(idl: IDL, options: Options, input: Path, parent: Boolean)
 		})
 
 		List(MakefileRule(
-			List(targetPath),
-			List(
+			target = List(targetPath),
+			requisites = List(
 				mainSourcePath,
 				options.relativeToRoot(interface.name, s"${interface.name}_entry.cs")
 			),
-			Compiler.Dotnet, s"build ${options.relativeToRoot(interface.name)}" + (
-				if (options.quiet) " > /dev/null" else ""
-			)))
+			compiler = Compiler.Dotnet,
+			params = List("build", options.relativeToRoot(interface.name).toString) ++ (
+				if (options.quiet) List(">", "/dev/null") else List()
+			)
+		))
 	}
 
 	def dotnetExecutable() = {

@@ -61,12 +61,14 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 		})
 
 		List(MakefileRule(
-			List(targetPath),
-			List(
+			target = List(targetPath),
+			requisites = List(
 				mainSourcePath,
 				options.relativeToRoot(interface.name, s"${interface.name}_entry.java")
 			),
-			Compiler.Javac, "$^"))
+			compiler = Compiler.Javac,
+			params = List("$^")
+		))
 	}
 
 	def javaExecutable() = {
