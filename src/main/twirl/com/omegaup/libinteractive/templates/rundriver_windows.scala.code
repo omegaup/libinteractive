@@ -29,6 +29,18 @@
 #define print_error(fmt, ...) \
 	_print_error(__LINE__, GetLastError(), fmt, ##__VA_ARGS__)
 
+#define print_error_and_die(pause, fmt, ...)                     \
+  do {                                                           \
+    _print_error(__LINE__, GetLastError(), fmt, ##__VA_ARGS__);  \
+    if (pause) {                                                 \
+      fprintf(stderr,                                            \
+        LABEL_FORMAT " Done. Press any key to exit...\n",        \
+        "libinteractive");                                       \
+      fgetc(stdin);                                              \
+    }                                                            \
+    exit(1);                                                     \
+  } while (FALSE)
+
 const char* interfaces[] = {
 	@idl.allInterfaces.map('"' + _.name + '"').mkString(", ")
 };
@@ -84,6 +96,7 @@ typedef struct {
 buffer buffers[2 * NUM_PROCESSES + NUM_PIPES];
 HANDLE events[2 * NUM_PROCESSES + NUM_PIPES];
 process processes[NUM_PROCESSES];
+HANDLE processes_and_pipes[NUM_PROCESSES + 1];
 
 static void _print_error(size_t line_number, DWORD error, const char* fmt, ...)
 	__attribute__((format (printf, 3, 4)));
@@ -113,7 +126,7 @@ static void _print_error(size_t line_number, DWORD error, const char* fmt, ...) 
 }
 
 // Ensure a buffer is fully written into the fd.
-static void write_full(HANDLE fd, const char* buffer, DWORD bytes_read) {
+static void write_full(HANDLE fd, const char* buffer, DWORD bytes_read, BOOL pause) {
 	BOOL success;
 	DWORD bytes_written;
 	while (bytes_read) {
@@ -125,8 +138,7 @@ static void write_full(HANDLE fd, const char* buffer, DWORD bytes_read) {
 			NULL
 		);
 		if (!success || bytes_written == 0) {
-			print_error("WriteFile");
-			exit(1);
+			print_error_and_die(pause, "WriteFile");
 		}
 		bytes_read -= bytes_written;
 		buffer += bytes_written;
@@ -137,7 +149,7 @@ static void write_full(HANDLE fd, const char* buffer, DWORD bytes_read) {
 // Main's stdout will be highlighted in white instead of gray (unless
 // redirected to a pipe or file). All other stdout/stderr will go to
 // stderr and will have a nice label.
-static void process_buffer(buffer* buf) {
+static void process_buffer(buffer* buf, BOOL pause) {
 	if (buf->line) {
 		char label[1024];
 		_snprintf(label, sizeof(label), LABEL_FORMAT, buf->prefix);
@@ -159,7 +171,7 @@ static void process_buffer(buffer* buf) {
 							FOREGROUND_INTENSITY | FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE
 						);
 					}
-					write_full(buf->write_fd, label, label_len);
+					write_full(buf->write_fd, label, label_len, pause);
 					if (should_color) {
 						SetConsoleTextAttribute(
 							buf->write_fd,
@@ -167,30 +179,30 @@ static void process_buffer(buffer* buf) {
 						);
 					}
 				}
-				write_full(buf->write_fd, last, pos - last + 1);
+				write_full(buf->write_fd, last, pos - last + 1, pause);
 				last = pos + 1;
 			}
 		}
 		if (last == buf->buf) {
 			// Nothing written, force flush
 			if (should_label) {
-				write_full(buf->write_fd, label, label_len);
+				write_full(buf->write_fd, label, label_len, pause);
 			}
-			write_full(buf->write_fd, buf->buf, buf->pos);
-			write_full(buf->write_fd, "\r\n", 2);
+			write_full(buf->write_fd, buf->buf, buf->pos, pause);
+			write_full(buf->write_fd, "\r\n", 2, pause);
 			buf->pos = 0;
 		} else {
 			buf->pos = end - last;
 			memmove(buf->buf, last, buf->pos);
 		}
 	} else {
-		write_full(buf->write_fd, buf->buf, buf->pos);
+		write_full(buf->write_fd, buf->buf, buf->pos, pause);
 		buf->pos = 0;
 	}
 }
 
 // A wrapper for CreateProcess. Also redirects stdio.
-void execute(size_t i, HANDLE input, BOOL debug) {
+void execute(size_t i, HANDLE input, BOOL debug, BOOL pause) {
 	STARTUPINFOA si;
 
 	ZeroMemory(&si, sizeof(si));
@@ -214,13 +226,16 @@ void execute(size_t i, HANDLE input, BOOL debug) {
 		&processes[i].pi
 	);
 	if (!success) {
-		print_error("CreateProcess %s", command_line);
-		exit(1);
+		print_error_and_die(pause, "CreateProcess %s", command_line);
 	}
+
+	// Release our copies of the children's ends of the pipes.
+	CloseHandle(processes[i].out);
+	CloseHandle(processes[i].err);
 }
 
 // Similar to mknod for a pipe.
-static HANDLE create_pipe(const char* name, int read) {
+static HANDLE create_pipe(const char* name, int read, BOOL pause) {
 	HANDLE named_pipe = CreateNamedPipeA(
 		name,
 		read ?
@@ -234,8 +249,7 @@ static HANDLE create_pipe(const char* name, int read) {
 		NULL
 	);
 	if (named_pipe == INVALID_HANDLE_VALUE) {
-		print_error("CreateNamedPipe %s", name);
-		exit(1);
+		print_error_and_die(pause, "CreateNamedPipe %s", name);
 	}
 	return named_pipe;
 }
@@ -243,7 +257,7 @@ static HANDLE create_pipe(const char* name, int read) {
 // This function should be similar to CreatePipe, but allowing one
 // end (the reading end) of the pipe to have overlapped I/O.
 static unsigned long long pipe_counter = 0;
-static void create_pipe_pair(HANDLE* read, HANDLE* write) {
+static void create_pipe_pair(HANDLE* read, HANDLE* write, BOOL pause) {
 	char pipe_name_buffer[1024];
 	_snprintf(pipe_name_buffer, sizeof(pipe_name_buffer),
 	          "\\\\.\\pipe\\libinteractive_anon_%I64u", pipe_counter++);
@@ -264,8 +278,7 @@ static void create_pipe_pair(HANDLE* read, HANDLE* write) {
 	);
 	
 	if (!*read || !SetHandleInformation(*read, HANDLE_FLAG_INHERIT, 0)) {
-		print_error("CreateNamedPipe %s", pipe_name_buffer);
-		exit(1);
+		print_error_and_die(pause, "CreateNamedPipe %s", pipe_name_buffer);
 	}
 	
 	*write = CreateFileA(
@@ -279,12 +292,11 @@ static void create_pipe_pair(HANDLE* read, HANDLE* write) {
 	);
 	
 	if (!*write) {
-		print_error("CreateFile %s", pipe_name_buffer);
-		exit(1);
+		print_error_and_die(pause, "CreateFile %s", pipe_name_buffer);
 	}
 }
 
-int run(HANDLE input, BOOL debug) {
+int run(HANDLE input, BOOL debug, BOOL pause) {
 	long maxrss = 0;
 	long long utime = 0;
 
@@ -295,7 +307,7 @@ int run(HANDLE input, BOOL debug) {
 	// Create stdout/stderr pipes.
 	memset(buffers, 0, sizeof(buffers));	
 	for (size_t i = 0; i < NUM_PROCESSES; i++) {
-		create_pipe_pair(&buffers[num_buffers].read_fd, &processes[i].out);
+		create_pipe_pair(&buffers[num_buffers].read_fd, &processes[i].out, pause);
 		BOOL success = DuplicateHandle(
 			GetCurrentProcess(),
 			i ?
@@ -310,8 +322,7 @@ int run(HANDLE input, BOOL debug) {
 		buffers[num_buffers].read_name = interfaces[i];
 		buffers[num_buffers].write_name = i ? "stderr" : "stdout";
 		if (!success) {
-			print_error("DuplicateHandle");
-			exit(1);
+			print_error_and_die(pause, "DuplicateHandle");
 		}
 		buffers[num_buffers].line = 1;
 		buffers[num_buffers].main_stdout = i == 0;
@@ -325,7 +336,7 @@ int run(HANDLE input, BOOL debug) {
 		buffers[num_buffers].overlapped.hEvent = events[num_buffers];
 		num_buffers++;
 		
-		create_pipe_pair(&buffers[num_buffers].read_fd, &processes[i].err);
+		create_pipe_pair(&buffers[num_buffers].read_fd, &processes[i].err, pause);
 		success = DuplicateHandle(
 			GetCurrentProcess(),
 			GetStdHandle(STD_ERROR_HANDLE),
@@ -336,8 +347,7 @@ int run(HANDLE input, BOOL debug) {
 			DUPLICATE_SAME_ACCESS
 		);
 		if (!success) {
-			print_error("DuplicateHandle");
-			exit(1);
+			print_error_and_die(pause, "DuplicateHandle");
 		}
 		buffers[num_buffers].read_name = interfaces[i];
 		buffers[num_buffers].write_name = "stderr";
@@ -355,8 +365,8 @@ int run(HANDLE input, BOOL debug) {
 
 	// Create RPC pipes.
 	for (size_t i = 0; i < NUM_PIPES; i++) {
-		HANDLE out = create_pipe(pipe_descriptions[i].out, 0);
-		HANDLE in = create_pipe(pipe_descriptions[i].in, 1);
+		HANDLE out = create_pipe(pipe_descriptions[i].out, 0, pause);
+		HANDLE in = create_pipe(pipe_descriptions[i].in, 1, pause);
 		events[num_buffers] = CreateEvent(
 			NULL,
 			TRUE,
@@ -369,9 +379,8 @@ int run(HANDLE input, BOOL debug) {
 		buffers[num_buffers].read_fd = in;
 		buffers[num_buffers].write_fd = out;
 		if (ConnectNamedPipe(buffers[num_buffers].read_fd,
-												 &buffers[num_buffers].overlapped)) {
-			print_error("ConnectNamedPipe");
-			exit(1);
+		                     &buffers[num_buffers].overlapped)) {
+			print_error_and_die(pause, "ConnectNamedPipe");
 		}
 		switch (GetLastError()) {
 			case ERROR_IO_PENDING:
@@ -381,8 +390,7 @@ int run(HANDLE input, BOOL debug) {
 				buffers[num_buffers].connected = TRUE;
 				break;
 			default:
-				print_error("ConnectNamedPipe");
-				exit(1);
+				print_error_and_die(pause, "ConnectNamedPipe");
 		}
 		
 		num_buffers++;
@@ -390,11 +398,46 @@ int run(HANDLE input, BOOL debug) {
 
 	// Execute the children.
 	for (size_t i = 0; i < NUM_PROCESSES; i++) {
-		execute(i, input, debug);
+		execute(i, input, debug, pause);
+
+		// Once the child has started, add the child's handle to the table of live
+		// processes and pipes.
+		processes_and_pipes[i] = processes[i].pi.hProcess;
 	}
 
 	// Wait for the children to connect their ends of the pipes.
+	size_t alive = num_buffers;
 	for (size_t i = 2 * NUM_PROCESSES; i < num_buffers; i++) {
+		if (buffers[i].connected) {
+			// This should never happen in theory (because the ConnectNamedPipe()
+			// function is called before the child process is started), but just for
+			// correctness' sake.
+			continue;
+		}
+
+		// Wait for one pipe. In the event that _any_ process dies before all pipes
+		// are connected, we try to detect that here.
+		// Since the pipe is added to the very end of the array, once one process
+		// dies, any successive WaitForMultipleObjects() calls will also say that a
+		// process died instead of the pipe being open.
+		processes_and_pipes[NUM_PROCESSES] = buffers[i].overlapped.hEvent;
+		DWORD woken = WaitForMultipleObjects(
+			NUM_PROCESSES + 1,
+			processes_and_pipes,
+			FALSE,
+			INFINITE
+		) - WAIT_OBJECT_0;
+		if (woken != NUM_PROCESSES) {
+			// One of the processes died :/ Let's keep going to print out any error
+			// messages.
+			buffers[i].closed = TRUE;
+			CloseHandle(buffers[i].read_fd);
+			CloseHandle(buffers[i].write_fd);
+			ResetEvent(buffers[i].overlapped.hEvent);
+			alive--;
+			continue;
+		}
+
 		DWORD _;
 		BOOL success = GetOverlappedResult(
 			buffers[i].read_fd,
@@ -404,18 +447,16 @@ int run(HANDLE input, BOOL debug) {
 		);
 		if (!success) {
 			print_error("GetOverlappedResult");
-			exit(1);
+			buffers[i].closed = TRUE;
+			CloseHandle(buffers[i].read_fd);
+			CloseHandle(buffers[i].write_fd);
+			ResetEvent(buffers[i].overlapped.hEvent);
+			alive--;
+			continue;
 		}
 	}
 	
-	// Release our copies of the children's ends of the pipes.
-	for (size_t i = 0; i < NUM_PROCESSES; i++) {
-		CloseHandle(processes[i].out);
-		CloseHandle(processes[i].err);
-	}
-	
 	// Process I/O on all the pipes until they are all closed.
-	size_t alive = num_buffers;
 	while (alive) {
 		int i = WaitForMultipleObjects(
 			num_buffers,
@@ -425,8 +466,7 @@ int run(HANDLE input, BOOL debug) {
 		) - WAIT_OBJECT_0;
 		
 		if (i < 0 || i > (num_buffers - 1)) {
-			print_error("WaitForMultipleObjects");
-			exit(1);
+			print_error_and_die(pause, "WaitForMultipleObjects");
 		}
 		
 		if (buffers[i].closed) {
@@ -452,7 +492,7 @@ int run(HANDLE input, BOOL debug) {
 				continue;
 			}
 			buffers[i].pos += bytes_read;
-			process_buffer(&buffers[i]);
+			process_buffer(&buffers[i], pause);
 		}
 		
 		while (1) {
@@ -467,7 +507,7 @@ int run(HANDLE input, BOOL debug) {
 			if (success && bytes_read > 0) {
 				buffers[i].pending = FALSE;
 				buffers[i].pos += bytes_read;
-				process_buffer(&buffers[i]);
+				process_buffer(&buffers[i], pause);
 				continue;
 			}
 			
@@ -524,8 +564,7 @@ int run(HANDLE input, BOOL debug) {
 
 	fprintf(stderr, "\nMemory: %7.3f MB\n", maxrss / 1048576.0f);
 	fprintf(stderr, "Time:   %7.3f s\n", utime / 1e6);
-	fclose(stdout);
-	fclose(stderr);
+	fflush(stderr);
 
 	return retval;
 }
@@ -564,7 +603,7 @@ int main(int argc, char* argv[]) {
 		}
 		fprintf(stderr, "%s:\n", argv[i]);
 		fflush(stderr);
-		if (run(input, debug) != 0) {
+		if (run(input, debug, pause) != 0) {
 			retval = 1;
 		}
 		CloseHandle(input);
@@ -572,9 +611,12 @@ int main(int argc, char* argv[]) {
 	}
 	// No parameters, use stdin.
 	if (from_stdin) {
-		retval = run(GetStdHandle(STD_INPUT_HANDLE), debug);
+		retval = run(GetStdHandle(STD_INPUT_HANDLE), debug, pause);
 	}
 	if (pause) {
+		fprintf(stderr,
+			LABEL_FORMAT " Done. Press any key to exit...\n",
+			"libinteractive");
 		fgetc(stdin);
 	}
 	return retval;

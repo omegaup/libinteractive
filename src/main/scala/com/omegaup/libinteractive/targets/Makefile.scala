@@ -222,7 +222,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 				Math.max(length, exec.debug_args.getOrElse(exec.args).length)) + 1,
 			maxEnvLength = commands.foldLeft(0)((length, exec) =>
 				Math.max(length, exec.env.size)) + 1,
-			maxNameLength = idl.allInterfaces.foldLeft(0)((length, interface) =>
+			maxNameLength = idl.allInterfaces.foldLeft("libinteractive".length)((length, interface) =>
 				Math.max(length, interface.name.length)))
 
 		OutputFile(options.resolve("run.c"), rundriver.toString)
@@ -231,7 +231,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 	private def generateRunDriverWindows() = {
 		val rundriver = templates.code.rundriver_windows(this, message, idl, commands,
 			numProcesses = commands.foldLeft(0)((length, _) => length + 1),
-			maxNameLength = idl.allInterfaces.foldLeft(0)((length, interface) =>
+			maxNameLength = idl.allInterfaces.foldLeft("libinteractive".length)((length, interface) =>
 				Math.max(length, interface.name.length)))
 
 		OutputFile(options.resolve("run.c"), rundriver.toString)
