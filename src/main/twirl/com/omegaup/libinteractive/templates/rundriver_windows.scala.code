@@ -455,6 +455,24 @@ int run(HANDLE input, BOOL debug, BOOL pause) {
 			continue;
 		}
 	}
+
+	if (alive != num_buffers && debug) {
+		// At least one process died while waiting for pipe connections.
+		// In debug mode, this is most likely due to a bug in gdbserver 8.1.  Just
+		// in case, print a helpful debugging message so that folks can decide what
+		// to do about it.
+		fprintf(stderr,
+			LABEL_FORMAT "A process died while initializing.\n",
+			"libinteractive");
+		fprintf(stderr,
+			LABEL_FORMAT "gdbserver.exe 8.1 has a bug that causes this to always fail.\n",
+			"libinteractive");
+		fprintf(stderr,
+			LABEL_FORMAT "you can download a copy of gdbserver 8.0 "
+			"from https://s3.amazonaws.com/omegaup-dist/gdbserver-8.0.zip\n",
+			"libinteractive");
+		fflush(stderr);
+	}
 	
 	// Process I/O on all the pipes until they are all closed.
 	while (alive) {
