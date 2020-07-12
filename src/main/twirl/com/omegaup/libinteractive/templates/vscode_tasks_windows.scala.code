@@ -58,10 +58,7 @@
         {
             "type": "shell",
             "label": "sleep",
-            "command": "sleep",
-            "args": [
-                "2"
-            ],
+            "command": "sleep 3",
             "presentation": {
                 "echo": false,
                 "reveal": "never",
