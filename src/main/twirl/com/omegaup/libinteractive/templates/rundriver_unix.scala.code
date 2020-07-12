@@ -32,7 +32,7 @@
 #define LABEL_FORMAT "[%@(maxNameLength)s] "
 
 #define print_error(fmt, ...) fprintf(stderr, LABEL_FORMAT " (%s:%" PRIuS ") " fmt ": %s\n", \
-	"ERROR", __FILE__, __LINE__, ##__VA_ARGS__, strerror(errno))
+	"ERROR", __FILE__, (size_t)__LINE__, ##__VA_ARGS__, strerror(errno))
 
 static const char* interfaces[] = {
 	@idl.allInterfaces.map('"' + _.name + '"').mkString(", ")
