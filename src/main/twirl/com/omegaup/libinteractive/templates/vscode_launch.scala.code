@@ -6,18 +6,28 @@
     "compounds": [
         {
             "name": "Debug",
-            "configurations": ["libinteractive runner", "attach"],
+            "configurations": ["libinteractive console runner", "attach"],
             "preLaunchTask": "build",
             "presentation": {
                 "hidden": false,
                 "group": "Debug",
                 "order": 1
             }
+        },
+        {
+            "name": "Debug (examples/sample.in)",
+            "configurations": ["libinteractive example runner", "attach"],
+            "preLaunchTask": "build",
+            "presentation": {
+                "hidden": false,
+                "group": "Debug",
+                "order": 2
+            }
         }
     ],
     "configurations": [
         {
-            "name": "libinteractive runner",
+            "name": "libinteractive console runner",
             "type": "cppdbg",
             "request": "launch",
             "externalConsole": true,
@@ -32,7 +42,26 @@
             "presentation": {
                 "hidden": true,
                 "group": "Debug",
-                "order": 2
+                "order": 3
+            },
+        },
+        {
+            "name": "libinteractive example runner",
+            "type": "cppdbg",
+            "request": "launch",
+            "externalConsole": true,
+            "stopAtEntry": false,
+            "program": "${workspaceFolder}/@runPath",
+            "args": ["--debug", "${workspaceFolder}/examples/sample.in"],
+            "environment": [],
+            "cwd": "${workspaceFolder}",
+            "windows": {
+                "program": "${workspaceFolder}/@runPath.toString.replace('\\', '/')",
+            },
+            "presentation": {
+                "hidden": true,
+                "group": "Debug",
+                "order": 4
             },
         },
         {
@@ -58,7 +87,7 @@
             "presentation": {
                 "hidden": true,
                 "group": "Debug",
-                "order": 3
+                "order": 5
             }
         }
     ]
