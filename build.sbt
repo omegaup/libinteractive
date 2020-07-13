@@ -4,8 +4,6 @@ enablePlugins(GitVersioning)
 
 git.useGitDescribe := true
 
-git.gitDescribedVersion <<= git.gitDescribedVersion((v) => v.map(_.drop(1)))
-
 organization := "com.omegaup"
 
 scalaVersion := "2.11.5"
