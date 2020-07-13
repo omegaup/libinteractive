@@ -26,6 +26,7 @@ jobs:
 
       - name: Package
         run: |
+          git tag -f ${{ steps.bump-version.outputs.tag }}
           sbt proguard:proguard
           mv ./target/scala-2.11/proguard/libinteractive_2.11-*.jar \
              ./target/scala-2.11/proguard/libinteractive.jar
