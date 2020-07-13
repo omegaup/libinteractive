@@ -92,6 +92,14 @@ int main(int argc, char* argv[]) {
 	openstream(&__in, "@c.pipeFilename(interface, interface, true)", O_RDONLY);
 	openstream(&__out, "@c.pipeFilename(interface, interface, false)", O_WRONLY);
 
+	for (int i = 1; i < argc; ++i) {
+		if (strcmp(argv[i], "--print-ready") == 0) {
+			fprintf(stderr,
+			        "Debugger attached, type case contents "
+			        "(like the one in \"examples/sample.in\")...\n");
+		}
+	}
+
 	__message_loop_@(idl.main.name)(-1, 1);
 
 	closestream(&__in);

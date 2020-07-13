@@ -60,14 +60,14 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 			),
 			OutputFile(
 				path = options.rootResolve(".vscode/tasks.json"),
-				contents = templates.code.vscode_tasks_unix(
+				contents = templates.code.vscode_tasks(
 					message,
 					allRules = allRulesUnix
 				).toString
 			),
 			OutputFile(
 				path = options.rootResolve(".vscode/launch.json"),
-				contents = templates.code.vscode_launch_unix(
+				contents = templates.code.vscode_launch(
 					message,
 					runPath = options.relativeToRoot("run"),
 					debugExecutable = rules.find(_.debug).map(_.target).get.find(x => true).get
@@ -83,14 +83,14 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 			),
 			OutputFile(
 				path = options.rootResolve(".vscode/tasks.json"),
-				contents = templates.code.vscode_tasks_windows(
+				contents = templates.code.vscode_tasks(
 					message,
 					allRules = allRulesWindows
 				).toString
 			),
 			OutputFile(
 				path = options.rootResolve(".vscode/launch.json"),
-				contents = templates.code.vscode_launch_windows(
+				contents = templates.code.vscode_launch(
 					message,
 					runPath = options.relativeToRoot("run.exe"),
 					debugExecutable = rules.find(_.debug).map(_.target).get.find(x => true).get

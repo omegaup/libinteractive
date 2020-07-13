@@ -1,0 +1,65 @@
+@import _root_.java.nio.file.Path
+@(message: String, runPath: Path, debugExecutable: Path)
+{
+    // @message
+    "version": "0.2.0",
+    "compounds": [
+        {
+            "name": "Debug",
+            "configurations": ["libinteractive runner", "attach"],
+            "preLaunchTask": "build",
+            "presentation": {
+                "hidden": false,
+                "group": "Debug",
+                "order": 1
+            }
+        }
+    ],
+    "configurations": [
+        {
+            "name": "libinteractive runner",
+            "type": "cppdbg",
+            "request": "launch",
+            "externalConsole": true,
+            "stopAtEntry": false,
+            "program": "${workspaceFolder}/@runPath",
+            "args": ["--debug"],
+            "environment": [],
+            "cwd": "${workspaceFolder}",
+            "windows": {
+                "program": "${workspaceFolder}/@runPath.toString.replace('\\', '/')",
+            },
+            "presentation": {
+                "hidden": true,
+                "group": "Debug",
+                "order": 2
+            },
+        },
+        {
+            "name": "attach",
+            "type": "cppdbg",
+            "request": "launch",
+            "preLaunchTask": "sleep",
+            "miDebuggerServerAddress": "localhost:8042",
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "program": "${workspaceFolder}/@debugExecutable",
+            "cwd": "${workspaceFolder}",
+            "windows": {
+                "miDebuggerPath": "gdb.exe",
+                "program": "${workspaceFolder}/@debugExecutable.toString.replace('\\', '/')",
+            },
+            "presentation": {
+                "hidden": true,
+                "group": "Debug",
+                "order": 3
+            }
+        }
+    ]
+}

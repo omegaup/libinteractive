@@ -154,7 +154,7 @@ class C(idl: IDL, options: Options, input: Path, parent: Boolean)
 				interface => ExecDescription(
 					args = Array(runCommand(interface)),
 					debug_args = Some(
-						Array(gdbserverPath, "127.0.0.1:8042", runCommand(interface, "_debug"))
+						Array(gdbserverPath, "127.0.0.1:8042", runCommand(interface, "_debug"), "--print-ready")
 					)
 				)
 			) ++
