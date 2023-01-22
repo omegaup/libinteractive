@@ -3,9 +3,9 @@
 // @c.message
 #if !defined(__APPLE__)
 
-	.global __entry
-
 	.text
+
+	.global __entry
 
 // _start expects the stack and registers in a special configuration.
 // We do libinteractive initialization in assembly to avoid touching
@@ -21,7 +21,7 @@ __entry:
 	call __libinteractive_init
 	add $0x8,%rsp
 	popq %rdx
-	jmp _start@@plt
+	jmp _start
 
 	hlt
 #elif defined(__i386__)
@@ -32,14 +32,29 @@ __entry:
 	popl %ecx
 	popl %edx
 	popl %eax
-	jmp _start@@plt
+	jmp _start
 
 	hlt
 #elif defined(__ARM_ARCH_7A__)
 	push {r0-r3}
 	bl __libinteractive_init
 	pop {r0-r3}
-	b _start@@plt
+	b _start
+
+	udf #255
+#elif defined(__ARM_ARCH_8A)
+	sub sp, sp, #64
+	stp x0, x1, [sp]
+	stp x2, x3, [sp,#16]
+	stp x4, x5, [sp,#32]
+	stp x6, x7, [sp,#48]
+	bl __libinteractive_init
+	ldp x0, x1, [sp]
+	ldp x2, x3, [sp,#16]
+	ldp x4, x5, [sp,#32]
+	ldp x6, x7, [sp,#48]
+	add sp, sp, #64
+	b _start
 
 	udf #255
 #else

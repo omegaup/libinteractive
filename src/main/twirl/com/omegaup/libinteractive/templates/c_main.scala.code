@@ -97,6 +97,7 @@ void _entry() __attribute__ ((alias ("__entry")));
 // OS X makes it harder to define the entrypoint in pure assembly, so let's
 // rely on using a real C function with inline assembly.
 void _entry() {
+#if defined(__x86_64__)
 	__asm__(
 		"popq %%rbp\n"  // Remove %rbp from the stack that gcc helpfully added.
 		"pushq %%rdx\n" // Store %rdx since we will need it later.
@@ -104,6 +105,23 @@ void _entry() {
 		"popq %%rdx\n"
 		"jmp _main\n"
 		:::
+#elif defined(__ARM64_ARCH_8__)
+		"sub sp, sp, #64\n"
+		"stp x0, x1, [sp]\n"
+		"stp x2, x3, [sp,#16]\n"
+		"stp x4, x5, [sp,#32]\n"
+		"stp x6, x7, [sp,#48]\n"
+		"bl ___libinteractive_init\n"
+		"ldp x0, x1, [sp]\n"
+		"ldp x2, x3, [sp,#16]\n"
+		"ldp x4, x5, [sp,#32]\n"
+		"ldp x6, x7, [sp,#48]\n"
+		"add sp, sp, #64\n"
+		"b _main\n"
+		:::
+#else
+#error libinteractive is not supported in your architecture
+#endif
 	);
 }
 
