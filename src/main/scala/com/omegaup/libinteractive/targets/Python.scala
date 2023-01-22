@@ -225,7 +225,7 @@ import ${idl.main.name}  # pylint: disable=unused-import"""
 					s"${formatLength(head, function)} * ${fieldLength(primitive)})"
 			case head :: tail =>
 				s"[${readArray(infd, primitive, tail, function, depth + 1)} " +
-					s"for __r$depth in xrange(${formatLength(head, function)})]"
+					s"for __r$depth in range(${formatLength(head, function)})]"
 		}
 	}
 

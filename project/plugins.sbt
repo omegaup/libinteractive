@@ -1,7 +1,9 @@
-addSbtPlugin("com.typesafe.sbt" % "sbt-git" % "1.0.0")
+scalaVersion := "2.12.17"
 
-addSbtPlugin("com.typesafe.sbt" % "sbt-proguard" % "0.2.2")
+addSbtPlugin("com.github.sbt" % "sbt-git" % "2.0.1")
 
-addSbtPlugin("com.typesafe.sbt" % "sbt-twirl" % "1.0.4")
+addSbtPlugin("com.github.sbt" % "sbt-proguard" % "0.5.0")
 
-addSbtPlugin("com.eed3si9n" % "sbt-buildinfo" % "0.4.0")
+addSbtPlugin("com.typesafe.play" % "sbt-twirl" % "1.5.2")
+
+addSbtPlugin("com.eed3si9n" % "sbt-buildinfo" % "0.11.0")

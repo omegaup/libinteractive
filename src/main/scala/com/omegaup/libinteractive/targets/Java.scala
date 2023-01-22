@@ -67,7 +67,7 @@ class Java(idl: IDL, options: Options, input: Path, parent: Boolean)
 				options.relativeToRoot(interface.name, s"${interface.name}_entry.java")
 			),
 			compiler = Compiler.Javac,
-			params = List("$^")
+			params = List("-d", options.relativeToRoot(interface.name).toString(), "$^")
 		))
 	}
 

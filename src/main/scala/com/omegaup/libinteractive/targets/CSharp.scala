@@ -47,9 +47,9 @@ class CSharp(idl: IDL, options: Options, input: Path, parent: Boolean)
 	override def generateMakefileRules(interface: Interface) = {
 		val configuration = (if (options.generateDebugTargets) "Debug" else "Release")
 		val targetPath = (if (interface == idl.main) {
-			options.relativeToRoot(interface.name, s"bin/${configuration}/netcoreapp2.0/${interface.name}.dll")
+			options.relativeToRoot(interface.name, s"bin/${configuration}/netcoreapp7.0/${interface.name}.dll")
 		} else {
-			options.relativeToRoot(interface.name, s"bin/${configuration}/netcoreapp2.0/${interface.name}.dll")
+			options.relativeToRoot(interface.name, s"bin/${configuration}/netcoreapp7.0/${interface.name}.dll")
 		})
 		val mainSourcePath = (if (interface == idl.main) {
 			options.relativeToRoot(interface.name, s"${interface.name}.cs")

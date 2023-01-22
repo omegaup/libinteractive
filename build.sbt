@@ -1,16 +1,17 @@
 name := "libinteractive"
 
+organization := "com.omegaup"
+
+scalaVersion := "2.12.17"
+
+ThisBuild / scalaVersion := scalaVersion.value
+ThisProject / scalaVersion := scalaVersion.value
+
+scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
+
 enablePlugins(GitVersioning)
 
 git.useGitDescribe := true
-
-organization := "com.omegaup"
-
-scalaVersion := "2.11.5"
-
-scalaVersion in ThisProject := "2.11.5"
-
-scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
 
 lazy val root = (project in file("."))
 	.enablePlugins(SbtTwirl)
@@ -22,7 +23,7 @@ lazy val root = (project in file("."))
 
 publishMavenStyle := true
 
-publishArtifact in Test := false
+Test / publishArtifact := false
 
 publishTo := {
 	val nexus = "https://oss.sonatype.org/"
@@ -60,46 +61,41 @@ TwirlKeys.templateFormats += ("code" -> "com.omegaup.libinteractive.templates.Co
 
 exportJars := true
 
-packageOptions in (Compile, packageBin) +=
+Compile / packageBin / packageOptions +=
 	Package.ManifestAttributes( java.util.jar.Attributes.Name.MAIN_CLASS -> "com.omegaup.libinteractive.Main" )
 
-mappings in (Compile, packageBin) ++= Seq(
+Compile / packageBin / mappings ++= Seq(
 	(baseDirectory.value / "LICENSE") -> "LICENSE",
 	(baseDirectory.value / "NOTICE") -> "NOTICE"
 )
 
 libraryDependencies ++= Seq(
-	"com.github.scopt" %% "scopt" % "3.2.0",
+	"com.github.scopt" %% "scopt" % "3.7.1",
 	"org.apache.commons" % "commons-compress" % "1.8.1",
-	"org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.3",
-	"org.scalatest" %% "scalatest" % "2.2.4" % "test"
+	"org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.7",
+	"org.scalatest" %% "scalatest" % "3.0.4" % "test"
 )
 
 resolvers += Resolver.sonatypeRepo("public")
 
-proguardSettings
+enablePlugins(SbtProguard)
 
-ProguardKeys.options in Proguard ++= Seq(
+(Proguard / proguardOptions) ++= Seq(
   "-dontskipnonpubliclibraryclasses",
   "-dontskipnonpubliclibraryclassmembers",
   "-dontoptimize",
   "-dontobfuscate",
-  "-dontpreverify",
   "-dontnote",
   "-dontwarn",
   "-keep interface scala.ScalaObject",
   "-keep class com.omegaup.libinteractive.**",
   "-keep class scala.collection.JavaConversions",
-  ProguardOptions.keepMain("com.omegaup.libinteractive.Main")
 )
-
-ProguardKeys.inputFilter in Proguard := { file =>
+(Proguard / proguardOptions) += ProguardOptions.keepMain("com.omegaup.libinteractive.Main")
+(Proguard / proguardInputFilter) := { file =>
   file.name match {
     case s if s.startsWith("libinteractive") => None
     case _ => Some("!META-INF/MANIFEST.MF,!META-INF/LICENSE.txt,!META-INF/NOTICE.txt,!rootdoc.txt")
   }
 }
-
-ProguardKeys.proguardVersion in Proguard := "5.0"
-
-javaOptions in (Proguard, ProguardKeys.proguard) := Seq("-Xmx2G")
+(Proguard / proguardVersion) := "7.3.1"

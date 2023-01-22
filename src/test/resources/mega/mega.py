@@ -6,14 +6,14 @@ import Main
 
 def encode(num_rows, matrix):
     """Encodes the matrix."""
-    for i in xrange(num_rows):
-        for j in xrange(num_rows):
+    for i in range(num_rows):
+        for j in range(num_rows):
             matrix[i][j] *= 2
     Main.send(num_rows, matrix)
 
 def decode(num_rows, encoded):
     """Decodes the matrix."""
-    for i in xrange(num_rows):
+    for i in range(num_rows):
         encoded[i] *= 2
     Main.output(num_rows, encoded)
 
