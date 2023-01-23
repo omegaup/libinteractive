@@ -4,14 +4,14 @@ on:
   pull_request: {}
   push:
     branches:
-      - master
+      - main
 
 jobs:
 
   test:
     name: CI
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Check out code
@@ -19,8 +19,15 @@ jobs:
 
       - name: Install dependencies
         run: |
+          wget https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+          sudo dpkg -i packages-microsoft-prod.deb
+          rm packages-microsoft-prod.deb
+          sudo apt update -y
           sudo apt-get install -y \
-            fp-compiler-3.0.4
+            fp-compiler-3.2.2 \
+            openjdk-17-jdk \
+            openjdk-17-source \
+            dotnet-sdk-7.0
 
       - name: Compile
         run: sbt test:compile

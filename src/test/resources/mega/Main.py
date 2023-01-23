@@ -17,14 +17,14 @@ def send(num_rows, encoded):
 
 def output(num_rows, solution):
     """Outputs the final solution."""
-    for i in xrange(num_rows):
+    for i in range(num_rows):
         print(solution[i])
 
 def main():
     """Driver for the contestant's code."""
     print("%.2f" % mega.solve(1, 2, -3, 4.25, 5.75))
     matrix = [range(NUM_ROWS * row, NUM_ROWS * (row + 1))
-              for row in xrange(NUM_ROWS)]
+              for row in range(NUM_ROWS)]
     print(matrix, file=sys.stderr)
     mega.encode(NUM_ROWS, matrix)
 

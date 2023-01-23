@@ -20,7 +20,7 @@ import transact
 def __readarray(infd, fmt, length):
     "@{'"'}"Reads an array from infd."@{'"'}"
     arr = array.array(fmt)
-    arr.fromstring(infd.read(length))
+    arr.frombytes(infd.read(length))
     return arr
 
 @if(options.transact) {

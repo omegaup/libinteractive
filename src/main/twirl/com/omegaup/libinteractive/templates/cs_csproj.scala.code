@@ -15,7 +15,7 @@
     <Configuration>Release</Configuration>
 }
     <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <TargetFramework>netcoreapp7.0</TargetFramework>
   </PropertyGroup>
 
 </Project>

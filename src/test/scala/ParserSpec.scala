@@ -83,7 +83,7 @@ class ParserSpec extends FlatSpec with Matchers {
 	it should "throw ParseExceptions" in {
 		intercept[ParseException] { parser.parse("""
 				interface Main;""")
-		}.getMessage should be("``{'' expected but `;' found")
+		}.getMessage should be("'`{'' expected but `;' found")
 
 		intercept[ParseException] { parser.parse("""
 			interface Main {
