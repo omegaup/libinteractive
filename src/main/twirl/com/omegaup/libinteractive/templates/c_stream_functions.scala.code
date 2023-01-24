@@ -16,7 +16,7 @@ static void openstream(struct __stream* stream, const char* path, int flags) {
 }
 	stream->fd = open(path, flags | O_BINARY);
 	if (stream->fd == -1) {
-		perror("open");
+		fprintf(stderr, "openstream(%s): %s\n", path, strerror(errno));
 		exit(243);
 	}
 	stream->pos = 0;
@@ -28,7 +28,11 @@ static void closestream(struct __stream* stream) {
 	fprintf(stderr, "Closing `%s'\n", stream->path);
 }
 	if (close(stream->fd) == -1) {
-		perror("close");
+@if(verbose) {
+		fprintf(stderr, "closestream(%s): %s\n", stream->path, strerror(errno));
+} else {
+		fprintf(stderr, "closestream(%d): %s\n", stream->fd, strerror(errno));
+}
 	}
 }
 
