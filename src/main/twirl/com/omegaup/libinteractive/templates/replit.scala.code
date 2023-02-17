@@ -1,0 +1,78 @@
+@import _root_.java.nio.file.Path
+@(message: String, runPath: Path, debugExecutable: Path)
+# @message
+run = ["make", "test"]
+hidden = ["main", "**/*.o", "**/*.d", ".ccls-cache", "Makefile"]
+
+[env]
+PATH = "/home/runner/${REPL_SLUG}/bin"
+
+[nix]
+channel = "stable-22_11"
+
+[gitHubImport]
+requiredFiles = [".replit", "replit.nix", ".ccls-cache"]
+
+[debugger]
+support = true
+
+  [debugger.compile]
+  command = ["make", "all"]
+  noFileArgs = true
+  
+  [debugger.interactive]
+  transport = "stdio"
+  startCommand = ["dap-cpp-wrapper"]
+
+    [debugger.interactive.initializeMessage]
+    command = "initialize"
+    type = "request"
+
+      [debugger.interactive.initializeMessage.arguments]
+      adapterID = "cppdbg"
+      clientID = "replit"
+      clientName = "replit.com"
+      columnsStartAt1 = true
+      linesStartAt1 = true
+      locale = "en-us"
+      pathFormat = "path"
+      supportsInvalidatedEvent = true
+      supportsProgressReporting = true
+      supportsRunInTerminalRequest = true
+      supportsVariablePaging = true
+      supportsVariableType = true
+
+    [debugger.interactive.launchMessage]
+    command = "launch"
+    type = "request"
+
+      [debugger.interactive.launchMessage.arguments]
+      name = "attach"
+      type = "cppdbg"
+      request = "launch"
+      miDebuggerPath = "gdb"
+      MIMode = "gdb"
+      setupCommands = [
+      	{ description = "Set file with debugging symbols", ignoreFailures = false, text = "-interpreter-exec console \"file ./@debugExecutable\"" },
+      	{ description = "Set entrypoint for the debugger", ignoreFailures = false, text = "-interpreter-exec console \"exec-file ./@runPath\"" },
+      	{ description = "Tell gdb to attach to the first program invoked", ignoreFailures = false, text = "-interpreter-exec console \"set detach-on-fork on\"" },
+      	{ description = "Tell gdb to not discard the debugger settings when attaching to the child", ignoreFailures = false, text = "-interpreter-exec console \"set follow-exec-mode same\"" },
+      	{ description = "Ignore the parent after forking", ignoreFailures = false, text = "-interpreter-exec console \"set follow-fork-mode child\"" },
+      	{ description = "Enable pretty-printing for gdb", ignoreFailures = true, text = "-enable-pretty-printing" }
+      ]
+      program = "./@runPath"
+      cwd = "."
+      arg = []
+      # args = []
+      environment = []
+      externalConsole = false
+      logging = {}
+      stopAtEntry = false
+
+[languages]
+
+[languages.cpp]
+pattern = "**/*.{cpp,h}"
+
+[languages.cpp.languageServer]
+start = "ccls"

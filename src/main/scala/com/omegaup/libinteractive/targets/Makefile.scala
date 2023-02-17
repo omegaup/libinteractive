@@ -104,6 +104,10 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 			OutputFile(
 				path = options.rootResolve("replit.nix"),
 				contents = templates.code.replit_nix(message).toString
+			),
+			OutputFile(
+				path = options.rootResolve(".replit"),
+				contents = templates.code.replit(message, runPath = options.relativeToRoot("run"), debugExecutable = rules.find(_.debug).map(_.target).get.find(x => true).get).toString
 			)
 		)
 	}
