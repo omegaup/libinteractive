@@ -1,0 +1,14 @@
+@import _root_.java.nio.file.Path
+@(message: String)
+# @message
+{ pkgs }: {
+	deps = [
+		pkgs.less
+        pkgs.pstree
+        pkgs.strace
+        pkgs.clang_12
+		pkgs.ccls
+		pkgs.gdb
+		pkgs.gnumake
+	];
+}

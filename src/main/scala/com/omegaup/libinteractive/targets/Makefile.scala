@@ -99,6 +99,15 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 		)
 	}
 
+	private def generateReplitProject(extension: String): List[OutputPath] = {
+		List(
+			OutputFile(
+				path = options.rootResolve("replit.nix"),
+				contents = templates.code.replit_nix(message).toString
+			)
+		)
+	}
+
 	private def generateLazarusUnixProject(extension: String): OutputFile = {
 		OutputFile(
 			path = options.rootResolve(s"${options.moduleName}.lpi"),
@@ -128,7 +137,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 	private def generateUnixIdeProject(): Iterable[OutputPath] = {
 		options.childLang match {
 			case "c" => List(generateCodeBlocksUnixProject("c")) ++ generateVSCodeUnixProject("c")
-			case "cpp" => List(generateCodeBlocksUnixProject("cpp")) ++ generateVSCodeUnixProject("cpp")
+			case "cpp" => List(generateCodeBlocksUnixProject("cpp")) ++ generateVSCodeUnixProject("cpp") ++ generateReplitProject("cpp")
 			case "pas" => List(generateLazarusUnixProject("pas"))
 			case _ => List()
 		}
