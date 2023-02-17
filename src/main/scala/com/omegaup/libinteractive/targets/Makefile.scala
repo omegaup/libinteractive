@@ -101,6 +101,13 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 
 	private def generateReplitProject(extension: String): List[OutputPath] = {
 		List(
+			OutputDirectory(
+				path = options.rootResolve("bin")
+			),
+			OutputFile(
+				path = options.rootResolve("bin/dap-cpp-wrapper"),
+				contents = templates.code.replit_dap_cpp_wrapper(message).toString
+			),
 			OutputFile(
 				path = options.rootResolve("replit.nix"),
 				contents = templates.code.replit_nix(message).toString
