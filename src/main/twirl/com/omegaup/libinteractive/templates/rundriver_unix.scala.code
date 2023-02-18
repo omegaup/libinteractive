@@ -3,7 +3,7 @@
 @import com.omegaup.libinteractive.target.ExecDescription
 @import com.omegaup.libinteractive.target.Target
 @import com.omegaup.libinteractive.target.Options
-@(target: Target, options: Options, message: String, idl: IDL, commands: Iterable[ExecDescription], numProcesses: Int, maxNameLength: Int, maxCommandLength: Int, maxDebugCommandLength: Int, maxEnvLength: Int)
+@(target: Target, options: Options, message: String, idl: IDL, commands: List[ExecDescription], numProcesses: Int, maxNameLength: Int, maxCommandLength: Int, maxDebugCommandLength: Int, maxEnvLength: Int)
 /* @message */
 #include <errno.h>
 #include <fcntl.h>
@@ -50,24 +50,24 @@ static const char* transactNames[] = {
 };
 } else {
 static const char* pipeNames[] = {
-	@idl.interfaces.flatMap(interface => List(
+	@idl.interfaces.reverse.flatMap(interface => List(
 		'"' + target.pipeFilename(interface, interface, true) + '"',
 		'"' + target.pipeFilename(interface, interface, false) + '"'
 	)).mkString(", ")
 };
 }
 static char* const commands[][@maxCommandLength] = {
-@for(command <- commands) {
+@for(command <- commands.reverse) {
 	{ @command.args.map('"' + _ + '"').padTo(maxCommandLength, "NULL").mkString(", ") },
 }
 };
 static char* const debug_commands[][@maxDebugCommandLength] = {
-@for(command <- commands) {
+@for(command <- commands.reverse) {
 	{ @command.debug_args.getOrElse(command.args).map('"' + _ + '"').padTo(maxDebugCommandLength, "NULL").mkString(", ") },
 }
 };
 static char* const envs[][@maxEnvLength] = {
-@for(command <- commands) {
+@for(command <- commands.reverse) {
 	{ @command.env.map(env => {'"' + env._1 + '=' + env._2 + '"'}).toList.padTo(maxEnvLength, "NULL").mkString(", ") },
 }
 };
@@ -121,8 +121,8 @@ static void execute(size_t i, int input_fd, bool debug) {
 		close(localpipes[1]);
 		close(localpipes[3]);
 
-		// Close stdin except for the first program.
-		if (i == 0) {
+		// Close stdin except for the last program.
+		if (i == NUM_PROCESSES - 1) {
 			if (dup2(input_fd, 0) == -1) {
 				print_error("dup2");
 			}
@@ -140,7 +140,7 @@ static void execute(size_t i, int input_fd, bool debug) {
 			}
 		} else {
 			if (execve(debug_commands[i][0], debug_commands[i], envs[i]) == -1) {
-				print_error("execve %s", commands[i][0]);
+				print_error("execve %s", debug_commands[i][0]);
 				_exit(1);
 			}
 		}
