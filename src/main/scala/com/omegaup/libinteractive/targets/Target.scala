@@ -15,6 +15,7 @@ import java.nio.file.Files
 import java.nio.file.LinkOption
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.attribute.PosixFilePermission
 import java.util.Random
 import java.util.TimeZone
 import java.util.zip.ZipEntry
@@ -24,6 +25,7 @@ import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.apache.commons.compress.archivers.tar.TarConstants
 
+import scala.collection.JavaConverters._
 import scala.collection.JavaConversions.asJavaIterable
 import scala.collection.mutable.MutableList
 
@@ -171,7 +173,7 @@ case class Options(
 abstract class OutputPath(val path: Path)
 case class OutputDirectory(override val path: Path) extends OutputPath(path)
 case class OutputFile(override val path: Path,
-	val contents: String)	extends OutputPath(path)
+	val contents: String, val permissions: java.util.Set[PosixFilePermission] = null) extends OutputPath(path)
 case class OutputLink(override val path: Path, val target: Path)
 		extends OutputPath(path)
 
@@ -185,6 +187,9 @@ class InstallVisitor {
 
 		case file: OutputFile => {
 			Files.write(file.path, List(file.contents), StandardCharsets.UTF_8)
+			if (file.permissions != null) {
+				Files.setPosixFilePermissions(file.path, file.permissions)
+			}
 		}
 
 		case link: OutputLink => { 
@@ -221,6 +226,9 @@ class CompressedTarballVisitor(installPath: Path, tgzFilename: Path)
 			entry.setUserId(1000)
 			entry.setUserName("omegaup")
 			entry.setModTime(System.currentTimeMillis)
+			if (file.permissions != null) {
+				entry.setMode(this.toMode(file.permissions))
+			}
 			tar.putArchiveEntry(entry)
 			tar.write(bytes, 0, bytes.length)
 			tar.closeArchiveEntry
@@ -241,6 +249,24 @@ class CompressedTarballVisitor(installPath: Path, tgzFilename: Path)
 
 	override def close() = {
 		tar.close
+	}
+
+	def toMode(permissions: java.util.Set[PosixFilePermission]) = {
+		var sum = 0
+		for (permission <- permissions.asScala) {
+			sum |= (permission match {
+				case PosixFilePermission.OWNER_READ => (1 << 8)
+				case PosixFilePermission.OWNER_WRITE => (1 << 7)
+				case PosixFilePermission.OWNER_EXECUTE => (1 << 6)
+				case PosixFilePermission.GROUP_READ => (1 << 5)
+				case PosixFilePermission.GROUP_WRITE => (1 << 4)
+				case PosixFilePermission.GROUP_EXECUTE => (1 << 3)
+				case PosixFilePermission.OTHERS_READ => (1 << 2)
+				case PosixFilePermission.OTHERS_WRITE => (1 << 1)
+				case PosixFilePermission.OTHERS_EXECUTE => 1
+			})
+		}
+		sum
 	}
 }
 

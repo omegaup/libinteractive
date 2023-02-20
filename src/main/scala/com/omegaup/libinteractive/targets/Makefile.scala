@@ -6,6 +6,7 @@ package com.omegaup.libinteractive.target
 
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.attribute.PosixFilePermissions
 
 import com.omegaup.libinteractive.idl.IDL
 import com.omegaup.libinteractive.idl.Interface
@@ -106,7 +107,8 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 			),
 			OutputFile(
 				path = options.rootResolve("bin/dap-cpp-wrapper"),
-				contents = templates.code.replit_dap_cpp_wrapper(message).toString
+				contents = templates.code.replit_dap_cpp_wrapper(message).toString,
+				permissions = PosixFilePermissions.fromString("rwxr-xr-x")
 			),
 			OutputFile(
 				path = options.rootResolve("replit.nix"),
