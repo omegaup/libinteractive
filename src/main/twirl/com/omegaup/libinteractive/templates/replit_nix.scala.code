@@ -4,9 +4,9 @@
 { pkgs }: {
 	deps = [
 		pkgs.less
-        pkgs.pstree
-        pkgs.strace
-        pkgs.clang_12
+		pkgs.pstree
+		pkgs.strace
+		pkgs.clang_12
 		pkgs.ccls
 		pkgs.gdb
 		pkgs.gnumake
