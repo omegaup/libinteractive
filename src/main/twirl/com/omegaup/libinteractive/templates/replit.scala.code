@@ -54,7 +54,8 @@ support = true
       MIMode = "gdb"
       setupCommands = [
       	{ description = "Set file with debugging symbols", ignoreFailures = false, text = "-interpreter-exec console \"file ./@debugExecutable\"" },
-      	{ description = "Set entrypoint for the debugger", ignoreFailures = false, text = "-interpreter-exec console \"exec-file ./@runPath\"" },
+      	{ description = "Set example file as argument", ignoreFailures = false, text = "-interpreter-exec console \"set args 'examples/sample.in'\"" },
+        { description = "Set entrypoint for the debugger", ignoreFailures = false, text = "-interpreter-exec console \"exec-file ./@runPath\"" },
       	{ description = "Tell gdb to attach to the first program invoked", ignoreFailures = false, text = "-interpreter-exec console \"set detach-on-fork on\"" },
       	{ description = "Tell gdb to not discard the debugger settings when attaching to the child", ignoreFailures = false, text = "-interpreter-exec console \"set follow-exec-mode same\"" },
       	{ description = "Ignore the parent after forking", ignoreFailures = false, text = "-interpreter-exec console \"set follow-fork-mode child\"" },

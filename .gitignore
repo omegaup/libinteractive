@@ -5,3 +5,4 @@ target/
 .tests
 *~
 *.swp
+.DS_Store
