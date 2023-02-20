@@ -5,8 +5,10 @@
 import com.omegaup.libinteractive.target._
 import com.omegaup.libinteractive.idl.Parser
 
-import java.io.IOException
 import java.io.BufferedReader
+import java.io.ByteArrayOutputStream
+import java.io.IOException
+import java.io.InputStream
 import java.io.InputStreamReader
 import java.nio.charset.Charset
 import java.nio.file.attribute.BasicFileAttributes
@@ -16,9 +18,10 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.SimpleFileVisitor
 
-import scala.io.Source
-import scala.collection.mutable.ListBuffer
 import scala.collection.JavaConversions.asJavaIterable
+import scala.collection.mutable.ListBuffer
+import scala.io.Source
+import scala.util.control.Breaks._
 import org.scalatest._
 
 object Transact extends Tag("com.omegaup.libinteractive.Transact")
@@ -36,6 +39,10 @@ class TargetSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
 
 	val transactSupportedLanguages =
 			Set("c", "cpp", "java", "py", "cs")
+
+	val CONTROL_LIMIT = ' '
+	val PRINTABLE_LIMIT = '\u007e'
+	val HEX_DIGITS = Array[Char]('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f')
 
 	override def beforeAll() = {
 		if (Files.exists(testRoot)) {
@@ -69,7 +76,7 @@ class TargetSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
 		deployPath
 	}
 
-  def run(parentLang: String, childLang: String, path: Path, output: String,
+  def run(parentLang: String, childLang: String, path: Path, expectedOutput: String,
 			optionsTemplate: Options = Options()) = {
 		val moduleName = path.getName(path.getNameCount - 1).toString
 		val idlFile = deploy(path.resolve(s"$moduleName.idl"))
@@ -103,16 +110,27 @@ class TargetSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
 			"/usr/bin/make", "-s", "run", "-C", root.toString
 		))
 
-		val reader = new BufferedReader(new InputStreamReader(process.getInputStream))
-		val lines = ListBuffer.empty[String]
-		var line: String = null
-		while ( { line = reader.readLine ; line != null } ) {
-			lines += line
-		}
+		val readStream: (InputStream) => String = (inputStream) => {
+			val result = new ByteArrayOutputStream()
+			val buffer = Array.fill[Byte](1024)(0)
+
+			breakable {
+				while (true) {
+					val length = inputStream.read(buffer)
+					if (length == -1) break
+					result.write(buffer, 0, length)
+				}
+			}
+			result.toString("UTF-8").trim()
+		};
+		val stdout = readStream(process.getInputStream)
+		val stderr = readStream(process.getErrorStream)
 
 		withClue(root.toString) {
-			lines.mkString("\n") should equal (output)
-			process.waitFor should be (0)
+			val exitStatus = process.waitFor
+			if (stdout != expectedOutput || exitStatus != 0) {
+				fail(s"expected: ${repr(expectedOutput)} got: ${repr(stdout)}.\nexit status: ${exitStatus}.\nstderr: ${stderr}")
+			}
 		}
 	}
 
@@ -147,6 +165,51 @@ class TargetSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
 		for (lang <- childLanguages.filter(transactSupportedLanguages)) {
 			run("c", lang, directory, output, Options(generateTemplate = true, verbose = true, transact = true))
 		}
+	}
+
+	def repr(source: String): String = {
+		if (source == null) return null
+
+		val sb = new StringBuilder()
+		val limit = source.length()
+		var hexbuf: Array[Char] = null
+
+		var pointer = 0
+
+		sb.append('"')
+
+		while (pointer < limit) {
+			val ch = source.charAt(pointer)
+			pointer += 1
+
+			ch match {
+				case '\u0000' => sb.append("\\0")
+				case '\t' => sb.append("\\t")
+				case '\n' => sb.append("\\n")
+				case '\r' => sb.append("\\r")
+				case '\"' => sb.append("\\\"")
+				case '\\' => sb.append("\\\\")
+				case ch if CONTROL_LIMIT <= ch && ch <= PRINTABLE_LIMIT => sb.append(ch)
+				case _ => {
+					sb.append("\\u")
+
+					if (hexbuf == null)
+						hexbuf = Array.fill[Char](4)(0)
+
+					var offs = 4
+					var codepoint = ch.asInstanceOf[Int]
+					do {
+						hexbuf(offs) = HEX_DIGITS(codepoint & 0xf)
+						codepoint >>>= 4
+						offs -= 1
+					} while(offs > 0)
+
+					sb.append(hexbuf, 0, 4)
+				}
+			}
+		}
+
+		return sb.append('"').toString()
 	}
 }
 
