@@ -18,9 +18,9 @@ import java.nio.file.Paths
 import java.nio.file.attribute.PosixFilePermission
 import java.util.Random
 import java.util.TimeZone
-import java.util.zip.ZipEntry
-import java.util.zip.ZipOutputStream
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
+import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.apache.commons.compress.archivers.tar.TarConstants
@@ -173,7 +173,19 @@ case class Options(
 abstract class OutputPath(val path: Path)
 case class OutputDirectory(override val path: Path) extends OutputPath(path)
 case class OutputFile(override val path: Path,
-	val contents: String, val permissions: java.util.Set[PosixFilePermission] = null) extends OutputPath(path)
+	val contents: String, val permissions: java.util.Set[PosixFilePermission] = null) extends OutputPath(path) {
+	def getUnixPermissionMode() = this.permissions.asScala.foldLeft(0)((mode: Int, permission) => mode | (permission match {
+			case PosixFilePermission.OWNER_READ => (1 << 8)
+			case PosixFilePermission.OWNER_WRITE => (1 << 7)
+			case PosixFilePermission.OWNER_EXECUTE => (1 << 6)
+			case PosixFilePermission.GROUP_READ => (1 << 5)
+			case PosixFilePermission.GROUP_WRITE => (1 << 4)
+			case PosixFilePermission.GROUP_EXECUTE => (1 << 3)
+			case PosixFilePermission.OTHERS_READ => (1 << 2)
+			case PosixFilePermission.OTHERS_WRITE => (1 << 1)
+			case PosixFilePermission.OTHERS_EXECUTE => 1
+		}))
+	}
 case class OutputLink(override val path: Path, val target: Path)
 		extends OutputPath(path)
 
@@ -227,7 +239,7 @@ class CompressedTarballVisitor(installPath: Path, tgzFilename: Path)
 			entry.setUserName("omegaup")
 			entry.setModTime(System.currentTimeMillis)
 			if (file.permissions != null) {
-				entry.setMode(this.toMode(file.permissions))
+				entry.setMode(file.getUnixPermissionMode)
 			}
 			tar.putArchiveEntry(entry)
 			tar.write(bytes, 0, bytes.length)
@@ -251,28 +263,11 @@ class CompressedTarballVisitor(installPath: Path, tgzFilename: Path)
 		tar.close
 	}
 
-	def toMode(permissions: java.util.Set[PosixFilePermission]) = {
-		var sum = 0
-		for (permission <- permissions.asScala) {
-			sum |= (permission match {
-				case PosixFilePermission.OWNER_READ => (1 << 8)
-				case PosixFilePermission.OWNER_WRITE => (1 << 7)
-				case PosixFilePermission.OWNER_EXECUTE => (1 << 6)
-				case PosixFilePermission.GROUP_READ => (1 << 5)
-				case PosixFilePermission.GROUP_WRITE => (1 << 4)
-				case PosixFilePermission.GROUP_EXECUTE => (1 << 3)
-				case PosixFilePermission.OTHERS_READ => (1 << 2)
-				case PosixFilePermission.OTHERS_WRITE => (1 << 1)
-				case PosixFilePermission.OTHERS_EXECUTE => 1
-			})
-		}
-		sum
-	}
 }
 
 class ZipVisitor(installPath: Path, zipFilename: Path, shiftTimeZone: Boolean)
 		extends ArchiveVisitor(installPath) {
-	val zip = new ZipOutputStream(new FileOutputStream(zipFilename.toFile))
+	val zip = new ZipArchiveOutputStream(new FileOutputStream(zipFilename.toFile))
 	val curTz = TimeZone.getDefault
 	val gmtNeg12  = TimeZone.getTimeZone("GMT-12")
 	val timestamp = System.currentTimeMillis
@@ -287,14 +282,14 @@ class ZipVisitor(installPath: Path, zipFilename: Path, shiftTimeZone: Boolean)
 
 	override def apply(outputPath: OutputPath) = outputPath match {
 		case dir: OutputDirectory => {
-			val entry = new ZipEntry(dir.path.toString + "/")
+			val entry = new ZipArchiveEntry(dir.path.toString + "/")
 			entry.setTime(getTime)
-			zip.putNextEntry(entry)
-			zip.closeEntry
+			zip.putArchiveEntry(entry)
+			zip.closeArchiveEntry
 		}
 
 		case file: OutputFile => {
-			val entry = new ZipEntry(file.path.toString)
+			val entry = new ZipArchiveEntry(file.path.toString)
 			val bytes = new ByteArrayOutputStream
 			val writer = new OutputStreamWriter(bytes, StandardCharsets.UTF_8)
 			var lastChar = '\u0000'
@@ -309,9 +304,12 @@ class ZipVisitor(installPath: Path, zipFilename: Path, shiftTimeZone: Boolean)
 			val rawBytes = bytes.toByteArray
 			entry.setSize(rawBytes.length)
 			entry.setTime(getTime)
-			zip.putNextEntry(entry)
+			if (file.permissions != null) {
+				entry.setUnixMode(file.getUnixPermissionMode)
+			}
+			zip.putArchiveEntry(entry)
 			zip.write(rawBytes, 0, rawBytes.length)
-			zip.closeEntry
+			zip.closeArchiveEntry
 		}
 	}
 
