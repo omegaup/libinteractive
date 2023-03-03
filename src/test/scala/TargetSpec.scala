@@ -22,9 +22,12 @@ import scala.collection.JavaConversions.asJavaIterable
 import scala.collection.mutable.ListBuffer
 import scala.io.Source
 import scala.util.control.Breaks._
+
 import org.scalatest._
-import org.scalatest.prop._
+import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.prop.Tables.Table
+import org.scalatest.prop._
+import org.scalatest.time.SpanSugar._
 import matchers._
 
 object Transact extends Tag("com.omegaup.libinteractive.Transact")
@@ -162,7 +165,7 @@ trait RunMatchers {
 	def languagePair(parent: String, child: String) = new LanguagePair(parent, child)
 }
 
-class TargetSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TableDrivenPropertyChecks with RunMatchers {
+class TargetSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TableDrivenPropertyChecks with RunMatchers with TimeLimitedTests {
 	val parentLanguages = Table("cpp", "java", "py")
 
 	val childLanguages =
@@ -192,6 +195,8 @@ class TargetSpec extends FlatSpec with Matchers with BeforeAndAfterAll with Tabl
 		}
 		Files.createDirectory(testRoot)
 	}
+
+	def timeLimit = 60 seconds
 
 	"libinteractive" should "support multi-process targets" in {
 		val directory = Paths.get("mega")
