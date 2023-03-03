@@ -1,0 +1,6 @@
+@import _root_.java.nio.file.Path
+@(message: String)
+#!/usr/bin/env bash
+# @message
+
+HOME=/home/runner/${REPL_SLUG} exec dap-cpp "$@@"

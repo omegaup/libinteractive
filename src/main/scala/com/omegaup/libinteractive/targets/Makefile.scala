@@ -6,6 +6,7 @@ package com.omegaup.libinteractive.target
 
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.attribute.PosixFilePermissions
 
 import com.omegaup.libinteractive.idl.IDL
 import com.omegaup.libinteractive.idl.Interface
@@ -99,6 +100,27 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 		)
 	}
 
+	private def generateReplitProject(extension: String): List[OutputPath] = {
+		List(
+			OutputDirectory(
+				path = options.rootResolve("bin")
+			),
+			OutputFile(
+				path = options.rootResolve("bin/dap-cpp-wrapper"),
+				contents = templates.code.replit_dap_cpp_wrapper(message).toString,
+				permissions = PosixFilePermissions.fromString("rwxr-xr-x")
+			),
+			OutputFile(
+				path = options.rootResolve("replit.nix"),
+				contents = templates.code.replit_nix(message).toString
+			),
+			OutputFile(
+				path = options.rootResolve(".replit"),
+				contents = templates.code.replit(message, runPath = options.relativeToRoot("run"), debugExecutable = rules.find(_.debug).map(_.target).get.find(x => true).get).toString
+			)
+		)
+	}
+
 	private def generateLazarusUnixProject(extension: String): OutputFile = {
 		OutputFile(
 			path = options.rootResolve(s"${options.moduleName}.lpi"),
@@ -128,7 +150,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 	private def generateUnixIdeProject(): Iterable[OutputPath] = {
 		options.childLang match {
 			case "c" => List(generateCodeBlocksUnixProject("c")) ++ generateVSCodeUnixProject("c")
-			case "cpp" => List(generateCodeBlocksUnixProject("cpp")) ++ generateVSCodeUnixProject("cpp")
+			case "cpp" => List(generateCodeBlocksUnixProject("cpp")) ++ generateVSCodeUnixProject("cpp") ++ generateReplitProject("cpp")
 			case "pas" => List(generateLazarusUnixProject("pas"))
 			case _ => List()
 		}
@@ -214,7 +236,7 @@ class Makefile(idl: IDL, rules: Iterable[MakefileRule],
 	}
 
 	private def generateRunDriver() = {
-		val rundriver = templates.code.rundriver_unix(this, options, message, idl, commands,
+		val rundriver = templates.code.rundriver_unix(this, options, message, idl, commands.toList,
 			numProcesses = commands.foldLeft(0)((length, _) => length + 1),
 			maxCommandLength = commands.foldLeft(0)((length, exec) =>
 				Math.max(length, exec.args.length)) + 1,

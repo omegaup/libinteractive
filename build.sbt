@@ -71,7 +71,7 @@ Compile / packageBin / mappings ++= Seq(
 
 libraryDependencies ++= Seq(
 	"com.github.scopt" %% "scopt" % "3.7.1",
-	"org.apache.commons" % "commons-compress" % "1.8.1",
+	"org.apache.commons" % "commons-compress" % "1.22",
 	"org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.7",
 	"org.scalatest" %% "scalatest" % "3.0.4" % "test"
 )
